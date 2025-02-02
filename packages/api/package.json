@@ -1,0 +1,17 @@
+{
+  "name": "@repo/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.9"
+  },
+  "peerDependencies": {
+    "zod": "^3.24.1"
+  }
+}
