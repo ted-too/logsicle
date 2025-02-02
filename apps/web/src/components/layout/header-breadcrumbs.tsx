@@ -6,17 +6,21 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { usePathname } from "next/navigation";
-
-const BREADCRUMBS = [
-  {
-    title: "Events",
-    path: "/dashboard/events",
-  },
-];
+import { useLocation } from "@tanstack/react-router";
 
 export function HeaderBreadcrumbs() {
-  const pathname = usePathname();
+  const pathname = useLocation({
+    select: (location) => location.pathname,
+  });
+
+  const BREADCRUMBS = pathname
+    .split("/")
+    .slice(0, 1)
+    .filter(Boolean)
+    .map((path, i, arr) => ({
+      href: `/${arr.slice(0, i + 1).join("/")}`,
+      title: path,
+    }));
 
   return (
     <Breadcrumb>
@@ -24,12 +28,12 @@ export function HeaderBreadcrumbs() {
         <BreadcrumbItem>
           <BreadcrumbLink href="/">Home</BreadcrumbLink>
         </BreadcrumbItem>
-        <BreadcrumbSeparator />
+        {BREADCRUMBS.length > 0 && <BreadcrumbSeparator />}
         <BreadcrumbItem>
           {BREADCRUMBS.map(
             (crumb) =>
-              crumb.path === pathname && (
-                <BreadcrumbLink key={crumb.path} href={crumb.path}>
+              crumb.href === pathname && (
+                <BreadcrumbLink key={crumb.href} href={crumb.href}>
                   {crumb.title}
                 </BreadcrumbLink>
               )

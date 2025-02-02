@@ -30,6 +30,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, queueService *queue.QueueService, 
 	v1Authd.Use(middleware.AuthMiddleware(cfg, db))
 	{
 		v1Authd.Get("/me", baseHandler.getUserHandler)
+		v1Authd.Patch("/me", baseHandler.updateUserHandler)
 
 		// Project routes
 		v1Authd.Post("/projects", baseHandler.createProject)

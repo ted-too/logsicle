@@ -1,4 +1,5 @@
-import { Opts } from "..";
+import { z } from "zod";
+import type { ErrorResponse, FnResponse, Opts } from "..";
 
 export interface User {
   id: string;
@@ -17,7 +18,10 @@ export async function getUser({
   ...opts
 }: Opts): Promise<User | null> {
   try {
-    const res = await fetch(`${baseURL}/api/v1/me`, opts);
+    const res = await fetch(`${baseURL}/api/v1/me`, {
+      credentials: "include",
+      ...opts,
+    });
 
     if (!res.ok) return null;
 
@@ -27,4 +31,45 @@ export async function getUser({
   } catch (error) {
     return null;
   }
+}
+
+export const updateUserSchema = z.object({
+  name: z.string().min(1, "Name is required").optional(),
+  has_onboarded: z.boolean().optional(),
+});
+
+export type UpdateUserRequest = z.infer<typeof updateUserSchema>;
+
+export async function updateUser(
+  input: UpdateUserRequest,
+  { baseURL, ...opts }: Opts
+): Promise<FnResponse<User>> {
+  const res = await fetch(`${baseURL}/api/v1/me`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    ...opts,
+  });
+
+  let resJSON: unknown | undefined = undefined;
+  try {
+    resJSON = await res.json();
+  } catch (error) {
+    return {
+      data: null,
+      error: {
+        message: "Failed to update user",
+        error: "Failed to parse JSON response",
+      },
+    };
+  }
+
+  if (!res.ok) {
+    return { data: null, error: resJSON as ErrorResponse };
+  }
+
+  return { data: resJSON as User, error: null };
 }

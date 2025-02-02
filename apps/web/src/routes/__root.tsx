@@ -10,7 +10,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     component: () => (
       <>
         <Outlet />
-        <TanStackRouterDevtools />
+        <TanStackRouterDevtools position="bottom-right" />
       </>
     ),
   }

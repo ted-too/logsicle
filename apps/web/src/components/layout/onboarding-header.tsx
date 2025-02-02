@@ -24,7 +24,7 @@ export function OnboardingHeader({ user }: { user: User }) {
       <div className="mx-auto flex w-full max-w-[960px] items-center justify-between">
         <span className="text-sm font-semibold">Getting Started</span>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger className="cursor-pointer" asChild>
             <Button
               variant={"ghost"}
               size={"sm"}

@@ -1,9 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/auth/sign-out')({
-  component: RouteComponent,
-})
-
-function RouteComponent() {
-  return <div>Hello "/auth/sign-out"!</div>
-}
+export const Route = createFileRoute("/auth/sign-out")({
+  beforeLoad: () => {
+    window.location.href = `${import.meta.env.PUBLIC_API_URL}/api/v1/auth/sign-out`;
+  },
+});

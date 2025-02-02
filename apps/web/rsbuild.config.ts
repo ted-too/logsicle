@@ -9,7 +9,4 @@ export default defineConfig({
       plugins: [TanStackRouterRspack({ autoCodeSplitting: true })],
     },
   },
-  // module: {
-  //   defineRules: [{ test: /\.css$/, use: ["postcss-loader"], type: "css" }],
-  // },
 });

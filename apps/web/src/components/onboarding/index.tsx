@@ -13,7 +13,6 @@ import { useState } from "react";
 import { GenAPIKey } from "./gen-api-key";
 import { SetupProject } from "./setup-project";
 import { TestAPIKey } from "./test-api-key";
-import { useRouter } from "@tanstack/react-router";
 
 const STEPS = [
   {
@@ -36,7 +35,6 @@ const STEPS = [
 ];
 
 export function MainOnboardingForm() {
-  const router = useRouter();
   const { data: initialData } = projectsQueries.list.useSuspenseQuery();
   let initialStep = 0;
   if (initialData.length > 0) {
@@ -44,16 +42,13 @@ export function MainOnboardingForm() {
     if (initialData[0].api_keys && initialData[0].api_keys.length > 0)
       initialStep += 1;
   }
+
   const [activeStep, setActiveStep] = useState(initialStep);
   const [currentStep, setCurrentStep] = useState(initialStep);
 
-  const nextStep = () => {
-    if (activeStep + 1 >= STEPS.length) {
-      router.navigate({ to: "/dashboard" });
-    } else {
-      setActiveStep((prev) => prev + 1);
-      setCurrentStep((prev) => prev + 1);
-    }
+  const nextStep = async () => {
+    setActiveStep((prev) => (prev + 1 < STEPS.length ? prev + 1 : prev));
+    setCurrentStep((prev) => (prev + 1 < STEPS.length ? prev + 1 : prev));
   };
   const prevStep = () => {
     setActiveStep((prev) => (prev - 1 >= 0 ? prev - 1 : prev));
@@ -62,13 +57,13 @@ export function MainOnboardingForm() {
 
   return (
     <div className="mt-16 flex flex-col gap-8">
-      <div className="relative mx-3.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-[#E1FF80]/40 text-pink/40 after:absolute after:top-[calc(100%+1px)] after:h-8 after:w-px after:bg-[hsl(74,100,40)]">
+      <div className="relative mx-3.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-[#E1FF80]/40 text-pink/40 after:absolute after:top-[calc(100%+1px)] after:h-8 after:w-px after:bg-[hsl(74,100%,40%)]">
         <ZapIcon className="size-5 fill-current stroke-none" />
       </div>
       <Accordion
         type="single"
         collapsible
-        className="flex flex-col gap-8 [&>div:not(:last-child)]:relative [&>div:not(:last-child)]:after:absolute [&>div:not(:last-child)]:after:left-8 [&>div:not(:last-child)]:after:top-[calc(100%+1px)] [&>div:not(:last-child)]:after:h-8 [&>div:not(:last-child)]:after:w-px [&>div:not(:last-child)]:after:bg-[hsl(74,100,40)]"
+        className="flex flex-col gap-8 [&>div:not(:last-child)]:relative [&>div:not(:last-child)]:after:absolute [&>div:not(:last-child)]:after:left-8 [&>div:not(:last-child)]:after:top-[calc(100%+1px)] [&>div:not(:last-child)]:after:h-8 [&>div:not(:last-child)]:after:w-px [&>div:not(:last-child)]:after:bg-[hsl(74,100%,40%)]"
         value={`step-${currentStep}`}
         onValueChange={(v) => setCurrentStep(Number(v.split("-")[1]))}
       >
@@ -77,8 +72,8 @@ export function MainOnboardingForm() {
             key={`step-${i}`}
             value={`step-${i}`}
             className={cn(
-              "border border-border p-6",
-              activeStep === i && "border-[hsl(74,100,40)]"
+              "border p-6",
+              activeStep === i && "border-[hsl(74,100%,40%)]"
             )}
           >
             <AccordionTrigger className="p-0" disabled={activeStep < i}>

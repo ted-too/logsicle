@@ -7,10 +7,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { userQueries } from "@/qc/queries/auth";
+import { useRouter } from "@tanstack/react-router";
 import { Check, Copy, TerminalIcon } from "lucide-react";
 import { useState } from "react";
 import { githubGist } from "react-syntax-highlighter/dist/esm/styles/hljs";
-import { Button } from "../ui/button";
+import { ActionButton } from "@/components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
 
 const CURL_CODE = `curl -sX POST \
     -H "Content-Type: application/json" \
@@ -37,11 +40,10 @@ const TABS = [
   },
 ];
 
-export function TestAPIKey({
-  steps,
-}: {
-  steps: { next: () => void; prev: () => void };
-}) {
+export function TestAPIKey() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { mutateAsync, isPending } = userQueries.update();
   const [copied, setCopied] = useState<boolean>(false);
 
   const handleCopy = (value: string) => {
@@ -49,6 +51,14 @@ export function TestAPIKey({
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+
+  async function handleFinish() {
+    await mutateAsync({ has_onboarded: true });
+    await queryClient.refetchQueries({
+      queryKey: userQueries.getUserQueryOptions.queryKey,
+    });
+    router.navigate({ to: "/dashboard" });
+  }
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -116,13 +126,14 @@ export function TestAPIKey({
           </TabsContent>
         ))}
       </Tabs>
-      <Button
+      <ActionButton
         variant="caribbean"
         className="mt-4 w-20"
-        onClick={() => steps.next()}
+        onClick={async () => await handleFinish()}
+        isLoading={isPending}
       >
         Finish
-      </Button>
+      </ActionButton>
     </div>
   );
 }

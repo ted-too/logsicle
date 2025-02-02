@@ -1,42 +1,67 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User } from "@repo/api";
-import Link from "next/link";
-import { HeaderBreadcrumbs } from "./header-breadcrumbs";
-import { LogOut } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { projectsQueries } from "@/qc/queries/projects";
+import { useParams, useRouter } from "@tanstack/react-router";
+import { ChevronsUpDownIcon, PlusIcon } from "lucide-react";
+import { Skeleton } from "../ui/skeleton";
+import { HeaderBreadcrumbs } from "./header-breadcrumbs";
 
-export function AppHeader({ user }: { user: User }) {
-  const displayName = user.name !== "" ? user.name : user.email;
-  const avatarFallback = displayName
-    .split(" ")
-    .map((n) => n[0])
-    .join("");
+export function AppHeader() {
+  const router = useRouter();
+  const { data, isPending } = projectsQueries.list.useQuery();
+  const { projId } = useParams({ strict: false });
+  const currentProject = data?.find((p) => p.id === projId);
+
   return (
-    <TooltipProvider>
-      <div className="w-full border-border border-b p-4 h-16 flex items-center justify-between">
-        {user.has_onboarded ?  <HeaderBreadcrumbs /> : <span className="font-semibold text-lg">Setup your first project</span>}
-        <div className="flex items-center gap-4">
-          <Avatar>
-            <AvatarFallback className="uppercase">{avatarFallback}</AvatarFallback>
-          </Avatar>
-          <span className="text-sm">{displayName}</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link href="/auth/sign-out" aria-label="sign out">
-                <LogOut className="size-4" />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs p-1.5">
-              <p>Logout</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-    </TooltipProvider>
+    <div className="flex h-12 px-4 w-full justify-between items-center border-b border-border">
+      <HeaderBreadcrumbs />
+      <DropdownMenu>
+        <DropdownMenuTrigger className="flex gap-4 items-center justify-between cursor-pointer h-8 px-3 border-none bg-accent/50 hover:bg-accent/75 text-xs rounded-lg shadow-none">
+          {currentProject ? currentProject.name : "Select project"}
+          <ChevronsUpDownIcon className="h-3 w-3 opacity-50" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
+          <DropdownMenuLabel className="font-light text-muted-foreground text-xs">
+            Projects
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={projId}
+            onValueChange={(v) => router.navigate({ to: `/dashboard/${v}` })}
+          >
+            {isPending || !data ? (
+              <>
+                <Skeleton className="h-4 w-[calc(100%-1rem)] my-1.5 mx-auto" />
+                <Skeleton className="h-4 w-[calc(100%-1rem)] my-1.5 mx-auto" />
+              </>
+            ) : (
+              data.map((p) => (
+                <DropdownMenuRadioItem
+                  key={p.id}
+                  value={p.id}
+                  className="font-base text-xs"
+                >
+                  {p.name}
+                </DropdownMenuRadioItem>
+              ))
+            )}
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="font-base justify-between text-xs [&>svg]:size-3">
+            Create <PlusIcon />
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

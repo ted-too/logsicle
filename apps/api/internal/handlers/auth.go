@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -153,8 +154,61 @@ func (g *BaseHandler) getUserHandler(c fiber.Ctx) error {
 		})
 	}
 
+	fmt.Printf("Logto ID: %s\n", logtoID)
+
 	var user models.User
 	g.DB.WithContext(c.Context()).Model(&models.User{}).Where(&models.User{LogtoID: logtoID}).First(&user)
+
+	return c.JSON(user)
+}
+
+type updateUserRequest struct {
+	Name         *string `json:"name"`
+	HasOnboarded *bool   `json:"has_onboarded"`
+}
+
+func (g *BaseHandler) updateUserHandler(c fiber.Ctx) error {
+	logtoID, ok := c.Locals("logto-id").(string)
+	if !ok {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to get user ID",
+		})
+	}
+
+	// Parse request body
+	input := new(updateUserRequest)
+	if err := c.Bind().JSON(input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	// Get existing user
+	var user models.User
+	result := g.DB.WithContext(c.Context()).Model(&models.User{}).Where(&models.User{LogtoID: logtoID}).First(&user)
+	if result.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to get user",
+			"error":   result.Error.Error(),
+		})
+	}
+
+	// Update fields if provided
+	if input.Name != nil {
+		user.Name = *input.Name
+	}
+	if input.HasOnboarded != nil {
+		user.HasOnboarded = *input.HasOnboarded
+	}
+
+	// Save updates
+	if err := g.DB.WithContext(c.Context()).Save(&user).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to update user",
+			"error":   err.Error(),
+		})
+	}
 
 	return c.JSON(user)
 }

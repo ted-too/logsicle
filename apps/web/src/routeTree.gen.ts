@@ -15,8 +15,15 @@ import { Route as AuthdImport } from './routes/_authd'
 import { Route as IndexImport } from './routes/index'
 import { Route as AuthSignOutImport } from './routes/auth/sign-out'
 import { Route as AuthSignInImport } from './routes/auth/sign-in'
-import { Route as AuthdDashboardIndexImport } from './routes/_authd/dashboard/index'
-import { Route as AuthdDashboardOnboardingImport } from './routes/_authd/dashboard/onboarding'
+import { Route as AuthdAppImport } from './routes/_authd/_app'
+import { Route as AuthdDashboardOnboardingImport } from './routes/_authd/dashboard.onboarding'
+import { Route as AuthdAppDashboardIndexImport } from './routes/_authd/_app.dashboard/index'
+import { Route as AuthdAppDashboardProjIdIndexImport } from './routes/_authd/_app.dashboard/$projId.index'
+import { Route as AuthdAppDashboardProjIdTracesImport } from './routes/_authd/_app.dashboard/$projId.traces'
+import { Route as AuthdAppDashboardProjIdSettingsImport } from './routes/_authd/_app.dashboard/$projId.settings'
+import { Route as AuthdAppDashboardProjIdLogsImport } from './routes/_authd/_app.dashboard/$projId.logs'
+import { Route as AuthdAppDashboardProjIdEventsImport } from './routes/_authd/_app.dashboard/$projId.events'
+import { Route as AuthdAppDashboardProjIdAlertsImport } from './routes/_authd/_app.dashboard/$projId.alerts'
 
 // Create/Update Routes
 
@@ -43,9 +50,8 @@ const AuthSignInRoute = AuthSignInImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const AuthdDashboardIndexRoute = AuthdDashboardIndexImport.update({
-  id: '/dashboard/',
-  path: '/dashboard/',
+const AuthdAppRoute = AuthdAppImport.update({
+  id: '/_app',
   getParentRoute: () => AuthdRoute,
 } as any)
 
@@ -54,6 +60,54 @@ const AuthdDashboardOnboardingRoute = AuthdDashboardOnboardingImport.update({
   path: '/dashboard/onboarding',
   getParentRoute: () => AuthdRoute,
 } as any)
+
+const AuthdAppDashboardIndexRoute = AuthdAppDashboardIndexImport.update({
+  id: '/dashboard/',
+  path: '/dashboard/',
+  getParentRoute: () => AuthdAppRoute,
+} as any)
+
+const AuthdAppDashboardProjIdIndexRoute =
+  AuthdAppDashboardProjIdIndexImport.update({
+    id: '/dashboard/$projId/',
+    path: '/dashboard/$projId/',
+    getParentRoute: () => AuthdAppRoute,
+  } as any)
+
+const AuthdAppDashboardProjIdTracesRoute =
+  AuthdAppDashboardProjIdTracesImport.update({
+    id: '/dashboard/$projId/traces',
+    path: '/dashboard/$projId/traces',
+    getParentRoute: () => AuthdAppRoute,
+  } as any)
+
+const AuthdAppDashboardProjIdSettingsRoute =
+  AuthdAppDashboardProjIdSettingsImport.update({
+    id: '/dashboard/$projId/settings',
+    path: '/dashboard/$projId/settings',
+    getParentRoute: () => AuthdAppRoute,
+  } as any)
+
+const AuthdAppDashboardProjIdLogsRoute =
+  AuthdAppDashboardProjIdLogsImport.update({
+    id: '/dashboard/$projId/logs',
+    path: '/dashboard/$projId/logs',
+    getParentRoute: () => AuthdAppRoute,
+  } as any)
+
+const AuthdAppDashboardProjIdEventsRoute =
+  AuthdAppDashboardProjIdEventsImport.update({
+    id: '/dashboard/$projId/events',
+    path: '/dashboard/$projId/events',
+    getParentRoute: () => AuthdAppRoute,
+  } as any)
+
+const AuthdAppDashboardProjIdAlertsRoute =
+  AuthdAppDashboardProjIdAlertsImport.update({
+    id: '/dashboard/$projId/alerts',
+    path: '/dashboard/$projId/alerts',
+    getParentRoute: () => AuthdAppRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
@@ -72,6 +126,13 @@ declare module '@tanstack/react-router' {
       fullPath: ''
       preLoaderRoute: typeof AuthdImport
       parentRoute: typeof rootRoute
+    }
+    '/_authd/_app': {
+      id: '/_authd/_app'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AuthdAppImport
+      parentRoute: typeof AuthdImport
     }
     '/auth/sign-in': {
       id: '/auth/sign-in'
@@ -94,56 +155,141 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthdDashboardOnboardingImport
       parentRoute: typeof AuthdImport
     }
-    '/_authd/dashboard/': {
-      id: '/_authd/dashboard/'
+    '/_authd/_app/dashboard/': {
+      id: '/_authd/_app/dashboard/'
       path: '/dashboard'
       fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthdDashboardIndexImport
-      parentRoute: typeof AuthdImport
+      preLoaderRoute: typeof AuthdAppDashboardIndexImport
+      parentRoute: typeof AuthdAppImport
+    }
+    '/_authd/_app/dashboard/$projId/alerts': {
+      id: '/_authd/_app/dashboard/$projId/alerts'
+      path: '/dashboard/$projId/alerts'
+      fullPath: '/dashboard/$projId/alerts'
+      preLoaderRoute: typeof AuthdAppDashboardProjIdAlertsImport
+      parentRoute: typeof AuthdAppImport
+    }
+    '/_authd/_app/dashboard/$projId/events': {
+      id: '/_authd/_app/dashboard/$projId/events'
+      path: '/dashboard/$projId/events'
+      fullPath: '/dashboard/$projId/events'
+      preLoaderRoute: typeof AuthdAppDashboardProjIdEventsImport
+      parentRoute: typeof AuthdAppImport
+    }
+    '/_authd/_app/dashboard/$projId/logs': {
+      id: '/_authd/_app/dashboard/$projId/logs'
+      path: '/dashboard/$projId/logs'
+      fullPath: '/dashboard/$projId/logs'
+      preLoaderRoute: typeof AuthdAppDashboardProjIdLogsImport
+      parentRoute: typeof AuthdAppImport
+    }
+    '/_authd/_app/dashboard/$projId/settings': {
+      id: '/_authd/_app/dashboard/$projId/settings'
+      path: '/dashboard/$projId/settings'
+      fullPath: '/dashboard/$projId/settings'
+      preLoaderRoute: typeof AuthdAppDashboardProjIdSettingsImport
+      parentRoute: typeof AuthdAppImport
+    }
+    '/_authd/_app/dashboard/$projId/traces': {
+      id: '/_authd/_app/dashboard/$projId/traces'
+      path: '/dashboard/$projId/traces'
+      fullPath: '/dashboard/$projId/traces'
+      preLoaderRoute: typeof AuthdAppDashboardProjIdTracesImport
+      parentRoute: typeof AuthdAppImport
+    }
+    '/_authd/_app/dashboard/$projId/': {
+      id: '/_authd/_app/dashboard/$projId/'
+      path: '/dashboard/$projId'
+      fullPath: '/dashboard/$projId'
+      preLoaderRoute: typeof AuthdAppDashboardProjIdIndexImport
+      parentRoute: typeof AuthdAppImport
     }
   }
 }
 
 // Create and export the route tree
 
+interface AuthdAppRouteChildren {
+  AuthdAppDashboardIndexRoute: typeof AuthdAppDashboardIndexRoute
+  AuthdAppDashboardProjIdAlertsRoute: typeof AuthdAppDashboardProjIdAlertsRoute
+  AuthdAppDashboardProjIdEventsRoute: typeof AuthdAppDashboardProjIdEventsRoute
+  AuthdAppDashboardProjIdLogsRoute: typeof AuthdAppDashboardProjIdLogsRoute
+  AuthdAppDashboardProjIdSettingsRoute: typeof AuthdAppDashboardProjIdSettingsRoute
+  AuthdAppDashboardProjIdTracesRoute: typeof AuthdAppDashboardProjIdTracesRoute
+  AuthdAppDashboardProjIdIndexRoute: typeof AuthdAppDashboardProjIdIndexRoute
+}
+
+const AuthdAppRouteChildren: AuthdAppRouteChildren = {
+  AuthdAppDashboardIndexRoute: AuthdAppDashboardIndexRoute,
+  AuthdAppDashboardProjIdAlertsRoute: AuthdAppDashboardProjIdAlertsRoute,
+  AuthdAppDashboardProjIdEventsRoute: AuthdAppDashboardProjIdEventsRoute,
+  AuthdAppDashboardProjIdLogsRoute: AuthdAppDashboardProjIdLogsRoute,
+  AuthdAppDashboardProjIdSettingsRoute: AuthdAppDashboardProjIdSettingsRoute,
+  AuthdAppDashboardProjIdTracesRoute: AuthdAppDashboardProjIdTracesRoute,
+  AuthdAppDashboardProjIdIndexRoute: AuthdAppDashboardProjIdIndexRoute,
+}
+
+const AuthdAppRouteWithChildren = AuthdAppRoute._addFileChildren(
+  AuthdAppRouteChildren,
+)
+
 interface AuthdRouteChildren {
+  AuthdAppRoute: typeof AuthdAppRouteWithChildren
   AuthdDashboardOnboardingRoute: typeof AuthdDashboardOnboardingRoute
-  AuthdDashboardIndexRoute: typeof AuthdDashboardIndexRoute
 }
 
 const AuthdRouteChildren: AuthdRouteChildren = {
+  AuthdAppRoute: AuthdAppRouteWithChildren,
   AuthdDashboardOnboardingRoute: AuthdDashboardOnboardingRoute,
-  AuthdDashboardIndexRoute: AuthdDashboardIndexRoute,
 }
 
 const AuthdRouteWithChildren = AuthdRoute._addFileChildren(AuthdRouteChildren)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '': typeof AuthdRouteWithChildren
+  '': typeof AuthdAppRouteWithChildren
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/dashboard/onboarding': typeof AuthdDashboardOnboardingRoute
-  '/dashboard': typeof AuthdDashboardIndexRoute
+  '/dashboard': typeof AuthdAppDashboardIndexRoute
+  '/dashboard/$projId/alerts': typeof AuthdAppDashboardProjIdAlertsRoute
+  '/dashboard/$projId/events': typeof AuthdAppDashboardProjIdEventsRoute
+  '/dashboard/$projId/logs': typeof AuthdAppDashboardProjIdLogsRoute
+  '/dashboard/$projId/settings': typeof AuthdAppDashboardProjIdSettingsRoute
+  '/dashboard/$projId/traces': typeof AuthdAppDashboardProjIdTracesRoute
+  '/dashboard/$projId': typeof AuthdAppDashboardProjIdIndexRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '': typeof AuthdRouteWithChildren
+  '': typeof AuthdAppRouteWithChildren
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/dashboard/onboarding': typeof AuthdDashboardOnboardingRoute
-  '/dashboard': typeof AuthdDashboardIndexRoute
+  '/dashboard': typeof AuthdAppDashboardIndexRoute
+  '/dashboard/$projId/alerts': typeof AuthdAppDashboardProjIdAlertsRoute
+  '/dashboard/$projId/events': typeof AuthdAppDashboardProjIdEventsRoute
+  '/dashboard/$projId/logs': typeof AuthdAppDashboardProjIdLogsRoute
+  '/dashboard/$projId/settings': typeof AuthdAppDashboardProjIdSettingsRoute
+  '/dashboard/$projId/traces': typeof AuthdAppDashboardProjIdTracesRoute
+  '/dashboard/$projId': typeof AuthdAppDashboardProjIdIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/_authd': typeof AuthdRouteWithChildren
+  '/_authd/_app': typeof AuthdAppRouteWithChildren
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-out': typeof AuthSignOutRoute
   '/_authd/dashboard/onboarding': typeof AuthdDashboardOnboardingRoute
-  '/_authd/dashboard/': typeof AuthdDashboardIndexRoute
+  '/_authd/_app/dashboard/': typeof AuthdAppDashboardIndexRoute
+  '/_authd/_app/dashboard/$projId/alerts': typeof AuthdAppDashboardProjIdAlertsRoute
+  '/_authd/_app/dashboard/$projId/events': typeof AuthdAppDashboardProjIdEventsRoute
+  '/_authd/_app/dashboard/$projId/logs': typeof AuthdAppDashboardProjIdLogsRoute
+  '/_authd/_app/dashboard/$projId/settings': typeof AuthdAppDashboardProjIdSettingsRoute
+  '/_authd/_app/dashboard/$projId/traces': typeof AuthdAppDashboardProjIdTracesRoute
+  '/_authd/_app/dashboard/$projId/': typeof AuthdAppDashboardProjIdIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -155,6 +301,12 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/dashboard/onboarding'
     | '/dashboard'
+    | '/dashboard/$projId/alerts'
+    | '/dashboard/$projId/events'
+    | '/dashboard/$projId/logs'
+    | '/dashboard/$projId/settings'
+    | '/dashboard/$projId/traces'
+    | '/dashboard/$projId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -163,14 +315,27 @@ export interface FileRouteTypes {
     | '/auth/sign-out'
     | '/dashboard/onboarding'
     | '/dashboard'
+    | '/dashboard/$projId/alerts'
+    | '/dashboard/$projId/events'
+    | '/dashboard/$projId/logs'
+    | '/dashboard/$projId/settings'
+    | '/dashboard/$projId/traces'
+    | '/dashboard/$projId'
   id:
     | '__root__'
     | '/'
     | '/_authd'
+    | '/_authd/_app'
     | '/auth/sign-in'
     | '/auth/sign-out'
     | '/_authd/dashboard/onboarding'
-    | '/_authd/dashboard/'
+    | '/_authd/_app/dashboard/'
+    | '/_authd/_app/dashboard/$projId/alerts'
+    | '/_authd/_app/dashboard/$projId/events'
+    | '/_authd/_app/dashboard/$projId/logs'
+    | '/_authd/_app/dashboard/$projId/settings'
+    | '/_authd/_app/dashboard/$projId/traces'
+    | '/_authd/_app/dashboard/$projId/'
   fileRoutesById: FileRoutesById
 }
 
@@ -210,8 +375,21 @@ export const routeTree = rootRoute
     "/_authd": {
       "filePath": "_authd.tsx",
       "children": [
-        "/_authd/dashboard/onboarding",
-        "/_authd/dashboard/"
+        "/_authd/_app",
+        "/_authd/dashboard/onboarding"
+      ]
+    },
+    "/_authd/_app": {
+      "filePath": "_authd/_app.tsx",
+      "parent": "/_authd",
+      "children": [
+        "/_authd/_app/dashboard/",
+        "/_authd/_app/dashboard/$projId/alerts",
+        "/_authd/_app/dashboard/$projId/events",
+        "/_authd/_app/dashboard/$projId/logs",
+        "/_authd/_app/dashboard/$projId/settings",
+        "/_authd/_app/dashboard/$projId/traces",
+        "/_authd/_app/dashboard/$projId/"
       ]
     },
     "/auth/sign-in": {
@@ -221,12 +399,36 @@ export const routeTree = rootRoute
       "filePath": "auth/sign-out.tsx"
     },
     "/_authd/dashboard/onboarding": {
-      "filePath": "_authd/dashboard/onboarding.tsx",
+      "filePath": "_authd/dashboard.onboarding.tsx",
       "parent": "/_authd"
     },
-    "/_authd/dashboard/": {
-      "filePath": "_authd/dashboard/index.tsx",
-      "parent": "/_authd"
+    "/_authd/_app/dashboard/": {
+      "filePath": "_authd/_app.dashboard/index.tsx",
+      "parent": "/_authd/_app"
+    },
+    "/_authd/_app/dashboard/$projId/alerts": {
+      "filePath": "_authd/_app.dashboard/$projId.alerts.tsx",
+      "parent": "/_authd/_app"
+    },
+    "/_authd/_app/dashboard/$projId/events": {
+      "filePath": "_authd/_app.dashboard/$projId.events.tsx",
+      "parent": "/_authd/_app"
+    },
+    "/_authd/_app/dashboard/$projId/logs": {
+      "filePath": "_authd/_app.dashboard/$projId.logs.tsx",
+      "parent": "/_authd/_app"
+    },
+    "/_authd/_app/dashboard/$projId/settings": {
+      "filePath": "_authd/_app.dashboard/$projId.settings.tsx",
+      "parent": "/_authd/_app"
+    },
+    "/_authd/_app/dashboard/$projId/traces": {
+      "filePath": "_authd/_app.dashboard/$projId.traces.tsx",
+      "parent": "/_authd/_app"
+    },
+    "/_authd/_app/dashboard/$projId/": {
+      "filePath": "_authd/_app.dashboard/$projId.index.tsx",
+      "parent": "/_authd/_app"
     }
   }
 }
