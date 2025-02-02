@@ -1,7 +1,9 @@
 import { AppHeader } from "@/components/layout/app-header";
-import { AppSidebar } from "@/components/layout/app-sidebar";
+import { AppSidebar, ContentWrapper } from "@/components/layout/app-sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { ensureUser, userQueries } from "@/qc/queries/auth";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_authd/_app")({
   loader: async ({ context, location }) => {
@@ -25,13 +27,29 @@ export const Route = createFileRoute("/_authd/_app")({
 
 function LayoutComponent() {
   const { data } = userQueries.getUser.useSuspenseQuery();
+  const [open, setOpen] = useState(false);
+
+  const handleMouseEnter = () => {
+    setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    setOpen(false);
+  };
+
   return (
-    <div className="flex w-full h-svh">
-      <AppSidebar user={data} />
-      <div className="flex flex-col h-full w-full transition-[width] duration-200 ease-linear">
-        <AppHeader />
-        <Outlet />
+    <SidebarProvider open={open} onOpenChange={setOpen}>
+      <div className="flex w-svw h-svh">
+        <AppSidebar
+          user={data}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        />
+        <ContentWrapper>
+          <AppHeader />
+          <Outlet />
+        </ContentWrapper>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
