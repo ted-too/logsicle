@@ -1,4 +1,3 @@
-import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar, ContentWrapper } from "@/components/layout/app-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ensureUser, userQueries } from "@/qc/queries/auth";
@@ -46,7 +45,6 @@ function LayoutComponent() {
           onMouseLeave={handleMouseLeave}
         />
         <ContentWrapper>
-          <AppHeader />
           <Outlet />
         </ContentWrapper>
       </div>

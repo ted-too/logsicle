@@ -1,7 +1,7 @@
 import { projectsQueries } from "@/qc/queries/projects";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authd/_app/dashboard/$projId/traces")({
+export const Route = createFileRoute("/_authd/_app/dashboard/$projId/logs")({
   loader: async ({ params, context }) => {
     const projects = await context.queryClient.ensureQueryData(
       projectsQueries.listQueryOptions()
@@ -21,5 +21,5 @@ export const Route = createFileRoute("/_authd/_app/dashboard/$projId/traces")({
 });
 
 function RouteComponent() {
-  return <div>Hello Traces</div>;
+  return <div>Hello Logs</div>;
 }

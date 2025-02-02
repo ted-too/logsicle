@@ -23,5 +23,5 @@ export const Route = createFileRoute("/_authd/_app/dashboard/$projId/settings")(
 );
 
 function RouteComponent() {
-  return <div>Hello "/_authd/_app/dashboard/$projId/settings"!</div>;
+  return <div>Hello Settings</div>;
 }

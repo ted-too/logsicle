@@ -1,7 +1,7 @@
 # Local
 .DS_Store
 *.local
-*.log*
+.turbo/**/*.log*
 
 # Dist
 node_modules

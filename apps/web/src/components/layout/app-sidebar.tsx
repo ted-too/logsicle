@@ -7,29 +7,28 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
   SidebarSeparator,
-  useSidebar,
+  useSidebar
 } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
+import { User } from "@repo/api";
 import { Link, useLocation, useParams } from "@tanstack/react-router";
 import { Brodcast, Category2, Setting2, Warning2 } from "iconsax-react";
-import { useState } from "react";
-import { Avatar, AvatarFallback } from "../ui/avatar";
-import { User } from "@repo/api";
-import { Button } from "../ui/button";
 import { LogOut } from "lucide-react";
+import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Button } from "../ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
-import { cn } from "@/lib/utils";
+import { AppHeader } from "./app-header";
 
 // Menu items.
 const getMenuList = (params: { projId: string; pathname: string }) => [
   {
-    title: "Home",
+    title: "Dashboard",
     url: `/dashboard/${params.projId}`,
     icon: Category2,
     active: params.pathname === `/dashboard/${params.projId}`,
@@ -241,7 +240,8 @@ export function ContentWrapper({ children }: { children: React.ReactNode }) {
           : "w-[calc(100%-var(--sidebar-width-icon))]"
       )}
     >
-      {children}
+      <AppHeader />
+      <main className="flex flex-col grow">{children}</main>
     </div>
   );
 }

@@ -31,6 +31,7 @@ export function AppHeader() {
         <DropdownMenuContent
           align="end"
           onCloseAutoFocus={(e) => e.preventDefault()}
+          className="rounded-lg"
         >
           <DropdownMenuLabel className="font-light text-muted-foreground text-xs">
             Projects
