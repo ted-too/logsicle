@@ -8,7 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
-  useSidebar
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { User } from "@repo/api";
@@ -198,20 +198,18 @@ export function AppSidebar({
                       <span>{displayName}</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <SidebarMenuItem>
-                            <SidebarMenuButton asChild>
-                              <Button
-                                variant="link"
-                                className="p-0 size-max [&>svg]:size-3"
-                                size="icon"
-                                asChild
-                              >
-                                <Link to="/auth/sign-out">
-                                  <LogOut />
-                                </Link>
-                              </Button>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
+                          <SidebarMenuButton asChild>
+                            <Button
+                              variant="link"
+                              className="p-0 size-max [&>svg]:size-3"
+                              size="icon"
+                              asChild
+                            >
+                              <Link to="/auth/sign-out">
+                                <LogOut />
+                              </Link>
+                            </Button>
+                          </SidebarMenuButton>
                         </TooltipTrigger>
                         <TooltipContent side="right" className="text-xs p-1.5">
                           <p>Logout</p>
@@ -236,12 +234,12 @@ export function ContentWrapper({ children }: { children: React.ReactNode }) {
       className={cn(
         "flex flex-col h-full transition-[width] duration-200 ease-linear",
         open
-          ? "w-[calc(100%-var(--sidebar-width))]"
-          : "w-[calc(100%-var(--sidebar-width-icon))]"
+          ? "w-[calc(100svw-var(--sidebar-width))]"
+          : "w-[calc(100svw-var(--sidebar-width-icon))]"
       )}
     >
       <AppHeader />
-      <main className="flex flex-col grow">{children}</main>
+      <div className="flex flex-col grow bg-[hsl(0,0%,98%)]">{children}</div>
     </div>
   );
 }

@@ -38,10 +38,10 @@ func AuthMiddleware(cfg *config.Config, db *gorm.DB) fiber.Handler {
 			})
 		}
 
-		c.Locals("logto-id", idTokenClaims.Sub)
+		c.Locals("oauth-id", idTokenClaims.Sub)
 
 		var user models.User
-		if err := db.Where("logto_id = ?", idTokenClaims.Sub).First(&user).Error; err != nil {
+		if err := db.Where("external_oauth_id = ?", idTokenClaims.Sub).First(&user).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 					"message": "User not found",

@@ -4,6 +4,7 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -21,13 +22,13 @@ type Processor struct {
 }
 
 // processorConfig holds the configuration for each stream processor
-type processorConfig[T any] struct {
+type processorConfig[T timescale.LogEntry] struct {
 	stream     string
 	bulkInsert func(context.Context, []T) error
 }
 
 // streamProcessor is a generic processor for a specific type
-type streamProcessor[T any] struct {
+type streamProcessor[T timescale.LogEntry] struct {
 	qs        *QueueService
 	cfg       processorConfig[T]
 	processor *Processor // Add reference to main processor for metrics
@@ -50,7 +51,7 @@ func (p *Processor) Start(ctx context.Context) {
 }
 
 // newStreamProcessor creates a new stream processor for a specific type
-func newStreamProcessor[T any](p *Processor, cfg processorConfig[T]) *streamProcessor[T] {
+func newStreamProcessor[T timescale.LogEntry](p *Processor, cfg processorConfig[T]) *streamProcessor[T] {
 	return &streamProcessor[T]{
 		qs:        p.qs,
 		cfg:       cfg,
@@ -68,7 +69,7 @@ func (sp *streamProcessor[T]) process(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			streams, err := sp.qs.redis.XRead(ctx, &redis.XReadArgs{
+			streams, err := sp.qs.Redis.XRead(ctx, &redis.XReadArgs{
 				Streams: []string{sp.cfg.stream, "0"},
 				Count:   BatchSize,
 				Block:   time.Second * 1,
@@ -133,8 +134,19 @@ func (sp *streamProcessor[T]) processBatch(ctx context.Context, messages []redis
 			return err
 		}
 
+		// Publish to Redis for live updates
+		for _, item := range batch {
+			data, err := json.Marshal(item)
+			if err != nil {
+				continue
+			}
+
+			channel := fmt.Sprintf("logs:%s:%s", item.GetProjectID(), item.GetLogType())
+			sp.qs.Redis.Publish(ctx, channel, string(data))
+		}
+
 		// Acknowledge processed messages
-		sp.qs.redis.XDel(ctx, sp.cfg.stream, messageIDs...)
+		sp.qs.Redis.XDel(ctx, sp.cfg.stream, messageIDs...)
 	}
 
 	return nil
@@ -167,7 +179,7 @@ func (p *Processor) GetInternalMetrics() map[string]interface{} {
 
 // Type-specific processors
 func (p *Processor) processEventLogs(ctx context.Context) {
-	cfg := processorConfig[timescale.EventLog]{
+	cfg := processorConfig[*timescale.EventLog]{
 		stream:     EventLogStream,
 		bulkInsert: p.qs.ts.BulkInsertEventLogs,
 	}
@@ -175,7 +187,7 @@ func (p *Processor) processEventLogs(ctx context.Context) {
 }
 
 func (p *Processor) processAppLogs(ctx context.Context) {
-	cfg := processorConfig[timescale.AppLog]{
+	cfg := processorConfig[*timescale.AppLog]{
 		stream:     AppLogStream,
 		bulkInsert: p.qs.ts.BulkInsertAppLogs,
 	}
@@ -183,7 +195,7 @@ func (p *Processor) processAppLogs(ctx context.Context) {
 }
 
 func (p *Processor) processRequestLogs(ctx context.Context) {
-	cfg := processorConfig[timescale.RequestLog]{
+	cfg := processorConfig[*timescale.RequestLog]{
 		stream:     RequestLogStream,
 		bulkInsert: p.qs.ts.BulkInsertRequestLogs,
 	}
@@ -191,7 +203,7 @@ func (p *Processor) processRequestLogs(ctx context.Context) {
 }
 
 func (p *Processor) processMetrics(ctx context.Context) {
-	cfg := processorConfig[timescale.Metric]{
+	cfg := processorConfig[*timescale.Trace]{
 		stream:     MetricStream,
 		bulkInsert: p.qs.ts.BulkInsertMetrics,
 	}

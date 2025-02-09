@@ -9,7 +9,7 @@ import (
 )
 
 type TimescaleClient struct {
-	pool *pgxpool.Pool
+	Pool *pgxpool.Pool
 }
 
 func NewTimescaleClient(ctx context.Context, connString string) (*TimescaleClient, error) {
@@ -27,11 +27,11 @@ func NewTimescaleClient(ctx context.Context, connString string) (*TimescaleClien
 		return nil, err
 	}
 
-	return &TimescaleClient{pool: pool}, nil
+	return &TimescaleClient{Pool: pool}, nil
 }
 
 // BulkInsertEventLogs inserts multiple event logs in a single transaction
-func (c *TimescaleClient) BulkInsertEventLogs(ctx context.Context, logs []EventLog) error {
+func (c *TimescaleClient) BulkInsertEventLogs(ctx context.Context, logs []*EventLog) error {
 	batch := &pgx.Batch{}
 
 	for _, log := range logs {
@@ -49,7 +49,7 @@ func (c *TimescaleClient) BulkInsertEventLogs(ctx context.Context, logs []EventL
 }
 
 // BulkInsertAppLogs inserts multiple application logs in a single transaction
-func (c *TimescaleClient) BulkInsertAppLogs(ctx context.Context, logs []AppLog) error {
+func (c *TimescaleClient) BulkInsertAppLogs(ctx context.Context, logs []*AppLog) error {
 	batch := &pgx.Batch{}
 
 	for _, log := range logs {
@@ -67,7 +67,7 @@ func (c *TimescaleClient) BulkInsertAppLogs(ctx context.Context, logs []AppLog) 
 }
 
 // BulkInsertRequestLogs inserts multiple request logs in a single transaction
-func (c *TimescaleClient) BulkInsertRequestLogs(ctx context.Context, logs []RequestLog) error {
+func (c *TimescaleClient) BulkInsertRequestLogs(ctx context.Context, logs []*RequestLog) error {
 	batch := &pgx.Batch{}
 
 	for _, log := range logs {
@@ -87,7 +87,7 @@ func (c *TimescaleClient) BulkInsertRequestLogs(ctx context.Context, logs []Requ
 }
 
 // BulkInsertMetrics inserts multiple metrics in a single transaction
-func (c *TimescaleClient) BulkInsertMetrics(ctx context.Context, metrics []Metric) error {
+func (c *TimescaleClient) BulkInsertMetrics(ctx context.Context, metrics []*Trace) error {
 	batch := &pgx.Batch{}
 
 	for _, metric := range metrics {
@@ -105,7 +105,7 @@ func (c *TimescaleClient) BulkInsertMetrics(ctx context.Context, metrics []Metri
 
 // executeBatch is a helper function to execute a batch and handle the results
 func (c *TimescaleClient) executeBatch(ctx context.Context, batch *pgx.Batch) error {
-	br := c.pool.SendBatch(ctx, batch)
+	br := c.Pool.SendBatch(ctx, batch)
 	defer br.Close()
 
 	// Execute each command in the batch and check for errors
@@ -121,5 +121,5 @@ func (c *TimescaleClient) executeBatch(ctx context.Context, batch *pgx.Batch) er
 
 // Close closes the database connection pool
 func (c *TimescaleClient) Close() {
-	c.pool.Close()
+	c.Pool.Close()
 }

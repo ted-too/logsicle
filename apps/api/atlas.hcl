@@ -18,6 +18,7 @@ env "local" {
   ]
   migration {
     dir    = "file://internal/storage/migrations"
+    exclude = ["parser_type"]
   }
   format {
     migrate {

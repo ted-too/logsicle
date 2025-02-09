@@ -21,7 +21,7 @@ export function AppHeader() {
   const currentProject = data?.find((p) => p.id === projId);
 
   return (
-    <div className="flex h-12 px-4 w-full justify-between items-center border-b border-border">
+    <div className="flex h-12 shrink-0 px-4 w-full justify-between items-center border-b border-border">
       <HeaderBreadcrumbs />
       <DropdownMenu>
         <DropdownMenuTrigger className="flex gap-4 items-center justify-between cursor-pointer h-8 px-3 border-none bg-accent/50 hover:bg-accent/75 text-xs rounded-lg shadow-none">

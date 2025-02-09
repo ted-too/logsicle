@@ -19,7 +19,7 @@ const (
 )
 
 type QueueService struct {
-	redis *redis.Client
+	Redis *redis.Client
 	ts    *timescale.TimescaleClient
 }
 
@@ -31,7 +31,7 @@ func NewQueueService(redisURL string, ts *timescale.TimescaleClient) (*QueueServ
 
 	client := redis.NewClient(opt)
 	return &QueueService{
-		redis: client,
+		Redis: client,
 		ts:    ts,
 	}, nil
 }
@@ -52,7 +52,7 @@ func (q *QueueService) EnqueueRequestLog(ctx context.Context, log *timescale.Req
 }
 
 // EnqueueMetric adds a metric to the queue
-func (q *QueueService) EnqueueMetric(ctx context.Context, metric *timescale.Metric) error {
+func (q *QueueService) EnqueueMetric(ctx context.Context, metric *timescale.Trace) error {
 	return q.enqueue(ctx, MetricStream, metric)
 }
 
@@ -63,7 +63,7 @@ func (q *QueueService) enqueue(ctx context.Context, stream string, data interfac
 		return fmt.Errorf("failed to marshal data: %w", err)
 	}
 
-	return q.redis.XAdd(ctx, &redis.XAddArgs{
+	return q.Redis.XAdd(ctx, &redis.XAddArgs{
 		Stream: stream,
 		Values: map[string]interface{}{
 			"data": jsonData,
@@ -73,7 +73,7 @@ func (q *QueueService) enqueue(ctx context.Context, stream string, data interfac
 
 // Close closes all connections
 func (q *QueueService) Close() error {
-	if err := q.redis.Close(); err != nil {
+	if err := q.Redis.Close(); err != nil {
 		return fmt.Errorf("failed to close redis connection: %w", err)
 	}
 	q.ts.Close()

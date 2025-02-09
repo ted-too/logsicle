@@ -10,12 +10,17 @@ type Config struct {
 	Port            string `toml:"port" env:"PORT"`
 	ShutdownTimeout string `toml:"shutdown_timeout"`
 	Dev             bool   `toml:"dev" env:"DEV"`
-	Storage         struct {
+	Cors            struct {
+		AllowedOrigins []string `toml:"allowed_origins" env:"CORS_ALLOWED_ORIGINS"`
+	} `toml:"cors"`
+	Storage struct {
 		Dsn             string `toml:"dsn" env:"DB_DSN"`
 		MaxOpenConns    int    `toml:"max_open_conns" env:"DB_MAX_OPEN_CONNS"`
 		MaxIdleConns    int    `toml:"max_idle_conns" env:"DB_MAX_IDLE_CONNS"`
 		ConnMaxLifetime string `toml:"conn_max_lifetime" env:"DB_CONN_MAX_LIFETIME"`
 		RedisURL        string `toml:"redis_url" env:"REDIS_URL"`
+		RedisQueueURL   string `toml:"redis_queue_url" env:"REDIS_QUEUE_URL"`
+		RedisSessionURL string `toml:"redis_session_url" env:"REDIS_SESSION_URL"`
 	} `toml:"storage"`
 	Auth struct {
 		Endpoint    string   `toml:"endpoint" env:"AUTH_ENDPOINT"`

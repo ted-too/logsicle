@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const LOG_RETENTION_DAYS = [3, 7, 14, 30, 90];
 
-export const allowedOriginSchema = z.string().url();
+export const allowedOriginSchema = z.union([z.literal("*"), z.string().url()]);
 
 export const createProjectSchema = z.object({
   name: z.string().min(1, "Name is required"),

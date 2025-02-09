@@ -18,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { projectsQueries } from "@/qc/queries/projects";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
@@ -29,18 +28,20 @@ import {
   LOG_RETENTION_DAYS,
   Project,
 } from "@repo/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { XIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { toast } from "@/components/ui/sonner-wrapper";
 
 export function SetupProject({
   steps,
   project,
 }: {
   steps: { next: () => void; prev: () => void };
-  project: Project | undefined
+  project: Project | undefined;
 }) {
-  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [parent] = useAutoAnimate();
   const { mutateAsync: createProject } = projectsQueries.create();
   const { mutateAsync: updateProject } = projectsQueries.update();
@@ -64,22 +65,17 @@ export function SetupProject({
     try {
       if (project) {
         await updateProject({ projectId: project.id, input });
+        toast.success("Project updated successfully");
       } else {
         await createProject(input);
+        toast.success("Project created successfully");
       }
+      await queryClient.refetchQueries({
+        queryKey: projectsQueries.listQueryOptions().queryKey,
+      });
       steps.next();
     } catch (error) {
-      const title = (error as any)?.message
-        ? (error as any)?.message
-        : "Failed to create project";
-      const message = (error as any)?.error
-        ? (error as any)?.error
-        : "Something went wrong!";
-      toast({
-        title: title,
-        description: message,
-        variant: "destructive",
-      });
+      toast.APIError(error);
     }
   }
 
@@ -96,7 +92,7 @@ export function SetupProject({
             <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input placeholder="my app" {...field} />
+                <Input placeholder="my app" {...field} required />
               </FormControl>
               <FormDescription>
                 This will be used to identify your project
@@ -114,6 +110,7 @@ export function SetupProject({
               <Select
                 onValueChange={field.onChange}
                 defaultValue={field.value.toString()}
+                required
               >
                 <FormControl>
                   <SelectTrigger>
@@ -143,18 +140,34 @@ export function SetupProject({
             <FormItem className="col-span-2">
               <FormLabel>Allowed origins</FormLabel>
               <FormControl>
-                <div className="relative">
+                <div className="relative" aria-required>
                   <Input
                     className="pe-11"
-                    placeholder="https://example.com"
+                    placeholder="https://example.com or *"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
+
+                        // If value already contains "*", prevent adding other origins
+                        if (value.includes("*")) {
+                          toast.warning(
+                            "Cannot add specific origins when all origins (*) is selected"
+                          );
+                          return;
+                        }
+
                         const input = e.currentTarget.value.trim();
 
                         const validationResult =
                           allowedOriginSchema.safeParse(input);
                         if (validationResult.success) {
+                          if (validationResult.data === "*") {
+                            onChange(["*"]);
+                            e.currentTarget.value = "";
+                            form.clearErrors("allowed_origins");
+                            return;
+                          }
+
                           const parsedURL = new URL(validationResult.data);
                           parsedURL.pathname = "";
                           parsedURL.search = "";
@@ -172,7 +185,8 @@ export function SetupProject({
                         } else {
                           form.setError("allowed_origins", {
                             type: "manual",
-                            message: "Please enter a valid URL",
+                            message:
+                              "Please enter a valid URL or use * to allow all origins",
                           });
                         }
                       }
@@ -187,7 +201,7 @@ export function SetupProject({
                 </div>
               </FormControl>
               <FormDescription>
-                Where your logs will be sent from
+                Where your logs will be sent from (use * to allow all origins)
               </FormDescription>
               <div
                 ref={parent}
@@ -199,9 +213,11 @@ export function SetupProject({
                 {value.map((origin, i) => (
                   <div
                     key={`allowed-origin-${i}`}
-                    className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs"
+                    className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs font-mono tracking-tight"
                   >
-                    <span className="whitespace-nowrap">{origin}</span>
+                    <span className="whitespace-nowrap">
+                      {origin === "*" ? "all origins [*]" : origin}
+                    </span>
                     <Button
                       variant="link"
                       onClick={() => {

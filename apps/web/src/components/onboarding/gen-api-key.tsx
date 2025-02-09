@@ -12,7 +12,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 import { apiKeysQueries } from "@/qc/queries/projects";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -21,7 +20,7 @@ import {
   createAPIKeySchema,
   Project,
 } from "@repo/api";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   Tooltip,
@@ -31,7 +30,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Check, CircleCheckIcon, CircleXIcon, Copy } from "lucide-react";
 import { z } from "zod";
-import { cn } from "@/lib/utils";
+import { cn, tempApiKeyStorage } from "@/lib/utils";
+import { toast } from "../ui/sonner-wrapper";
 
 function CreatedAPIKey({
   apiKey,
@@ -48,59 +48,69 @@ function CreatedAPIKey({
     setTimeout(() => setCopied(false), 1500);
   };
 
+  // Store API key when component mounts
+  useEffect(() => {
+    tempApiKeyStorage.set(apiKey.key);
+  }, [apiKey.key]);
   return (
     <div className="grid w-full grid-flow-row grid-cols-2 gap-4">
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-          Name
-        </span>
-        <span>{apiKey.name}</span>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-          Key
-        </span>
-        <div className="flex w-full items-center justify-between">
-          <span>{apiKey.key}</span>
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={handleCopy}
-                  className="flex h-full w-9 items-center justify-center rounded-e-lg border border-transparent text-muted-foreground/80 outline-offset-2 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none disabled:cursor-not-allowed"
-                  aria-label={copied ? "Copied" : "Copy to clipboard"}
-                  disabled={copied}
-                >
-                  <div
-                    className={cn(
-                      "transition-all",
-                      copied ? "scale-100 opacity-100" : "scale-0 opacity-0"
-                    )}
+      <div className="flex items-start gap-4 w-full col-span-2">
+        <div className="flex flex-col gap-2 w-[40%]">
+          <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Name
+          </span>
+          <span>{apiKey.name}</span>
+        </div>
+        <div className="flex flex-col gap-2 grow">
+          <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Key
+          </span>
+          <div className="flex w-full items-center justify-between">
+            <span className="whitespace-nowrap">{apiKey.key}</span>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleCopy}
+                    className="flex h-full w-9 items-center justify-center rounded-e-lg border border-transparent text-muted-foreground/80 outline-offset-2 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none disabled:cursor-not-allowed"
+                    aria-label={copied ? "Copied" : "Copy to clipboard"}
+                    disabled={copied}
                   >
-                    <Check
-                      className="stroke-emerald-500"
-                      size={16}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <div
-                    className={cn(
-                      "absolute transition-all",
-                      copied ? "scale-0 opacity-0" : "scale-100 opacity-100"
-                    )}
-                  >
-                    <Copy size={16} strokeWidth={2} aria-hidden="true" />
-                  </div>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="px-2 py-1 text-xs">
-                Copy to clipboard
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                    <div
+                      className={cn(
+                        "transition-all",
+                        copied ? "scale-100 opacity-100" : "scale-0 opacity-0"
+                      )}
+                    >
+                      <Check
+                        className="stroke-emerald-500"
+                        size={16}
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div
+                      className={cn(
+                        "absolute transition-all",
+                        copied ? "scale-0 opacity-0" : "scale-100 opacity-100"
+                      )}
+                    >
+                      <Copy size={16} strokeWidth={2} aria-hidden="true" />
+                    </div>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="px-2 py-1 text-xs">
+                  Copy to clipboard
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <p className="text-[0.8rem] text-muted-foreground">
+            Make sure to save this somewhere as it will only be visible once
+          </p>
         </div>
       </div>
+
       <div className="col-span-2 flex flex-col gap-2">
         <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
           Scopes
@@ -143,7 +153,6 @@ export function GenAPIKey({
   steps: { next: () => void; prev: () => void };
   project: Project | undefined;
 }) {
-  const { toast } = useToast();
   const apiKeys: APIKey[] =
     project?.api_keys !== null ? (project?.api_keys ?? []) : [];
   const { mutateAsync: createAPIKey, data } = apiKeysQueries.create();
@@ -164,22 +173,12 @@ export function GenAPIKey({
   });
 
   async function onSubmit(input: z.infer<typeof createAPIKeySchema>) {
-    if (!project) return toast({ title: "Please create a project first" });
+    if (!project) return toast.warning("Please create a project first");
     try {
       await createAPIKey({ projectId: project.id, input });
-      steps.next();
+      toast.success("API key created successfully");
     } catch (error) {
-      const title = (error as any)?.message
-        ? (error as any)?.message
-        : "Failed to create project";
-      const message = (error as any)?.error
-        ? (error as any)?.error
-        : "Something went wrong!";
-      toast({
-        title: title,
-        description: message,
-        variant: "destructive",
-      });
+      toast.APIError(error);
     }
   }
 
@@ -189,7 +188,7 @@ export function GenAPIKey({
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit(onSubmit, (v) => console.log(v))}
         className="grid grid-flow-row grid-cols-2 gap-4"
       >
         <FormField
@@ -199,7 +198,7 @@ export function GenAPIKey({
             <FormItem className="col-span-2">
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input placeholder="backend" {...field} />
+                <Input placeholder="backend" {...field} required />
               </FormControl>
               <FormDescription>
                 This will be used to identify your api key
@@ -214,7 +213,7 @@ export function GenAPIKey({
           render={() => (
             <FormItem className="col-span-2">
               <div className="flex items-center gap-4">
-                <FormLabel>Scopes</FormLabel>
+                <FormLabel aria-required>Scopes</FormLabel>
                 <Button
                   type="button"
                   variant="link"

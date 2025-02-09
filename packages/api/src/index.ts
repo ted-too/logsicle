@@ -17,4 +17,12 @@ export type FnResponse<T> =
       error: ErrorResponse;
     };
 
+export type PaginatedResponse<T> = {
+  data: T[];
+  totalCount: number;
+  filteredCount: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+};
+
 export * from "./routes";

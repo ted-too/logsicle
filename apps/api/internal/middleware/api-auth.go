@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -9,101 +11,248 @@ import (
 )
 
 type BasicBody struct {
-	ProjectID string `json:"project_id" validate:"required"`
+	ProjectID   string  `json:"project_id" validate:"required"`
+	ChannelName *string `json:"channel"`
+}
+
+// validatePreflightOrigin checks if the origin is allowed in any project
+func validatePreflightOrigin(c fiber.Ctx, db *gorm.DB) error {
+	origin := c.Get("Origin")
+	if origin == "" {
+		return nil // No CORS needed for non-browser requests
+	}
+
+	// Check if origin is allowed in any project
+	var count int64
+	if err := db.Model(&models.Project{}).
+		Where("? = ANY(allowed_origins)", origin).
+		Count(&count).Error; err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to validate origin")
+	}
+
+	if count == 0 {
+		return fiber.NewError(fiber.StatusForbidden, "Origin not allowed")
+	}
+
+	// Origin is allowed, set CORS headers
+	c.Set("Access-Control-Allow-Origin", origin)
+	c.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	c.Set("Access-Control-Allow-Methods", "POST")
+	c.Set("Access-Control-Max-Age", "86400")
+	return nil
+}
+
+// validateOrigin checks if the origin is allowed for a specific project
+func validateOrigin(c fiber.Ctx, db *gorm.DB) (string, *string, error) {
+	// Get project ID from body
+	body := new(BasicBody)
+	if err := c.Bind().JSON(body); err != nil {
+		return "", nil, fiber.NewError(fiber.StatusBadRequest, "Missing project_id")
+	}
+
+	var project models.Project
+	if err := db.Where("id = ?", body.ProjectID).First(&project).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", nil, fiber.NewError(fiber.StatusBadRequest, "Invalid project")
+		}
+		return "", nil, fiber.NewError(fiber.StatusInternalServerError, "Failed to validate project")
+	}
+
+	origin := c.Get("Origin")
+	if origin == "" {
+		return project.ID, body.ChannelName, nil
+	}
+
+	// Check if origin matches any allowed origins
+	for _, allowedOrigin := range project.AllowedOrigins {
+		if allowedOrigin == origin {
+			c.Set("Access-Control-Allow-Origin", origin)
+			c.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			c.Set("Access-Control-Allow-Methods", "POST")
+			return project.ID, body.ChannelName, nil
+		}
+	}
+
+	return "", nil, fiber.NewError(fiber.StatusForbidden, "Origin not allowed")
+}
+
+// validateAPIKey validates the API key and its permissions
+func validateAPIKey(c fiber.Ctx, db *gorm.DB, projectID string, channelName *string) (*models.ApiKey, string, error) {
+	authHeader := c.Get("Authorization")
+	if authHeader == "" {
+		return nil, "", fiber.NewError(fiber.StatusUnauthorized, "Missing API key")
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return nil, "", fiber.NewError(fiber.StatusUnauthorized, "Invalid authorization header format")
+	}
+
+	providedKey := parts[1]
+
+	// Find API keys for the project
+	var keys []models.ApiKey
+	if err := db.Where("project_id = ?", projectID).Find(&keys).Error; err != nil {
+		return nil, "", fiber.NewError(fiber.StatusInternalServerError, "Failed to validate API key")
+	}
+
+	// Get scope
+	resource, scope := getRequiredScope(c.Method(), c.Path())
+
+	// If channelName is provided, verify channel access
+	var channelID string
+	if channelName != nil {
+		var err error
+		channelID, err = verifyChannelAccess(db, projectID, *channelName, resource)
+		if err != nil {
+			return nil, "", fiber.NewError(fiber.StatusForbidden, err.Error())
+		}
+	}
+
+	// Verify the provided key
+	for i := range keys {
+		if keys[i].VerifyKey(providedKey) {
+			if !hasScope(keys[i].Scopes, scope) {
+				return nil, "", fiber.NewError(fiber.StatusForbidden, "Insufficient permissions")
+			}
+			return &keys[i], channelID, nil
+		}
+	}
+
+	return nil, "", fiber.NewError(fiber.StatusUnauthorized, "Invalid API key")
+}
+
+func verifyChannelAccess(db *gorm.DB, projectID string, channelName string, channelType string) (string, error) {
+	var channelID string
+	switch channelType {
+	case "event":
+		var channel models.EventChannel
+		err := db.Where("name = ? AND project_id = ?", channelName, projectID).First(&channel).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return "", fmt.Errorf("event channel not found or access denied")
+			}
+			return "", fmt.Errorf("failed to verify event channel access: %w", err)
+		}
+		channelID = channel.ID
+	case "app":
+		var channel models.AppLogChannel
+		err := db.Where("name = ? AND project_id = ?", channelName, projectID).First(&channel).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return "", fmt.Errorf("app log channel not found or access denied")
+			}
+			return "", fmt.Errorf("failed to verify app log channel access: %w", err)
+		}
+		channelID = channel.ID
+	case "request":
+		var channel models.RequestLogChannel
+		err := db.Where("name = ? AND project_id = ?", channelName, projectID).First(&channel).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return "", fmt.Errorf("request log channel not found or access denied")
+			}
+			return "", fmt.Errorf("failed to verify request log channel access: %w", err)
+		}
+		channelID = channel.ID
+	case "trace":
+		var channel models.TraceChannel
+		err := db.Where("name = ? AND project_id = ?", channelName, projectID).First(&channel).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return "", fmt.Errorf("trace channel not found or access denied")
+			}
+			return "", fmt.Errorf("failed to verify trace channel access: %w", err)
+		}
+		channelID = channel.ID
+	default:
+		return "", fmt.Errorf("invalid channel type: %s", channelType)
+	}
+	return channelID, nil
 }
 
 // APIAuth middleware checks for valid API key and permissions
 func APIAuth(db *gorm.DB) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		// Get project ID from request body
-		body := new(BasicBody)
-		if err := c.Bind().JSON(body); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Missing project_id",
-			})
-		}
-
-		// Get API key from header
-		authHeader := c.Get("Authorization")
-		if authHeader == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Missing API key",
-			})
-		}
-
-		// Extract the key from "Bearer <key>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid authorization header format",
-			})
-		}
-
-		providedKey := parts[1]
-
-		// Find API keys for the project
-		var keys []models.ApiKey
-		if err := db.Where("project_id = ?", body.ProjectID).Find(&keys).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to validate API key",
-			})
-		}
-
-		// Verify the provided key against all project keys
-		var validKey *models.ApiKey
-		for i := range keys {
-			if keys[i].VerifyKey(providedKey) {
-				validKey = &keys[i]
-				break
+		// Handle preflight requests
+		if c.Method() == "OPTIONS" {
+			if err := validatePreflightOrigin(c, db); err != nil {
+				return c.Status(err.(*fiber.Error).Code).JSON(fiber.Map{
+					"error": err.Error(),
+				})
 			}
+			return c.SendStatus(fiber.StatusOK)
 		}
 
-		if validKey == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid API key",
+		// TODO: Potentially do allowed ip checks here
+		// Validate origin and get project ID
+		projectID, channelName, err := validateOrigin(c, db)
+		if err != nil {
+			return c.Status(err.(*fiber.Error).Code).JSON(fiber.Map{
+				"error": err.Error(),
 			})
 		}
 
-		// Verify the key has the required scope for the operation
-		requiredScope := getRequiredScope(c.Method(), c.Path())
-		if !hasScope(validKey.Scopes, requiredScope) {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "Insufficient permissions",
+		// Validate API key
+		apiKey, channelID, err := validateAPIKey(c, db, projectID, channelName)
+		if err != nil {
+			return c.Status(err.(*fiber.Error).Code).JSON(fiber.Map{
+				"error": err.Error(),
 			})
 		}
 
-		// Store API key and project info in context for later use
-		c.Locals("api_key", validKey)
-		c.Locals("project_id", body.ProjectID)
+		// Store validated data in context
+		c.Locals("api_key", apiKey)
+		c.Locals("project_id", projectID)
+		c.Locals("channel_id", channelID)
 
 		return c.Next()
 	}
 }
 
-// TODO: Fix this
 // getRequiredScope determines the required scope based on the request
-func getRequiredScope(method, path string) string {
-	// Extract the base path
+func getRequiredScope(method, path string) (string, string) {
 	parts := strings.Split(path, "/")
-	if len(parts) < 3 {
-		return ""
+	parts = slices.DeleteFunc(parts, func(s string) bool { return s == "" })
+	if len(parts) < 4 {
+		return "", ""
 	}
 
-	// Determine scope based on path and method
-	switch parts[2] { // parts[2] would be "event", "app", "request", or "metric"
-	case "event", "app", "request":
+	// Get resource from path
+	resource := parts[3]
+
+	// Determine scope based on resource and method
+	var scope string
+	switch resource {
+	case "event":
 		if method == "POST" {
-			return models.ScopeLogsWrite
+			scope = models.ScopeEventsWrite
+		} else {
+			scope = models.ScopeEventsRead
 		}
-		return models.ScopeLogsRead
-	case "metric":
+	case "app":
 		if method == "POST" {
-			return models.ScopeMetricsWrite
+			scope = models.ScopeLogsWrite
+		} else {
+			scope = models.ScopeLogsRead
 		}
-		return models.ScopeMetricsRead
+	case "request":
+		if method == "POST" {
+			scope = models.ScopeRequestWrite
+		} else {
+			scope = models.ScopeRequestRead
+		}
+	case "trace":
+		if method == "POST" {
+			scope = models.ScopeTracesWrite
+		} else {
+			scope = models.ScopeTracesRead
+		}
 	default:
-		return ""
+		return resource, ""
 	}
+
+	return resource, scope
 }
 
 // hasScope checks if the API key has the required scope

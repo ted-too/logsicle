@@ -1,4 +1,4 @@
-h1:dzVL3z7lW+HuDFWTBdxfNrIKYC2BA4x+SVpnvNzz1Lo=
-20250201001137_init_timescale.sql h1:Cb+Xz66O+Wa59KygAuMS3WFJdXdqTGHEocDKlvbWTh0=
-20250201012619_init_rest.sql h1:8SAdiqsHEeg+DgFMAH1J/dI+vAFKLgsuDOMP0kLAMI4=
-20250201021253_added_onboarded_flag.sql h1:lBkZJfpE63kVAqESjFalWss0opOrTtykBRdrUWG+b1E=
+h1:Wx6++sYIVfbF0Rasbu0g37k6hze5+Qyzos8bmD6Xi7g=
+20250209162825_init_base.sql h1:E91hYmFtR170NhOH6+ORmn9Rk50sTET230foq2Gpylo=
+20250209162925_init_timescale.sql h1:x3u2VAnDe0PTuF5s14Ox1ArsLygIoLkulqtMvD+6d6I=
+20250209175557_base_channel_nullable_fields.sql h1:CwWrq4/8ozZp6jatvc9l9R9Y7QKG/EL6ll375KXDb48=

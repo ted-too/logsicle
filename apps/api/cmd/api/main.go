@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/log"
 	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/gofiber/storage/redis/v3"
@@ -38,12 +38,13 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	log.SetLevel(log.LevelDebug)
+
 	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
 		StructValidator: &structValidator{validate: validator.New(validator.WithRequiredStructEnabled())},
 	})
 
-	// Add recovery middleware
 	app.Use(recoverer.New())
 
 	// Initialize GORM database (for user management)
@@ -53,7 +54,7 @@ func main() {
 	}
 
 	redisStorage := redis.New(redis.Config{
-		URL: cfg.Storage.RedisURL,
+		URL: cfg.Storage.RedisSessionURL,
 	})
 
 	app.Use(session.New(session.Config{
@@ -71,7 +72,7 @@ func main() {
 	defer ts.Close()
 
 	// Initialize Queue Service
-	queueService, err := queue.NewQueueService(cfg.Storage.RedisURL, ts)
+	queueService, err := queue.NewQueueService(cfg.Storage.RedisQueueURL, ts)
 	if err != nil {
 		log.Fatalf("Failed to initialize queue service: %v", err)
 	}
@@ -88,7 +89,7 @@ func main() {
 	processor.Start(processorCtx)
 
 	// Setup routes
-	handlers.SetupRoutes(app, db, queueService, cfg)
+	handlers.SetupRoutes(app, db, ts.Pool, queueService, cfg)
 
 	// Initialize server with graceful shutdown
 	s := server.NewServer(app, cfg)
@@ -99,15 +100,14 @@ func main() {
 
 	go func() {
 		<-quit
-		log.Println("Shutting down gracefully...")
+		log.Info("Shutting down gracefully...")
 		cancel() // Stop processors
 		if err := s.Shutdown(); err != nil {
-			log.Printf("Error during shutdown: %v", err)
+			log.Error("Error during shutdown: %v", err)
 		}
 	}()
 
 	// Start server
-	log.Printf("Starting server on :%s", cfg.Port)
 	if err := s.Start(); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}

@@ -26,12 +26,12 @@ type UserID = typeid.Sortable[UserPrefix]
 
 type User struct {
 	storage.BaseModel
-	LogtoID      string    `gorm:"uniqueIndex;not null" json:"-"`
-	Email        string    `gorm:"uniqueIndex" json:"email"`
-	Name         string    `json:"name"`
-	HasOnboarded bool      `gorm:"default:false" json:"has_onboarded"`
-	LastLoginAt  time.Time `json:"last_login_at"`
-	Projects     []Project `json:"projects"`
+	ExternalOauthID string    `gorm:"uniqueIndex;not null" json:"-"`
+	Email           string    `gorm:"uniqueIndex" json:"email"`
+	Name            string    `json:"name"`
+	HasOnboarded    bool      `gorm:"default:false" json:"has_onboarded"`
+	LastLoginAt     time.Time `json:"last_login_at"`
+	Projects        []Project `json:"projects"`
 }
 
 type ProjectPrefix struct{}
@@ -44,32 +44,15 @@ type ProjectID = typeid.Sortable[ProjectPrefix]
 
 type Project struct {
 	storage.BaseModel
-	UserID           string         `gorm:"index;not null" json:"user_id"`
-	Name             string         `gorm:"not null" json:"name"`
-	AllowedOrigins   pq.StringArray `gorm:"type:text[]" json:"allowed_origins"`
-	LogRetentionDays int            `gorm:"default:30" json:"log_retention_days"`
-	Channels         []Channel      `json:"channels"` // Add channels relationship
-	APIKeys          []ApiKey       `json:"api_keys"` // Multiple API keys per project
-}
-
-type ChannelPrefix struct{}
-
-func (ChannelPrefix) Prefix() string {
-	return "chan"
-}
-
-type ChannelID = typeid.Sortable[ChannelPrefix]
-
-// Channel represents a logical grouping of related logs
-type Channel struct {
-	storage.BaseModel
-	ProjectID       string `gorm:"index;not null"`
-	Name            string `gorm:"not null"`
-	Description     string
-	RetentionDays   int  `gorm:"default:30"`
-	AlertingEnabled bool `gorm:"default:false"`
-	AlertWebhookURL string
-	AlertChannels   pq.StringArray `gorm:"type:text[]"`
+	UserID             string              `gorm:"index;not null" json:"user_id"`
+	Name               string              `gorm:"not null" json:"name"`
+	AllowedOrigins     pq.StringArray      `gorm:"type:text[]" json:"allowed_origins"`
+	LogRetentionDays   int                 `gorm:"default:30" json:"log_retention_days"`
+	EventChannels      []EventChannel      `json:"event_channels"`
+	AppLogChannels     []AppLogChannel     `json:"app_log_channels"`
+	RequestLogChannels []RequestLogChannel `json:"request_log_channels"`
+	TraceChannels      []TraceChannel      `json:"trace_channels"`
+	APIKeys            []ApiKey            `json:"api_keys"` // Multiple API keys per project
 }
 
 type ApiKeyPrefix struct{}
@@ -84,8 +67,10 @@ type ApiKeyID = typeid.Sortable[ApiKeyPrefix]
 const (
 	ScopeLogsWrite    = "logs:write"
 	ScopeLogsRead     = "logs:read"
-	ScopeMetricsWrite = "metrics:write"
-	ScopeMetricsRead  = "metrics:read"
+	ScopeRequestWrite = "request:write"
+	ScopeRequestRead  = "request:read"
+	ScopeTracesWrite  = "traces:write"
+	ScopeTracesRead   = "traces:read"
 	ScopeEventsWrite  = "events:write"
 	ScopeEventsRead   = "events:read"
 )

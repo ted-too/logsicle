@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -121,7 +120,7 @@ func syncUser(ctx context.Context, logto *client.LogtoClient, db *gorm.DB) (*mod
 
 	// Find or create user
 	var user models.User
-	result := db.WithContext(ctx).Model(&models.User{}).Where(&models.User{LogtoID: idTokenClaims.Sub}).First(&user)
+	result := db.WithContext(ctx).Model(&models.User{}).Where(&models.User{ExternalOauthID: idTokenClaims.Sub}).First(&user)
 	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
 		return nil, result.Error
 	}
@@ -135,7 +134,7 @@ func syncUser(ctx context.Context, logto *client.LogtoClient, db *gorm.DB) (*mod
 	}
 
 	// Update user details
-	user.LogtoID = idTokenClaims.Sub
+	user.ExternalOauthID = idTokenClaims.Sub
 	user.Email = idTokenClaims.Email
 	user.Name = idTokenClaims.Name
 	user.LastLoginAt = time.Now()
@@ -147,17 +146,15 @@ func syncUser(ctx context.Context, logto *client.LogtoClient, db *gorm.DB) (*mod
 }
 
 func (g *BaseHandler) getUserHandler(c fiber.Ctx) error {
-	logtoID, ok := c.Locals("logto-id").(string)
+	logtoID, ok := c.Locals("oauth-id").(string)
 	if !ok {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to get user ID",
 		})
 	}
 
-	fmt.Printf("Logto ID: %s\n", logtoID)
-
 	var user models.User
-	g.DB.WithContext(c.Context()).Model(&models.User{}).Where(&models.User{LogtoID: logtoID}).First(&user)
+	g.DB.WithContext(c.Context()).Model(&models.User{}).Where(&models.User{ExternalOauthID: logtoID}).First(&user)
 
 	return c.JSON(user)
 }
@@ -168,7 +165,7 @@ type updateUserRequest struct {
 }
 
 func (g *BaseHandler) updateUserHandler(c fiber.Ctx) error {
-	logtoID, ok := c.Locals("logto-id").(string)
+	logtoID, ok := c.Locals("oauth-id").(string)
 	if !ok {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to get user ID",
@@ -186,7 +183,7 @@ func (g *BaseHandler) updateUserHandler(c fiber.Ctx) error {
 
 	// Get existing user
 	var user models.User
-	result := g.DB.WithContext(c.Context()).Model(&models.User{}).Where(&models.User{LogtoID: logtoID}).First(&user)
+	result := g.DB.WithContext(c.Context()).Model(&models.User{}).Where(&models.User{ExternalOauthID: logtoID}).First(&user)
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to get user",

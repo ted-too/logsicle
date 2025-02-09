@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"fmt"
-
 	"github.com/gofiber/fiber/v3"
 	"github.com/lib/pq"
 	"github.com/sumup/typeid"
@@ -41,8 +39,6 @@ func (g *BaseHandler) createProject(c fiber.Ctx) error {
 		AllowedOrigins:   pq.StringArray(body.AllowedOrigins),
 		LogRetentionDays: body.LogRetentionDays,
 	}
-
-	fmt.Printf("AllowedOrigins: %+v\n", project.AllowedOrigins)
 
 	if err := g.DB.Create(&project).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -116,7 +112,7 @@ func (g *BaseHandler) listProjects(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 
 	var projects []models.Project
-	if err := g.DB.Where("user_id = ?", userID).Preload("APIKeys").Preload("Channels").Find(&projects).Error; err != nil {
+	if err := g.DB.Where("user_id = ?", userID).Preload("APIKeys").Find(&projects).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch projects",
 			"error":   err.Error(),

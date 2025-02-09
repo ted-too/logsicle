@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 @import "tailwindcss";
 
 @plugin 'tailwindcss-animate';
@@ -7,8 +8,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "Geist Mono", sans-serif;
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -99,6 +100,36 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  div:has(
+      > :is(input, div, button)[required],
+      > :is(input, div, label, button)[aria-required="true"]
+    )
+    label::after {
+    content: "*";
+    color: var(--color-destructive, red);
+    margin-left: 2px;
+  }
+
+  .channel-button[data-active="true"] {
+    background-color: color-mix(
+      in oklab,
+      var(--channel-color) 10%,
+      var(--color-background)
+    ) !important;
+    color: color-mix(
+      in oklab,
+      var(--channel-color) 60%,
+      var(--color-foreground)
+    ) !important;
+  }
+  .channel-button:hover {
+    background-color: color-mix(
+      in oklab,
+      var(--channel-color) 5%,
+      var(--color-background)
+    ) !important;
   }
 
   /* ShadCN */
