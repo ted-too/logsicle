@@ -66,9 +66,6 @@ for ((i=1; i<=$COUNT; i++)); do
         }"
     
     echo -e "\n"
-    
-    # Add a small delay between requests
-    sleep 0.2
 done
 
 echo "Finished sending $COUNT events to channel $CHANNEL"

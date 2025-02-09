@@ -7,6 +7,7 @@ import {
   timeRangeSchema,
 } from "@repo/api";
 import {
+  keepPreviousData,
   queryOptions,
   useInfiniteQuery,
   useMutation,
@@ -60,6 +61,8 @@ export const eventsQueries = {
       useInfiniteQuery({
         queryKey: ["projects", projectId, "events", search],
         initialPageParam: new Date().toISOString(),
+        refetchOnWindowFocus: false,
+        placeholderData: keepPreviousData,
         queryFn: async ({ pageParam }) => {
           const { data, error } = await getEventLogs(
             projectId,
