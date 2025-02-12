@@ -1,5 +1,4 @@
-import type { ButtonHTMLAttributes } from "react";
-import { forwardRef } from "react";
+import type { ButtonHTMLAttributes, ComponentProps } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 
@@ -37,7 +36,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  },
+  }
 );
 
 export interface ButtonProps
@@ -46,56 +45,50 @@ export interface ButtonProps
   asChild?: boolean;
 }
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    );
-  },
-);
-Button.displayName = "Button";
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: ButtonProps) {
+  const Comp = asChild ? Slot : "button";
+  return (
+    <Comp
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
+}
 
-const ActionButton = forwardRef<
-  HTMLButtonElement,
-  Omit<ButtonProps, "asChild"> & {
-    isLoading?: boolean;
-    loaderClassName?: string;
-  }
->(
-  (
-    {
-      className,
-      variant,
-      size,
-      isLoading = false,
-      disabled = false,
-      loaderClassName,
-      children,
-      ...props
-    },
-    ref,
-  ) => {
-    return (
-      <button
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        disabled={disabled || isLoading}
-        {...props}
-      >
-        {isLoading ? (
-          <LoaderCircle className={cn("animate-spin", loaderClassName)} />
-        ) : (
-          children
-        )}
-      </button>
-    );
-  },
-);
-ActionButton.displayName = "ActionButton";
+type ActionButtonProps = Omit<ButtonProps, "asChild"> & {
+  isLoading?: boolean;
+  loaderClassName?: string;
+};
+
+function ActionButton({
+  className,
+  variant,
+  size,
+  isLoading = false,
+  disabled = false,
+  loaderClassName,
+  children,
+  ...props
+}: ActionButtonProps) {
+  return (
+    <button
+      className={cn(buttonVariants({ variant, size, className }))}
+      disabled={disabled || isLoading}
+      {...props}
+    >
+      {isLoading ? (
+        <LoaderCircle className={cn("animate-spin", loaderClassName)} />
+      ) : (
+        children
+      )}
+    </button>
+  );
+}
 
 export { Button, ActionButton, buttonVariants };

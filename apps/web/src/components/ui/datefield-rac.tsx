@@ -15,54 +15,55 @@ import {
   TimeValue as TimeValueRac,
   composeRenderProps,
 } from "react-aria-components";
+import { ComponentProps } from "react";
 
-const DateField = <T extends DateValueRac>({
+function DateField<T extends DateValueRac>({
   className,
   children,
   ...props
-}: DateFieldProps<T>) => {
+}: DateFieldProps<T>) {
   return (
     <DateFieldRac
       className={composeRenderProps(className, (className) =>
-        cn("space-y-2", className),
+        cn("space-y-2", className)
       )}
       {...props}
     >
       {children}
     </DateFieldRac>
   );
-};
+}
 
-const TimeField = <T extends TimeValueRac>({
+function TimeField<T extends TimeValueRac>({
   className,
   children,
   ...props
-}: TimeFieldProps<T>) => {
+}: TimeFieldProps<T>) {
   return (
     <TimeFieldRac
       className={composeRenderProps(className, (className) =>
-        cn("space-y-2", className),
+        cn("space-y-2", className)
       )}
       {...props}
     >
       {children}
     </TimeFieldRac>
   );
-};
+}
 
-const DateSegment = ({ className, ...props }: DateSegmentProps) => {
+function DateSegment({ className, ...props }: DateSegmentProps) {
   return (
     <DateSegmentRac
       className={composeRenderProps(className, (className) =>
         cn(
           "inline rounded p-0.5 text-foreground caret-transparent outline outline-0 data-[disabled]:cursor-not-allowed data-[focused]:bg-accent data-[invalid]:data-[focused]:bg-destructive data-[type=literal]:px-0 data-[focused]:data-[placeholder]:text-foreground data-[focused]:text-foreground data-[invalid]:data-[focused]:data-[placeholder]:text-destructive-foreground data-[invalid]:data-[focused]:text-destructive-foreground data-[invalid]:data-[placeholder]:text-destructive data-[invalid]:text-destructive data-[placeholder]:text-muted-foreground/70 data-[type=literal]:text-muted-foreground/70 data-[disabled]:opacity-50",
-          className,
-        ),
+          className
+        )
       )}
       {...props}
     />
   );
-};
+}
 
 const dateInputStyle =
   "relative inline-flex h-9 w-full items-center overflow-hidden whitespace-nowrap rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm shadow-black/5 transition-shadow data-[focus-within]:border-ring data-[disabled]:opacity-50 data-[focus-within]:outline-none data-[focus-within]:ring-[3px] data-[focus-within]:ring-ring/20";
@@ -84,14 +85,14 @@ interface DateInputProps extends DateInputPropsRac {
   short?: boolean;
 }
 
-const DateInput = ({
+function DateInput({
   className,
   unstyled = false,
   display = "datetime",
   timezone = false,
   short = false,
   ...props
-}: Omit<DateInputProps, "children">) => {
+}: Omit<DateInputProps, "children">) {
   // Convert preset to segment array if necessary
   const allowedSegments = Array.isArray(display)
     ? display
@@ -105,8 +106,8 @@ const DateInput = ({
           "[&[data-short=true]_[data-type=day]_+_[data-type=literal]]:hidden",
           "[&[data-short=true]_[data-type=year]]:hidden",
           "*:data-[type=timeZoneName]:ml-1 *:data-[type=timeZoneName]:bg-accent *:data-[type=timeZoneName]:text-xs *:data-[type=timeZoneName]:px-1",
-          className,
-        ),
+          className
+        )
       )}
       data-short={short}
       {...props}
@@ -155,7 +156,7 @@ const DateInput = ({
       }}
     </DateInputRac>
   );
-};
+}
 
 export { DateField, DateInput, DateSegment, TimeField, dateInputStyle };
 export type { DateInputProps };

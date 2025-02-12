@@ -1,77 +1,101 @@
-const fs = require('fs');
-const path = require('path');
-const parser = require('@babel/parser');
-const traverse = require('@babel/traverse').default;
-const generate = require('@babel/generator').default;
-const t = require('@babel/types');
+const fs = require("fs");
+const path = require("path");
+const j = require("jscodeshift");
+const parser = require("@babel/parser");
 
-const directory = 'apps/web/src/components/ui';
+const directory = "apps/web/src/components/ui";
 
-function transformCode(code) {
-  const ast = parser.parse(code, {
-    sourceType: 'module',
-    plugins: ['typescript', 'jsx'],
+function transformCode(fileInfo) {
+  const root = j(fileInfo.source, {
+    parser: {
+      parse: (source) =>
+        parser.parse(source, {
+          sourceType: "module",
+          plugins: ["jsx", "typescript", "decorators-legacy"],
+        }),
+    },
   });
 
-  traverse(ast, {
-    VariableDeclaration(path) {
-      const declaration = path.node.declarations[0];
-      if (!t.isIdentifier(declaration.id)) return;
-      
+  // Find all const declarations that are components
+  root
+    .find(j.VariableDeclaration)
+    .filter((path) => {
+      const declaration = path.node.declarations?.[0];
+      if (!declaration) return false;
+
       // Check if it's a component (starts with uppercase)
-      if (!/^[A-Z]/.test(declaration.id.name)) return;
-
-      const arrowFunction = declaration.init;
-      if (!t.isArrowFunctionExpression(arrowFunction)) return;
-
-      // Create the function params
-      const params = [{
-        type: 'ObjectPattern',
-        properties: [
-          {
-            type: 'ObjectProperty',
-            key: t.identifier('className'),
-            value: t.identifier('className'),
-            shorthand: true,
-          },
-          {
-            type: 'RestElement',
-            argument: t.identifier('props'),
-          },
-        ],
-      }];
-
-      // Create the return statement
-      const returnStatement = t.returnStatement(arrowFunction.body);
-
-      // Create the function
-      const functionDeclaration = t.functionDeclaration(
-        t.identifier(declaration.id.name),
-        params,
-        t.blockStatement([returnStatement]),
-        false,
-        false
-      );
-
-      // Add type annotation if it exists
-      if (arrowFunction.typeParameters) {
-        functionDeclaration.typeParameters = arrowFunction.typeParameters;
+      if (
+        !declaration.id ||
+        !declaration.id.name ||
+        !/^[A-Z]/.test(declaration.id.name)
+      ) {
+        return false;
       }
 
-      path.replaceWith(functionDeclaration);
-    }
-  });
+      // Check if it's a function we want to transform
+      return (
+        declaration.init &&
+        (declaration.init.type === "ArrowFunctionExpression" ||
+          declaration.init.type === "FunctionExpression")
+      );
+    })
+    .forEach((path) => {
+      try {
+        const declaration = path.node.declarations[0];
+        const componentName = declaration.id.name;
+        const props = declaration.init.params[0];
+        const body = declaration.init.body;
 
-  return generate(ast).code;
+        // Create the function body
+        const functionBody =
+          body.type === "BlockStatement"
+            ? body
+            : j.blockStatement([j.returnStatement(body)]);
+
+        // Create the new function declaration
+        const functionDeclaration = j.functionDeclaration(
+          j.identifier(componentName),
+          [props],
+          functionBody
+        );
+
+        // Copy type parameters if they exist
+        if (declaration.init.typeParameters) {
+          functionDeclaration.typeParameters = declaration.init.typeParameters;
+        }
+
+        // Replace the const declaration with the function declaration
+        j(path).replaceWith(functionDeclaration);
+      } catch (error) {
+        console.error(
+          `Error transforming ${path.node.declarations[0]?.id?.name}:`,
+          error
+        );
+      }
+    });
+
+  return root.toSource({
+    quote: "single",
+    trailingComma: true,
+  });
 }
 
-// Process all TypeScript files in the directory
+// Process all files
 fs.readdirSync(directory)
-  .filter(file => file.endsWith('.tsx'))
-  .forEach(file => {
-    const filePath = path.join(directory, file);
-    const code = fs.readFileSync(filePath, 'utf8');
-    const transformed = transformCode(code);
-    fs.writeFileSync(filePath, transformed);
-    console.log(`Transformed: ${file}`);
+  .filter((file) => file.endsWith(".tsx"))
+  .forEach((file) => {
+    try {
+      const filePath = path.join(directory, file);
+      const source = fs.readFileSync(filePath, "utf8");
+
+      const transformed = transformCode({
+        source,
+        path: filePath,
+      });
+
+      fs.writeFileSync(filePath, transformed);
+      console.log(`Successfully transformed: ${file}`);
+    } catch (error) {
+      console.error(`Error processing ${file}:`, error);
+    }
   });

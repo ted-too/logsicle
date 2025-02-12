@@ -25,25 +25,33 @@ type CalendarProps = ComponentProps<typeof CalendarRac> & BaseCalendarProps;
 type RangeCalendarProps = ComponentProps<typeof RangeCalendarRac> &
   BaseCalendarProps;
 
-const CalendarHeader = () => (
-  <header className="flex w-full items-center gap-1 pb-1">
-    <Button
-      slot="previous"
-      className="flex size-9 items-center justify-center rounded-lg text-muted-foreground/80 outline-offset-2 transition-colors hover:bg-accent hover:text-foreground focus:outline-none data-[focus-visible]:outline data-[focus-visible]:outline-2 data-[focus-visible]:outline-ring/70"
-    >
-      <ChevronLeft size={16} strokeWidth={2} />
-    </Button>
-    <HeadingRac className="grow text-center text-sm font-medium" />
-    <Button
-      slot="next"
-      className="flex size-9 items-center justify-center rounded-lg text-muted-foreground/80 outline-offset-2 transition-colors hover:bg-accent hover:text-foreground focus:outline-none data-[focus-visible]:outline data-[focus-visible]:outline-2 data-[focus-visible]:outline-ring/70"
-    >
-      <ChevronRight size={16} strokeWidth={2} />
-    </Button>
-  </header>
-);
+function CalendarHeader() {
+  return (
+    <header className="flex w-full items-center gap-1 pb-1">
+      <Button
+        slot="previous"
+        className="flex size-9 items-center justify-center rounded-lg text-muted-foreground/80 outline-offset-2 transition-colors hover:bg-accent hover:text-foreground focus:outline-none data-[focus-visible]:outline data-[focus-visible]:outline-2 data-[focus-visible]:outline-ring/70"
+      >
+        <ChevronLeft size={16} strokeWidth={2} />
+      </Button>
+      <HeadingRac className="grow text-center text-sm font-medium" />
+      <Button
+        slot="next"
+        className="flex size-9 items-center justify-center rounded-lg text-muted-foreground/80 outline-offset-2 transition-colors hover:bg-accent hover:text-foreground focus:outline-none data-[focus-visible]:outline data-[focus-visible]:outline-2 data-[focus-visible]:outline-ring/70"
+      >
+        <ChevronRight size={16} strokeWidth={2} />
+      </Button>
+    </header>
+  );
+}
 
-const CalendarGridComponent = ({ isRange = false }: { isRange?: boolean }) => {
+interface CalendarGridComponentProps {
+  isRange?: boolean;
+}
+
+function CalendarGridComponent({
+  isRange = false,
+}: CalendarGridComponentProps) {
   const now = today(getLocalTimeZone());
 
   return (
@@ -70,42 +78,42 @@ const CalendarGridComponent = ({ isRange = false }: { isRange?: boolean }) => {
                   "after:pointer-events-none after:absolute after:bottom-1 after:start-1/2 after:z-10 after:size-[3px] after:-translate-x-1/2 after:rounded-full after:bg-primary",
                   isRange
                     ? "data-[selection-end]:[&:not([data-hover])]:after:bg-background data-[selection-start]:[&:not([data-hover])]:after:bg-background"
-                    : "data-[selected]:after:bg-background",
-                ),
+                    : "data-[selected]:after:bg-background"
+                )
             )}
           />
         )}
       </CalendarGridBodyRac>
     </CalendarGridRac>
   );
-};
+}
 
-const Calendar = ({ className, ...props }: CalendarProps) => {
+function Calendar({ className, ...props }: CalendarProps) {
   return (
     <CalendarRac
       {...props}
       className={composeRenderProps(className, (className) =>
-        cn("w-fit", className),
+        cn("w-fit", className)
       )}
     >
       <CalendarHeader />
       <CalendarGridComponent />
     </CalendarRac>
   );
-};
+}
 
-const RangeCalendar = ({ className, ...props }: RangeCalendarProps) => {
+function RangeCalendar({ className, ...props }: RangeCalendarProps) {
   return (
     <RangeCalendarRac
       {...props}
       className={composeRenderProps(className, (className) =>
-        cn("w-fit", className),
+        cn("w-fit", className)
       )}
     >
       <CalendarHeader />
       <CalendarGridComponent isRange />
     </RangeCalendarRac>
   );
-};
+}
 
 export { Calendar, RangeCalendar };
