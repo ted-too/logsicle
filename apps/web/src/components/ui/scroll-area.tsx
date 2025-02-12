@@ -1,16 +1,17 @@
 "use client";
 
-import * as React from "react";
+import type { ComponentPropsWithoutRef, UIEventHandler } from "react";
+import { forwardRef } from "react";
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
 
 import { cn } from "@/lib/utils";
 
 export interface ScrollAreaProps
-  extends React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> {
-  onViewportScroll?: React.UIEventHandler<HTMLDivElement> | undefined;
+  extends ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> {
+  onViewportScroll?: UIEventHandler<HTMLDivElement> | undefined;
 }
 
-const ScrollArea = React.forwardRef<
+const ScrollArea = forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
   ScrollAreaProps
 >(({ className, children, onViewportScroll, ...props }, ref) => (
@@ -31,7 +32,7 @@ const ScrollArea = React.forwardRef<
 ));
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName;
 
-const ScrollBar = React.forwardRef<
+const ScrollBar = forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>,
   React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>
 >(({ className, orientation = "vertical", ...props }, ref) => (
