@@ -1,8 +1,10 @@
 import { ExternalToast, toast as internalToast } from "sonner";
 
 export const toast = {
-  success: (text: string, data?: ExternalToast) => internalToast.success(text, data),
-  warning: (text: string, data?: ExternalToast) => internalToast.warning(text, data),
+  success: (text: string, data?: ExternalToast) =>
+    internalToast.success(text, data),
+  warning: (text: string, data?: ExternalToast) =>
+    internalToast.warning(text, data),
   // APIError: (error: unknown) => {
   //   const title = (error as any)?.message
   //     ? (error as any)?.message
@@ -21,7 +23,7 @@ export const toast = {
       : "Something went wrong!";
     internalToast.error(title, {
       description: message,
-      ...data
+      ...data,
     });
   },
 };

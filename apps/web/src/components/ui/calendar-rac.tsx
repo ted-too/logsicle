@@ -22,7 +22,8 @@ interface BaseCalendarProps {
 }
 
 type CalendarProps = ComponentProps<typeof CalendarRac> & BaseCalendarProps;
-type RangeCalendarProps = ComponentProps<typeof RangeCalendarRac> & BaseCalendarProps;
+type RangeCalendarProps = ComponentProps<typeof RangeCalendarRac> &
+  BaseCalendarProps;
 
 const CalendarHeader = () => (
   <header className="flex w-full items-center gap-1 pb-1">
@@ -83,7 +84,9 @@ const Calendar = ({ className, ...props }: CalendarProps) => {
   return (
     <CalendarRac
       {...props}
-      className={composeRenderProps(className, (className) => cn("w-fit", className))}
+      className={composeRenderProps(className, (className) =>
+        cn("w-fit", className),
+      )}
     >
       <CalendarHeader />
       <CalendarGridComponent />
@@ -95,7 +98,9 @@ const RangeCalendar = ({ className, ...props }: RangeCalendarProps) => {
   return (
     <RangeCalendarRac
       {...props}
-      className={composeRenderProps(className, (className) => cn("w-fit", className))}
+      className={composeRenderProps(className, (className) =>
+        cn("w-fit", className),
+      )}
     >
       <CalendarHeader />
       <CalendarGridComponent isRange />

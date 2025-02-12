@@ -24,7 +24,7 @@ const DateField = <T extends DateValueRac>({
   return (
     <DateFieldRac
       className={composeRenderProps(className, (className) =>
-        cn("space-y-2", className)
+        cn("space-y-2", className),
       )}
       {...props}
     >
@@ -41,7 +41,7 @@ const TimeField = <T extends TimeValueRac>({
   return (
     <TimeFieldRac
       className={composeRenderProps(className, (className) =>
-        cn("space-y-2", className)
+        cn("space-y-2", className),
       )}
       {...props}
     >
@@ -56,8 +56,8 @@ const DateSegment = ({ className, ...props }: DateSegmentProps) => {
       className={composeRenderProps(className, (className) =>
         cn(
           "inline rounded p-0.5 text-foreground caret-transparent outline outline-0 data-[disabled]:cursor-not-allowed data-[focused]:bg-accent data-[invalid]:data-[focused]:bg-destructive data-[type=literal]:px-0 data-[focused]:data-[placeholder]:text-foreground data-[focused]:text-foreground data-[invalid]:data-[focused]:data-[placeholder]:text-destructive-foreground data-[invalid]:data-[focused]:text-destructive-foreground data-[invalid]:data-[placeholder]:text-destructive data-[invalid]:text-destructive data-[placeholder]:text-muted-foreground/70 data-[type=literal]:text-muted-foreground/70 data-[disabled]:opacity-50",
-          className
-        )
+          className,
+        ),
       )}
       {...props}
     />
@@ -105,8 +105,8 @@ const DateInput = ({
           "[&[data-short=true]_[data-type=day]_+_[data-type=literal]]:hidden",
           "[&[data-short=true]_[data-type=year]]:hidden",
           "*:data-[type=timeZoneName]:ml-1 *:data-[type=timeZoneName]:bg-accent *:data-[type=timeZoneName]:text-xs *:data-[type=timeZoneName]:px-1",
-          className
-        )
+          className,
+        ),
       )}
       data-short={short}
       {...props}

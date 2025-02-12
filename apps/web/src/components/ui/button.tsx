@@ -23,8 +23,7 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
         ghost:
           "border border-transparent hover:border-neutral-200 hover:bg-accent/75 hover:text-accent-foreground",
-        trueGhost:
-          "hover:bg-accent/75 hover:text-accent-foreground",
+        trueGhost: "hover:bg-accent/75 hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -38,7 +37,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
+  },
 );
 
 export interface ButtonProps
@@ -57,7 +56,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       />
     );
-  }
+  },
 );
 Button.displayName = "Button";
 
@@ -79,7 +78,7 @@ const ActionButton = forwardRef<
       children,
       ...props
     },
-    ref
+    ref,
   ) => {
     return (
       <button
@@ -95,7 +94,7 @@ const ActionButton = forwardRef<
         )}
       </button>
     );
-  }
+  },
 );
 ActionButton.displayName = "ActionButton";
 
