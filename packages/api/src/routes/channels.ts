@@ -1,6 +1,6 @@
 // packages/api/src/routes/channels.ts
 
-import type { ErrorResponse, FnResponse, Opts } from "../index";
+import type { ErrorResponse, FnResponse, Opts } from "@/types";
 
 export interface EventChannel {
   id: string;

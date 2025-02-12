@@ -3,7 +3,7 @@ import {
   type ErrorResponse,
   type FnResponse,
   type Opts,
-} from "../index";
+} from "@/types";
 import { type ChannelType } from "./create-channels";
 import { LOG_RETENTION_DAYS } from "./projects";
 

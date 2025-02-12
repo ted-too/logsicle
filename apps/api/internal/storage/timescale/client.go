@@ -56,10 +56,12 @@ func (c *TimescaleClient) BulkInsertAppLogs(ctx context.Context, logs []*AppLog)
 		batch.Queue(`
 			INSERT INTO app_logs (
 				id, project_id, channel_id, level, message,
-				metadata, stack_trace, service_name, timestamp
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+				fields, timestamp, caller, function,
+				service_name, version, environment, host
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 			log.ID, log.ProjectID, log.ChannelID, log.Level, log.Message,
-			log.Metadata, log.StackTrace, log.ServiceName, log.Timestamp,
+			log.Fields, log.Timestamp, log.Caller, log.Function,
+			log.ServiceName, log.Version, log.Environment, log.Host,
 		)
 	}
 
@@ -87,7 +89,7 @@ func (c *TimescaleClient) BulkInsertRequestLogs(ctx context.Context, logs []*Req
 }
 
 // BulkInsertMetrics inserts multiple metrics in a single transaction
-func (c *TimescaleClient) BulkInsertMetrics(ctx context.Context, metrics []*Trace) error {
+func (c *TimescaleClient) BulkInsertMetrics(ctx context.Context, metrics []*Metric) error {
 	batch := &pgx.Batch{}
 
 	for _, metric := range metrics {

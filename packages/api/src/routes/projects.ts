@@ -1,4 +1,4 @@
-import type { APIKey, ErrorResponse, FnResponse, Opts } from "../index";
+import type { APIKey, ErrorResponse, FnResponse, Opts } from "@/types";
 import { z } from "zod";
 
 export const LOG_RETENTION_DAYS = [3, 7, 14, 30, 90];

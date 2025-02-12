@@ -1,8 +1,9 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 import {
-  deleteEventLog,
-  getEventLogs,
-  getEventMetrics,
+  deleteAppLog,
+  getAppLogMetrics,
+  getAppLogs,
+  LogLevel,
   Opts,
   timeRangeSchema,
 } from "@repo/api";
@@ -16,61 +17,66 @@ import {
 } from "@tanstack/react-query";
 import { z } from "zod";
 import { getQueryClient } from "../query-client";
-import { optionalStringSchema } from "./app-logs";
 
 const DEFAULT_PAGE_SIZE = 20;
 
-// Reusable array schema
-export const optionalArraySchema = z
-  .array(z.string())
+// Individual field schemas
+export const optionalStringSchema = z
+  .string()
   .optional()
-  .transform((v) => (v?.length ? v : undefined));
+  .transform((v) => v || undefined);
 
-// Updated event search schema using reusable components
-export const eventSearchSchema = z.object({
+export const logLevelSchema = z
+  .enum(["debug", "info", "warning", "error", "fatal"] as const)
+  .optional()
+  .transform((v) => v || undefined);
+
+// Main schema composition
+export const appLogSearchSchema = z.object({
   channelId: optionalStringSchema,
-  name: optionalStringSchema,
-  tags: optionalArraySchema,
+  level: logLevelSchema,
+  serviceName: optionalStringSchema,
+  environment: optionalStringSchema,
+  search: optionalStringSchema,
   start: timeRangeSchema.start,
   end: timeRangeSchema.end,
 });
 
-export type EventSearch = z.infer<typeof eventSearchSchema>;
+export type AppLogSearch = z.infer<typeof appLogSearchSchema>;
 
 // Validate and parse search params
-export function validateEventSearch(
+export function validateAppLogSearch(
   search: Record<string, unknown>
-): EventSearch {
-  // Handle tags special case as it might come as string or array
-  const parsedTags = search.tags
-    ? Array.isArray(search.tags)
-      ? search.tags
-      : [search.tags]
-    : [];
+): AppLogSearch {
+  // const now = new Date();
+  // const defaultSearch = {
+  //   ...search,
+  //   start: search.start ?? new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(),
+  //   end: search.end ?? now.toISOString(),
+  // };
 
-  return eventSearchSchema.parse({
-    ...search,
-    tags: parsedTags,
-  });
+  return appLogSearchSchema.parse(search);
 }
 
-export const eventsQueries = {
+export const appLogsQueries = {
   list: {
-    useInfiniteQuery: (projectId: string, search: EventSearch, opts?: Opts) =>
+    useInfiniteQuery: (projectId: string, search: AppLogSearch, opts?: Opts) =>
       useInfiniteQuery({
-        queryKey: ["projects", projectId, "events", search],
+        queryKey: ["projects", projectId, "app-logs", search],
         initialPageParam: new Date().toISOString(),
         refetchOnWindowFocus: false,
         placeholderData: keepPreviousData,
         staleTime: 30 * 1000, // 30 seconds
         gcTime: 5 * 60 * 1000, // 5 minutes
         queryFn: async ({ pageParam }) => {
-          const { data, error } = await getEventLogs(
+          const { data, error } = await getAppLogs(
             projectId,
             {
               channelId: search.channelId,
-              name: search.name,
-              tags: search.tags,
+              level: search.level as LogLevel,
+              serviceName: search.serviceName,
+              environment: search.environment,
+              search: search.search,
               before: pageParam,
               limit: DEFAULT_PAGE_SIZE,
               start: search.start,
@@ -96,17 +102,19 @@ export const eventsQueries = {
   },
   metricsQueryOptions: (
     projectId: string,
-    search: EventSearch,
+    search: AppLogSearch,
     opts?: RequestInit
   ) =>
     queryOptions({
-      queryKey: ["projects", projectId, "events", "metrics", search],
+      queryKey: ["projects", projectId, "app-logs", "metrics", search],
       queryFn: async () => {
-        const { data, error } = await getEventMetrics(
+        const { data, error } = await getAppLogMetrics(
           projectId,
           {
             channelId: search.channelId,
-            name: search.name,
+            level: search.level as LogLevel,
+            serviceName: search.serviceName,
+            environment: search.environment,
             start: search.start,
             end: search.end,
           },
@@ -120,16 +128,16 @@ export const eventsQueries = {
       },
     }),
   metrics: {
-    useQuery: (projectId: string, search: EventSearch) =>
-      useQuery(eventsQueries.metricsQueryOptions(projectId, search)),
-    useSuspenseQuery: (projectId: string, search: EventSearch) =>
-      useSuspenseQuery(eventsQueries.metricsQueryOptions(projectId, search)),
+    useQuery: (projectId: string, search: AppLogSearch) =>
+      useQuery(appLogsQueries.metricsQueryOptions(projectId, search)),
+    useSuspenseQuery: (projectId: string, search: AppLogSearch) =>
+      useSuspenseQuery(appLogsQueries.metricsQueryOptions(projectId, search)),
   },
 };
 
 const queryClient = getQueryClient();
 
-export const eventsMutations = {
+export const appLogsMutations = {
   delete: () =>
     useMutation({
       mutationFn: async ({
@@ -139,7 +147,7 @@ export const eventsMutations = {
         projectId: string;
         logId: string;
       }) => {
-        const { error } = await deleteEventLog(projectId, logId, {
+        const { error } = await deleteAppLog(projectId, logId, {
           baseURL: import.meta.env.PUBLIC_API_URL!,
         });
         if (error) return Promise.reject(error);
@@ -147,11 +155,11 @@ export const eventsMutations = {
       onSuccess: (_data, { projectId }) => {
         // Invalidate relevant queries
         queryClient.invalidateQueries({
-          queryKey: ["projects", projectId, "events"],
+          queryKey: ["projects", projectId, "app-logs"],
         });
         // Also invalidate metrics as they might need updating
         queryClient.invalidateQueries({
-          queryKey: ["projects", projectId, "events", "metrics"],
+          queryKey: ["projects", projectId, "app-logs", "metrics"],
         });
       },
     }),

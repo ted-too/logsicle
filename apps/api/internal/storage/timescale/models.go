@@ -8,7 +8,6 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
-	"github.com/jackc/pgx/v5"
 	"github.com/sumup/typeid"
 )
 
@@ -30,7 +29,7 @@ func (l *RequestLog) GetProjectID() string {
 	return l.ProjectID
 }
 
-func (l *Trace) GetProjectID() string {
+func (l *Metric) GetProjectID() string {
 	return l.ProjectID
 }
 
@@ -47,7 +46,7 @@ func (l *RequestLog) GetLogType() string {
 	return "request"
 }
 
-func (l *Trace) GetLogType() string {
+func (l *Metric) GetLogType() string {
 	return "metric"
 }
 
@@ -109,7 +108,6 @@ func (l EventLog) MarshalJSON() ([]byte, error) {
 	return json.Marshal(clean)
 }
 
-// Add this to your EventLog struct in timescale/models.go
 func (l *EventLog) UnmarshalJSON(data []byte) error {
 	type Alias EventLog // Prevent recursive UnmarshalJSON calls
 
@@ -211,50 +209,212 @@ func (e EventLogInput) ValidateAndCreate(channelIDInput string) (*EventLog, erro
 	}, nil
 }
 
+type LogLevel string
+
+const (
+	LogLevelDebug   LogLevel = "debug"
+	LogLevelInfo    LogLevel = "info"
+	LogLevelWarning LogLevel = "warning"
+	LogLevelError   LogLevel = "error"
+	LogLevelFatal   LogLevel = "fatal"
+)
+
 // Application logs (debug, info, error logs)
 type AppLog struct {
-	ID          string    `json:"id,omitempty"`
-	ProjectID   string    `json:"project_id"`
-	ChannelID   *string   `json:"channel_id,omitempty"`
-	Level       LogLevel  `json:"level"`
-	Message     string    `json:"message"`
-	Metadata    JSONB     `json:"metadata,omitempty"`
-	StackTrace  string    `json:"stack_trace,omitempty"`
-	ServiceName string    `json:"service_name"`
-	Timestamp   time.Time `json:"timestamp"`
+	ID        string         `json:"id"`
+	ProjectID string         `json:"project_id"`
+	ChannelID sql.NullString `json:"channel_id"`
+
+	// Always available
+	Level     LogLevel  `json:"level"`
+	Message   string    `json:"message"`
+	Fields    JSONB     `json:"fields"` // Structured data
+	Timestamp time.Time `json:"timestamp"`
+
+	// Optional fields (might be available depending on logger)
+	Caller   sql.NullString `json:"caller"`   // file:line
+	Function sql.NullString `json:"function"` // function name
+
+	// Configuration-time fields (set once during setup)
+	ServiceName string         `json:"service_name"`
+	Version     sql.NullString `json:"version"`
+	Environment sql.NullString `json:"environment"`
+	Host        sql.NullString `json:"host"`
+}
+
+func (l AppLog) MarshalJSON() ([]byte, error) {
+	type Alias AppLog // Prevent recursive MarshalJSON calls
+
+	clean := struct {
+		*Alias
+		ChannelID   *string `json:"channel_id"`
+		Caller      *string `json:"caller"`
+		Function    *string `json:"function"`
+		Version     *string `json:"version"`
+		Environment *string `json:"environment"`
+		Host        *string `json:"host"`
+	}{
+		Alias: (*Alias)(&l),
+	}
+
+	// Convert sql.NullString to *string for all nullable fields
+	if l.ChannelID.Valid {
+		clean.ChannelID = &l.ChannelID.String
+	}
+	if l.Caller.Valid {
+		clean.Caller = &l.Caller.String
+	}
+	if l.Function.Valid {
+		clean.Function = &l.Function.String
+	}
+	if l.Version.Valid {
+		clean.Version = &l.Version.String
+	}
+	if l.Environment.Valid {
+		clean.Environment = &l.Environment.String
+	}
+	if l.Host.Valid {
+		clean.Host = &l.Host.String
+	}
+
+	return json.Marshal(clean)
+}
+
+func (l *AppLog) UnmarshalJSON(data []byte) error {
+	type Alias AppLog // Prevent recursive UnmarshalJSON calls
+
+	aux := struct {
+		*Alias
+		ChannelID   *string `json:"channel_id"`
+		Caller      *string `json:"caller"`
+		Function    *string `json:"function"`
+		Version     *string `json:"version"`
+		Environment *string `json:"environment"`
+		Host        *string `json:"host"`
+	}{
+		Alias: (*Alias)(l),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Convert all *string to sql.NullString
+	if aux.ChannelID != nil {
+		l.ChannelID = sql.NullString{
+			String: *aux.ChannelID,
+			Valid:  true,
+		}
+	} else {
+		l.ChannelID = sql.NullString{
+			Valid: false,
+		}
+	}
+
+	if aux.Caller != nil {
+		l.Caller = sql.NullString{
+			String: *aux.Caller,
+			Valid:  true,
+		}
+	} else {
+		l.Caller = sql.NullString{
+			Valid: false,
+		}
+	}
+
+	if aux.Function != nil {
+		l.Function = sql.NullString{
+			String: *aux.Function,
+			Valid:  true,
+		}
+	} else {
+		l.Function = sql.NullString{
+			Valid: false,
+		}
+	}
+
+	if aux.Version != nil {
+		l.Version = sql.NullString{
+			String: *aux.Version,
+			Valid:  true,
+		}
+	} else {
+		l.Version = sql.NullString{
+			Valid: false,
+		}
+	}
+
+	if aux.Environment != nil {
+		l.Environment = sql.NullString{
+			String: *aux.Environment,
+			Valid:  true,
+		}
+	} else {
+		l.Environment = sql.NullString{
+			Valid: false,
+		}
+	}
+
+	if aux.Host != nil {
+		l.Host = sql.NullString{
+			String: *aux.Host,
+			Valid:  true,
+		}
+	} else {
+		l.Host = sql.NullString{
+			Valid: false,
+		}
+	}
+
+	return nil
 }
 
 // AppLog validation struct
 type AppLogInput struct {
 	ProjectID   string         `json:"project_id"`
-	ChannelID   *string        `json:"channel_id,omitempty"`
 	Level       string         `json:"level"`
 	Message     string         `json:"message"`
-	Metadata    map[string]any `json:"metadata,omitempty"`
-	StackTrace  string         `json:"stack_trace,omitempty"`
+	Fields      map[string]any `json:"fields,omitempty"`
+	Caller      *string        `json:"caller,omitempty"`
+	Function    *string        `json:"function,omitempty"`
 	ServiceName string         `json:"service_name"`
+	Version     string         `json:"version,omitempty"`
+	Environment string         `json:"environment,omitempty"`
+	Host        string         `json:"host,omitempty"`
 }
 
-func (a AppLogInput) ValidateAndCreate() (*AppLog, error) {
+func (a AppLogInput) ValidateAndCreate(channelIDInput string) (*AppLog, error) {
 	if err := validation.ValidateStruct(&a,
 		validation.Field(&a.ProjectID,
 			validation.Required,
 		),
 		validation.Field(&a.Level,
 			validation.Required,
-			validation.In("debug", "info", "warning", "error"),
+			validation.In("info", "debug", "info", "warning", "error", "fatal"),
 		),
 		validation.Field(&a.Message,
 			validation.Required,
 			validation.Length(1, 10000),
 		),
-		validation.Field(&a.Metadata),
-		validation.Field(&a.StackTrace,
-			validation.Length(0, 50000),
+		validation.Field(&a.Fields),
+		validation.Field(&a.Caller,
+			validation.Length(0, 1000),
+		),
+		validation.Field(&a.Function,
+			validation.Length(0, 255),
 		),
 		validation.Field(&a.ServiceName,
 			validation.Required,
 			validation.Length(1, 255),
+		),
+		validation.Field(&a.Version,
+			validation.Length(0, 50),
+		),
+		validation.Field(&a.Environment,
+			validation.Length(0, 50),
+		),
+		validation.Field(&a.Host,
+			validation.Length(0, 255),
 		),
 	); err != nil {
 		return nil, err
@@ -265,20 +425,77 @@ func (a AppLogInput) ValidateAndCreate() (*AppLog, error) {
 		return nil, err
 	}
 
-	var metadataJSON JSONB
-	if a.Metadata != nil {
-		metadataJSON = convertToJSONB(a.Metadata)
+	// Convert fields to JSONB
+	var fieldsJSON JSONB
+	if a.Fields != nil {
+		fieldsJSON = convertToJSONB(a.Fields)
+	} else {
+		fieldsJSON = JSONB(`{}`)
+	}
+
+	// Convert string to sql.NullString
+	var channelID sql.NullString
+	if channelIDInput != "" {
+		channelID = sql.NullString{
+			String: channelIDInput,
+			Valid:  true,
+		}
+	}
+
+	// Convert optional fields to sql.NullString
+	var caller sql.NullString
+	if a.Caller != nil {
+		caller = sql.NullString{
+			String: *a.Caller,
+			Valid:  true,
+		}
+	}
+
+	var function sql.NullString
+	if a.Function != nil {
+		function = sql.NullString{
+			String: *a.Function,
+			Valid:  true,
+		}
+	}
+
+	var version sql.NullString
+	if a.Version != "" {
+		version = sql.NullString{
+			String: a.Version,
+			Valid:  true,
+		}
+	}
+
+	var environment sql.NullString
+	if a.Environment != "" {
+		environment = sql.NullString{
+			String: a.Environment,
+			Valid:  true,
+		}
+	}
+
+	var host sql.NullString
+	if a.Host != "" {
+		host = sql.NullString{
+			String: a.Host,
+			Valid:  true,
+		}
 	}
 
 	return &AppLog{
 		ID:          id.String(),
 		ProjectID:   a.ProjectID,
-		ChannelID:   a.ChannelID,
+		ChannelID:   channelID,
 		Level:       LogLevel(a.Level),
 		Message:     a.Message,
-		Metadata:    metadataJSON,
-		StackTrace:  a.StackTrace,
+		Fields:      fieldsJSON,
+		Caller:      caller,
+		Function:    function,
 		ServiceName: a.ServiceName,
+		Version:     version,
+		Environment: environment,
+		Host:        host,
 		Timestamp:   time.Now(),
 	}, nil
 }
@@ -378,7 +595,7 @@ func (r RequestLogInput) ValidateAndCreate() (*RequestLog, error) {
 }
 
 // Metrics data
-type Trace struct {
+type Metric struct {
 	ID        string    `json:"id,omitempty"`
 	ProjectID string    `json:"project_id"`
 	Name      string    `json:"name"`
@@ -388,7 +605,7 @@ type Trace struct {
 }
 
 // Metric validation struct
-type TraceInput struct {
+type MetricInput struct {
 	ProjectID string         `json:"project_id"`
 	ChannelID *string        `json:"channel_id,omitempty"`
 	Name      string         `json:"name"`
@@ -396,7 +613,7 @@ type TraceInput struct {
 	Labels    map[string]any `json:"labels,omitempty"`
 }
 
-func (m TraceInput) ValidateAndCreate() (*Trace, error) {
+func (m MetricInput) ValidateAndCreate() (*Metric, error) {
 	if err := validation.ValidateStruct(&m,
 		validation.Field(&m.ProjectID,
 			validation.Required,
@@ -423,7 +640,7 @@ func (m TraceInput) ValidateAndCreate() (*Trace, error) {
 		labelsJSON = convertToJSONB(m.Labels)
 	}
 
-	return &Trace{
+	return &Metric{
 		ID:        id.String(),
 		ProjectID: m.ProjectID,
 		Name:      m.Name,
@@ -431,91 +648,6 @@ func (m TraceInput) ValidateAndCreate() (*Trace, error) {
 		Labels:    labelsJSON,
 		Timestamp: time.Now(),
 	}, nil
-}
-
-type LogLevel string
-
-const (
-	LogLevelDebug   LogLevel = "debug"
-	LogLevelInfo    LogLevel = "info"
-	LogLevelWarning LogLevel = "warning"
-	LogLevelError   LogLevel = "error"
-)
-
-// Helper methods for scanning rows
-func ScanEventLog(row pgx.Row) (*EventLog, error) {
-	var log EventLog
-	err := row.Scan(
-		&log.ID,
-		&log.ProjectID,
-		&log.ChannelID,
-		&log.Name,
-		&log.Description,
-		&log.Metadata,
-		&log.Tags,
-		&log.Timestamp,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &log, nil
-}
-
-func ScanAppLog(row pgx.Row) (*AppLog, error) {
-	var log AppLog
-	err := row.Scan(
-		&log.ID,
-		&log.ProjectID,
-		&log.ChannelID,
-		&log.Level,
-		&log.Message,
-		&log.Metadata,
-		&log.StackTrace,
-		&log.ServiceName,
-		&log.Timestamp,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &log, nil
-}
-
-func ScanRequestLog(row pgx.Row) (*RequestLog, error) {
-	var log RequestLog
-	err := row.Scan(
-		&log.ID,
-		&log.ProjectID,
-		&log.ChannelID,
-		&log.Method,
-		&log.Path,
-		&log.StatusCode,
-		&log.Duration,
-		&log.RequestBody,
-		&log.ResponseBody,
-		&log.UserAgent,
-		&log.IPAddress,
-		&log.Timestamp,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &log, nil
-}
-
-func ScanMetric(row pgx.Row) (*Trace, error) {
-	var metric Trace
-	err := row.Scan(
-		&metric.ID,
-		&metric.ProjectID,
-		&metric.Name,
-		&metric.Value,
-		&metric.Labels,
-		&metric.Timestamp,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &metric, nil
 }
 
 // JSONB type for PostgreSQL jsonb columns
@@ -548,7 +680,7 @@ func convertToJSONB(v interface{}) JSONB {
 	data, err := json.Marshal(v)
 	if err != nil {
 		// TODO: Log and handle the error
-		return nil
+		return JSONB(`{}`)
 	}
 
 	return JSONB(data)

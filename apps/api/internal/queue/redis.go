@@ -52,7 +52,7 @@ func (q *QueueService) EnqueueRequestLog(ctx context.Context, log *timescale.Req
 }
 
 // EnqueueMetric adds a metric to the queue
-func (q *QueueService) EnqueueMetric(ctx context.Context, metric *timescale.Trace) error {
+func (q *QueueService) EnqueueMetric(ctx context.Context, metric *timescale.Metric) error {
 	return q.enqueue(ctx, MetricStream, metric)
 }
 

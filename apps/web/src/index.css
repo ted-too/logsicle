@@ -132,8 +132,85 @@
     ) !important;
   }
 
+  .channel-badge {
+    background-color: color-mix(
+      in oklab,
+      var(--channel-color) 30%,
+      var(--color-background)
+    ) !important;
+    color: color-mix(
+      in oklab,
+      var(--channel-color) 80%,
+      var(--color-foreground)
+    ) !important;
+  }
+
+  /* Timestamp dot styles */
+  .app-log-timestamp[data-level]::before {
+    content: var(--tw-content);
+  }
+  
+  .app-log-timestamp[data-level="error"]::before,
+  .app-log-timestamp[data-level="fatal"]::before {
+    background-color: var(--log-error-dot) !important;
+  }
+  
+  .app-log-timestamp[data-level="warning"]::before {
+    background-color: var(--log-warning-dot) !important;
+  }
+  
+  .app-log-timestamp[data-level="info"]::before {
+    background-color: var(--log-info-dot) !important;
+  }
+  
+  .app-log-timestamp[data-level="debug"]::before {
+    background-color: var(--log-debug-dot) !important;
+  }
+
+  /* Level badge styles */
+  .app-log-level[data-level="error"],
+  .app-log-level[data-level="fatal"] {
+    background-color: var(--log-error-bg) !important;
+    border-color: var(--log-error-border) !important;
+  }
+
+  .app-log-level[data-level="warning"] {
+    background-color: var(--log-warning-bg) !important;
+    border-color: var(--log-warning-border) !important;
+  }
+
+  .app-log-level[data-level="info"] {
+    background-color: var(--log-info-bg) !important;
+    border-color: var(--log-info-border) !important;
+  }
+
+  .app-log-level[data-level="debug"] {
+    background-color: var(--log-debug-bg) !important;
+    border-color: var(--log-debug-border) !important;
+  }
+
   /* ShadCN */
   :root {
+    /* Error/Fatal */
+    --log-error-bg: var(--color-red-50);
+    --log-error-border: var(--color-red-200);
+    --log-error-dot: var(--color-red-500);
+
+    /* Warning */
+    --log-warning-bg: var(--color-yellow-50);
+    --log-warning-border: var(--color-yellow-200);
+    --log-warning-dot: var(--color-yellow-500);
+
+    /* Info */
+    --log-info-bg: var(--color-green-50);
+    --log-info-border: var(--color-green-200);
+    --log-info-dot: var(--color-green-700);
+
+    /* Debug */
+    --log-debug-bg: var(--color-sky-50);
+    --log-debug-border: var(--color-sky-200);
+    --log-debug-dot: var(--color-sky-500);
+
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;

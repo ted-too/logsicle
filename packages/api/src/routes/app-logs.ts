@@ -1,56 +1,70 @@
-import {
-  type ErrorResponse,
-  type FnResponse,
-  type Opts,
-  type PaginatedResponse,
+import type {
+  ErrorResponse,
+  FnResponse,
+  Opts,
+  PaginatedResponse,
 } from "@/types";
-import { timeRangeSchema } from "@/validations";
 import { z } from "zod";
+import { timeRangeSchema } from "@/validations";
 
-export interface ChannelRelation {
-  name: string;
-  color: string | null;
-}
-
-// Types for event logs
-export interface EventLog {
+// Types for app logs
+export interface AppLog {
   id: string;
   project_id: string;
-  channel_id?: string;
-  name: string;
-  description?: string;
-  metadata?: Record<string, any>;
-  tags?: string[];
+  channel_id: string | null;
+  level: LogLevel;
+  message: string;
+  fields: Record<string, any> | null;
   timestamp: string;
-  channel: ChannelRelation | null;
+  caller: string | null;
+  function: string | null;
+  service_name: string;
+  version: string | null;
+  environment: string | null;
+  host: string | null;
+  // channel: ChannelRelation | null;
 }
 
 // Types for metrics
-export interface EventMetric {
+export interface AppLogMetric {
   bucket: string;
   count: number;
 }
 
-export const getEventLogsSchema = z.object({
+// Query parameter schemas
+export const logLevelSchema = z.enum([
+  "debug",
+  "info",
+  "warning",
+  "error",
+  "fatal",
+]);
+export type LogLevel = z.infer<typeof logLevelSchema>;
+
+export const getAppLogsSchema = z.object({
   channelId: z.string().optional(),
   before: z.string().datetime().optional(), // ISO string
   limit: z.number().min(1).max(100).optional(),
-  name: z.string().optional(),
-  tags: z.array(z.string()).optional(),
+  level: logLevelSchema.optional(),
+  serviceName: z.string().optional(),
+  environment: z.string().optional(),
+  search: z.string().optional(),
   start: timeRangeSchema.start,
   end: timeRangeSchema.end,
 });
 
-export type GetEventLogsParams = z.infer<typeof getEventLogsSchema>;
+export type GetAppLogsParams = z.infer<typeof getAppLogsSchema>;
 
-export const getEventMetricsSchema = z.object({
+export const getAppLogMetricsSchema = z.object({
   channelId: z.string().optional(),
-  name: z.string().optional(),
+  level: logLevelSchema.optional(),
+  serviceName: z.string().optional(),
+  environment: z.string().optional(),
   start: timeRangeSchema.start,
   end: timeRangeSchema.end,
 });
 
-export type GetEventMetricsParams = z.infer<typeof getEventMetricsSchema>;
+export type GetAppLogMetricsParams = z.infer<typeof getAppLogMetricsSchema>;
 
 // Function to build query string from params
 function buildQueryString(params: Record<string, any>): string {
@@ -70,15 +84,16 @@ function buildQueryString(params: Record<string, any>): string {
   return queryString ? `?${queryString}` : "";
 }
 
-export async function getEventLogs(
+// Get app logs with pagination and filtering
+export async function getAppLogs(
   projectId: string,
-  params: GetEventLogsParams,
+  params: GetAppLogsParams,
   { baseURL, ...opts }: Opts
-): Promise<FnResponse<PaginatedResponse<EventLog>>> {
+): Promise<FnResponse<PaginatedResponse<AppLog>>> {
   const queryString = buildQueryString(params);
 
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/events${queryString}`,
+    `${baseURL}/api/v1/projects/${projectId}/app${queryString}`,
     {
       method: "GET",
       headers: {
@@ -96,7 +111,7 @@ export async function getEventLogs(
     return {
       data: null,
       error: {
-        message: "Failed to fetch event logs",
+        message: "Failed to fetch app logs",
         error: "Failed to parse JSON response",
       },
     };
@@ -106,19 +121,19 @@ export async function getEventLogs(
     return { data: null, error: resJSON as ErrorResponse };
   }
 
-  return { data: resJSON as PaginatedResponse<EventLog>, error: null };
+  return { data: resJSON as PaginatedResponse<AppLog>, error: null };
 }
 
-// Get event metrics for graphs
-export async function getEventMetrics(
+// Get app log metrics for graphs
+export async function getAppLogMetrics(
   projectId: string,
-  params: GetEventMetricsParams,
+  params: GetAppLogMetricsParams,
   { baseURL, ...opts }: Opts
-): Promise<FnResponse<EventMetric[]>> {
+): Promise<FnResponse<AppLogMetric[]>> {
   const queryString = buildQueryString(params);
 
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/events/metrics${queryString}`,
+    `${baseURL}/api/v1/projects/${projectId}/app/metrics${queryString}`,
     {
       method: "GET",
       headers: {
@@ -136,7 +151,7 @@ export async function getEventMetrics(
     return {
       data: null,
       error: {
-        message: "Failed to fetch event metrics",
+        message: "Failed to fetch app log metrics",
         error: "Failed to parse JSON response",
       },
     };
@@ -146,16 +161,17 @@ export async function getEventMetrics(
     return { data: null, error: resJSON as ErrorResponse };
   }
 
-  return { data: resJSON as EventMetric[], error: null };
+  return { data: resJSON as AppLogMetric[], error: null };
 }
 
-export async function deleteEventLog(
+// Delete a specific app log
+export async function deleteAppLog(
   projectId: string,
   logId: string,
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<void>> {
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/resource/event/${logId}`,
+    `${baseURL}/api/v1/projects/${projectId}/logs/app/${logId}`,
     {
       method: "DELETE",
       headers: {
@@ -172,7 +188,7 @@ export async function deleteEventLog(
       error = await res.json();
     } catch {
       error = {
-        message: "Failed to delete event log",
+        message: "Failed to delete app log",
         error: "Unknown error occurred",
       };
     }

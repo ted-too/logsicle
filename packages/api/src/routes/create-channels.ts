@@ -2,7 +2,7 @@ import {
   type ErrorResponse,
   type FnResponse,
   type Opts,
-} from "../index";
+} from "@/types";
 import { LOG_RETENTION_DAYS } from "./projects";
 import { z } from "zod";
 

@@ -47,7 +47,14 @@ func (h *IngestHandler) IngestAppLog(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 
-	log, err := input.ValidateAndCreate()
+	channelID, ok := c.Locals("channel_id").(string)
+	if !ok {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to get channel ID",
+		})
+	}
+
+	log, err := input.ValidateAndCreate(channelID)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
@@ -80,7 +87,7 @@ func (h *IngestHandler) IngestRequestLog(c fiber.Ctx) error {
 
 // IngestTrace handles metric ingestion
 func (h *IngestHandler) IngestTrace(c fiber.Ctx) error {
-	input := new(timescale.TraceInput)
+	input := new(timescale.MetricInput)
 	if err := c.Bind().JSON(input); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}

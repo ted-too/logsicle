@@ -1,4 +1,4 @@
-import type { ErrorResponse, FnResponse, Opts } from "../index";
+import type { ErrorResponse, FnResponse, Opts } from "@/types";
 import { z } from "zod";
 
 export const apiKeyScopeSchema = z.enum([

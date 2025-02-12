@@ -237,6 +237,11 @@ export function ContentWrapper({ children }: { children: React.ReactNode }) {
           ? "w-[calc(100svw-var(--sidebar-width))]"
           : "w-[calc(100svw-var(--sidebar-width-icon))]"
       )}
+      style={
+        {
+          "--content-height": "calc(100vh - 3rem)",
+        } as React.CSSProperties
+      }
     >
       <AppHeader />
       <div className="flex flex-col grow bg-[hsl(0,0%,98%)]">{children}</div>

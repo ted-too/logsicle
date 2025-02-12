@@ -26,6 +26,7 @@ export default [
     rules: {
       ...reactHooks.configs.recommended.rules,
       "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
     },
   },
   { ignores: ["dist/", "**/routeTree.gen.ts"] },

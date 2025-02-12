@@ -78,9 +78,13 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, queueService *
 
 		// Generic read endpoints
 		readHandler := NewReadHandler(db, pool)
+		v1Authd.Delete("/projects/:projectId/resource/:type/:id", readHandler.DeleteLog)
+
 		v1Authd.Get("/projects/:projectId/events", readHandler.GetEventLogs)
 		v1Authd.Get("/projects/:projectId/events/metrics", readHandler.GetEventMetrics)
-		v1Authd.Delete("/projects/:projectId/logs/:type/:id", readHandler.DeleteLog)
+
+		v1Authd.Get("/projects/:projectId/app", readHandler.GetAppLogs)
+		// v1Authd.Get("/projects/:projectId/app/metrics", readHandler.Get)
 	}
 
 	app.Use(func(c fiber.Ctx) error {

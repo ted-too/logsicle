@@ -1,4 +1,4 @@
-import { type ErrorResponse, type FnResponse, type Opts } from "../index";
+import { type ErrorResponse, type FnResponse, type Opts } from "@/types";
 import { type ChannelType } from "./create-channels";
 
 // Generic delete channel function

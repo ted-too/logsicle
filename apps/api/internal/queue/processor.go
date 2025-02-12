@@ -203,7 +203,7 @@ func (p *Processor) processRequestLogs(ctx context.Context) {
 }
 
 func (p *Processor) processMetrics(ctx context.Context) {
-	cfg := processorConfig[*timescale.Trace]{
+	cfg := processorConfig[*timescale.Metric]{
 		stream:     MetricStream,
 		bulkInsert: p.qs.ts.BulkInsertMetrics,
 	}

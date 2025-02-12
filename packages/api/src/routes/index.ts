@@ -2,6 +2,7 @@ export * from "./auth";
 export * from "./projects";
 export * from "./keys";
 export * from "./events";
+export * from "./app-logs";
 export * from "./channels";
 export * from "./create-channels";
 export * from "./update-channels";

@@ -1,15 +1,11 @@
 {
-  "extends": "@repo/typescript-config/web.json",
+  "extends": "@repo/typescript-config/client.json",
   "compilerOptions": {
+    "composite": true,
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "references": [
-    {
-      "path": "../../packages/api"
-    }
-  ],
   "include": ["src"],
   "exclude": ["node_modules"]
 }

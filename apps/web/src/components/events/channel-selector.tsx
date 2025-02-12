@@ -32,7 +32,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { CircleCheckIcon, HashIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Badge } from "../ui/badge";
@@ -52,7 +52,7 @@ interface ChannelSelectorProps {
   channels: EventChannel[];
 }
 
-export function ChannelSelector({ channels }: ChannelSelectorProps) {
+function InternalChannelSelector({ channels }: ChannelSelectorProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const params = useParams({
@@ -254,7 +254,10 @@ export function ChannelSelector({ channels }: ChannelSelectorProps) {
           <Button
             key={ch.id ?? "all"}
             variant={channelId === ch.id ? "secondary" : "ghost"}
-            className={cn("justify-between shadow-none", i > 0 && "channel-button")}
+            className={cn(
+              "justify-between shadow-none",
+              i > 0 && "channel-button"
+            )}
             data-active={channelId === ch.id ? "true" : "false"}
             style={
               ch.color
@@ -286,3 +289,5 @@ export function ChannelSelector({ channels }: ChannelSelectorProps) {
     </div>
   );
 }
+
+export const ChannelSelector = memo(InternalChannelSelector);
