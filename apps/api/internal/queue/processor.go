@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/ted-too/logsicle/internal/storage/timescale"
+	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
 
 type Processor struct {
@@ -22,13 +22,13 @@ type Processor struct {
 }
 
 // processorConfig holds the configuration for each stream processor
-type processorConfig[T timescale.LogEntry] struct {
+type processorConfig[T models.LogEntry] struct {
 	stream     string
 	bulkInsert func(context.Context, []T) error
 }
 
 // streamProcessor is a generic processor for a specific type
-type streamProcessor[T timescale.LogEntry] struct {
+type streamProcessor[T models.LogEntry] struct {
 	qs        *QueueService
 	cfg       processorConfig[T]
 	processor *Processor // Add reference to main processor for metrics
@@ -51,7 +51,7 @@ func (p *Processor) Start(ctx context.Context) {
 }
 
 // newStreamProcessor creates a new stream processor for a specific type
-func newStreamProcessor[T timescale.LogEntry](p *Processor, cfg processorConfig[T]) *streamProcessor[T] {
+func newStreamProcessor[T models.LogEntry](p *Processor, cfg processorConfig[T]) *streamProcessor[T] {
 	return &streamProcessor[T]{
 		qs:        p.qs,
 		cfg:       cfg,
@@ -179,7 +179,7 @@ func (p *Processor) GetInternalMetrics() map[string]interface{} {
 
 // Type-specific processors
 func (p *Processor) processEventLogs(ctx context.Context) {
-	cfg := processorConfig[*timescale.EventLog]{
+	cfg := processorConfig[*models.EventLog]{
 		stream:     EventLogStream,
 		bulkInsert: p.qs.ts.BulkInsertEventLogs,
 	}
@@ -187,7 +187,7 @@ func (p *Processor) processEventLogs(ctx context.Context) {
 }
 
 func (p *Processor) processAppLogs(ctx context.Context) {
-	cfg := processorConfig[*timescale.AppLog]{
+	cfg := processorConfig[*models.AppLog]{
 		stream:     AppLogStream,
 		bulkInsert: p.qs.ts.BulkInsertAppLogs,
 	}
@@ -195,7 +195,7 @@ func (p *Processor) processAppLogs(ctx context.Context) {
 }
 
 func (p *Processor) processRequestLogs(ctx context.Context) {
-	cfg := processorConfig[*timescale.RequestLog]{
+	cfg := processorConfig[*models.RequestLog]{
 		stream:     RequestLogStream,
 		bulkInsert: p.qs.ts.BulkInsertRequestLogs,
 	}
@@ -203,7 +203,7 @@ func (p *Processor) processRequestLogs(ctx context.Context) {
 }
 
 func (p *Processor) processMetrics(ctx context.Context) {
-	cfg := processorConfig[*timescale.Metric]{
+	cfg := processorConfig[*models.Metric]{
 		stream:     MetricStream,
 		bulkInsert: p.qs.ts.BulkInsertMetrics,
 	}

@@ -3,31 +3,40 @@ import { EventList } from "@/components/events/list";
 import { EventsPageHeader } from "@/components/events/page-header";
 import { channelsQueries } from "@/qc/queries/channels";
 import { validateEventSearch } from "@/qc/queries/events";
-import { projectsQueries } from "@/qc/queries/projects";
 import {
   createFileRoute,
-  notFound,
   redirect,
-  useRouterState
+  useRouterState,
 } from "@tanstack/react-router";
+import { add, sub } from "date-fns";
 import { useMemo } from "react";
 
 export const Route = createFileRoute("/_authd/_app/dashboard/$projId/events")({
-  loader: async ({ params, context }) => {
-    const projects = await context.queryClient.ensureQueryData(
-      projectsQueries.listQueryOptions()
-    );
-    if (projects.length === 0) {
+  beforeLoad: ({ search, params, context: { project } }) => {
+    if (
+      new Date(search.start).getTime() === 0 ||
+      new Date(search.end).getTime() === 0
+    ) {
+      const start = sub(
+        project.last_activity.app_logs
+          ? new Date(project.last_activity.app_logs)
+          : new Date(),
+        { days: 1 }
+      );
       throw redirect({
-        to: "/dashboard/onboarding",
+        to: "/dashboard/$projId/events",
+        params,
+        search: {
+          ...search,
+          start,
+          end: add(new Date(), { hours: 4 }),
+        },
       });
     }
-    const project = projects.find((p) => p.id === params.projId);
-    if (!project) {
-      throw notFound();
-    }
-    return project;
+
+    return { project };
   },
+  loader: ({ context: { project } }) => project,
   validateSearch: validateEventSearch,
   component: RouteComponent,
 });

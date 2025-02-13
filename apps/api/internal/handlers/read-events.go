@@ -7,8 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/ted-too/logsicle/internal/storage/models"
-	"github.com/ted-too/logsicle/internal/storage/timescale"
+	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 	"gorm.io/gorm"
 )
 
@@ -30,28 +29,21 @@ type GetEventLogsQuery struct {
 }
 
 type PaginatedEventLogs struct {
-	Data          []timescale.EventLog `json:"data"`
-	TotalCount    int64                `json:"totalCount"`
-	FilteredCount int64                `json:"filteredCount"`
-	HasNext       bool                 `json:"hasNext"`
-	HasPrev       bool                 `json:"hasPrev"`
+	Data          []models.EventLog `json:"data"`
+	TotalCount    int64             `json:"totalCount"`
+	FilteredCount int64             `json:"filteredCount"`
+	HasNext       bool              `json:"hasNext"`
+	HasPrev       bool              `json:"hasPrev"`
 }
 
 func (h *ReadHandler) GetEventLogs(c fiber.Ctx) error {
 	projectID := c.Params("projectId")
 	userID := c.Locals("user-id").(string)
 
-	// Verify project access using GORM
-	var project models.Project
-	if err := h.db.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Project not found or access denied",
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to verify project access",
-		})
+	// Verify project access
+	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
 	}
 
 	query := new(GetEventLogsQuery)
@@ -81,7 +73,7 @@ func (h *ReadHandler) GetEventLogs(c fiber.Ctx) error {
         AND ($2::text IS NULL OR channel_id = $2)
     `
 	var totalCount int64
-	err := h.pool.QueryRow(c.Context(), countSQL, projectID, query.ChannelID).Scan(&totalCount)
+	err = h.pool.QueryRow(c.Context(), countSQL, projectID, query.ChannelID).Scan(&totalCount)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get total count",
@@ -162,9 +154,9 @@ func (h *ReadHandler) GetEventLogs(c fiber.Ctx) error {
 	}
 	defer rows.Close()
 
-	logs := make([]timescale.EventLog, 0)
+	logs := make([]models.EventLog, 0)
 	for rows.Next() {
-		var log timescale.EventLog
+		var log models.EventLog
 		var channelName, channelColor sql.NullString
 		err := rows.Scan(
 			&log.ID, &log.ProjectID, &log.ChannelID, &log.Name,
@@ -184,7 +176,7 @@ func (h *ReadHandler) GetEventLogs(c fiber.Ctx) error {
 				colorPtr = &channelColor.String
 			}
 
-			log.Channel = &timescale.ChannelRelation{
+			log.Channel = &models.ChannelRelation{
 				Name:  channelName.String,
 				Color: colorPtr,
 			}
@@ -224,17 +216,10 @@ func (h *ReadHandler) GetEventMetrics(c fiber.Ctx) error {
 	projectID := c.Params("projectId")
 	userID := c.Locals("user-id").(string)
 
-	// Verify project access using GORM
-	var project models.Project
-	if err := h.db.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Project not found or access denied",
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to verify project access",
-		})
+	// Verify project access
+	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
 	}
 
 	query := new(GetEventMetricsQuery)

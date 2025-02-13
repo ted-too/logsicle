@@ -3,7 +3,7 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/ted-too/logsicle/internal/queue"
-	"github.com/ted-too/logsicle/internal/storage/timescale"
+	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
 
 type IngestHandler struct {
@@ -16,7 +16,7 @@ func NewIngestHandler(qs *queue.QueueService) *IngestHandler {
 
 // IngestEventLog handles event log ingestion
 func (h *IngestHandler) IngestEventLog(c fiber.Ctx) error {
-	input := new(timescale.EventLogInput)
+	input := new(models.EventLogInput)
 	if err := c.Bind().JSON(input); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
@@ -42,19 +42,12 @@ func (h *IngestHandler) IngestEventLog(c fiber.Ctx) error {
 
 // IngestAppLog handles application log ingestion
 func (h *IngestHandler) IngestAppLog(c fiber.Ctx) error {
-	input := new(timescale.AppLogInput)
+	input := new(models.AppLogInput)
 	if err := c.Bind().JSON(input); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 
-	channelID, ok := c.Locals("channel_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to get channel ID",
-		})
-	}
-
-	log, err := input.ValidateAndCreate(channelID)
+	log, err := input.ValidateAndCreate()
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
@@ -68,7 +61,7 @@ func (h *IngestHandler) IngestAppLog(c fiber.Ctx) error {
 
 // IngestRequestLog handles request log ingestion
 func (h *IngestHandler) IngestRequestLog(c fiber.Ctx) error {
-	input := new(timescale.RequestLogInput)
+	input := new(models.RequestLogInput)
 	if err := c.Bind().JSON(input); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
@@ -87,7 +80,7 @@ func (h *IngestHandler) IngestRequestLog(c fiber.Ctx) error {
 
 // IngestTrace handles metric ingestion
 func (h *IngestHandler) IngestTrace(c fiber.Ctx) error {
-	input := new(timescale.MetricInput)
+	input := new(models.MetricInput)
 	if err := c.Bind().JSON(input); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}

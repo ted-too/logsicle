@@ -44,15 +44,12 @@ type ProjectID = typeid.Sortable[ProjectPrefix]
 
 type Project struct {
 	storage.BaseModel
-	UserID             string              `gorm:"index;not null" json:"user_id"`
-	Name               string              `gorm:"not null" json:"name"`
-	AllowedOrigins     pq.StringArray      `gorm:"type:text[]" json:"allowed_origins"`
-	LogRetentionDays   int                 `gorm:"default:30" json:"log_retention_days"`
-	EventChannels      []EventChannel      `json:"event_channels"`
-	AppLogChannels     []AppLogChannel     `json:"app_log_channels"`
-	RequestLogChannels []RequestLogChannel `json:"request_log_channels"`
-	TraceChannels      []TraceChannel      `json:"trace_channels"`
-	APIKeys            []ApiKey            `json:"api_keys"` // Multiple API keys per project
+	UserID           string         `gorm:"index;not null" json:"user_id"`
+	Name             string         `gorm:"not null" json:"name"`
+	AllowedOrigins   pq.StringArray `gorm:"type:text[]" json:"allowed_origins"`
+	LogRetentionDays int            `gorm:"default:30" json:"log_retention_days"`
+	EventChannels    []EventChannel `json:"event_channels"`
+	APIKeys          []ApiKey       `json:"api_keys"` // Multiple API keys per project
 }
 
 type ApiKeyPrefix struct{}
@@ -65,10 +62,12 @@ type ApiKeyID = typeid.Sortable[ApiKeyPrefix]
 
 // Define available scopes
 const (
-	ScopeLogsWrite    = "logs:write"
-	ScopeLogsRead     = "logs:read"
+	ScopeAppLogsWrite = "app:write"
+	ScopeAppLogsRead  = "app:read"
 	ScopeRequestWrite = "request:write"
 	ScopeRequestRead  = "request:read"
+	ScopeMetricsWrite = "metrics:write"
+	ScopeMetricsRead  = "metrics:read"
 	ScopeTracesWrite  = "traces:write"
 	ScopeTracesRead   = "traces:read"
 	ScopeEventsWrite  = "events:write"

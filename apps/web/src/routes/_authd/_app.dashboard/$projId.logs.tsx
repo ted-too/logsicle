@@ -3,7 +3,13 @@ import { AppLogsPageHeader } from "@/components/app-logs/page-header";
 import { AppLogTable } from "@/components/app-logs/table";
 import { appLogsQueries } from "@/qc/queries/app-logs";
 import { projectsQueries } from "@/qc/queries/projects";
-import { GetAppLogsParams, getAppLogsSchema } from "@repo/api";
+import {
+  GetAppLogsParams,
+  getAppLogsSchema,
+  suggestInterval,
+  ValidInterval,
+  validIntervalSchema,
+} from "@repo/api";
 import {
   createFileRoute,
   notFound,
@@ -12,26 +18,52 @@ import {
   stripSearchParams,
   useRouterState,
 } from "@tanstack/react-router";
+import { add, sub } from "date-fns";
 import { z } from "zod";
 
 export const Route = createFileRoute("/_authd/_app/dashboard/$projId/logs")({
-  loader: async ({ params, context }) => {
-    const projects = await context.queryClient.ensureQueryData(
-      projectsQueries.listQueryOptions()
-    );
-    if (projects.length === 0) {
+  beforeLoad: ({ search, params, context: { project } }) => {
+    if (
+      new Date(search.start).getTime() === 0 ||
+      new Date(search.end).getTime() === 0
+    ) {
+      const start = sub(
+        project.last_activity.app_logs
+          ? new Date(project.last_activity.app_logs)
+          : new Date(),
+        { days: 1 }
+      );
       throw redirect({
-        to: "/dashboard/onboarding",
+        to: "/dashboard/$projId/logs",
+        params,
+        search: {
+          ...search,
+          start,
+          end: add(new Date(), { hours: 6 }),
+        },
       });
     }
-    const project = projects.find((p) => p.id === params.projId);
-    if (!project) {
-      throw notFound();
+    // @ts-expect-error do this so we can catch it properly on the beforeLoad
+    if (search.interval === "") {
+      console.log("Catch interval on route");
+      const interval = suggestInterval(search.start, search.end);
+      throw redirect({
+        to: "/dashboard/$projId/logs",
+        params,
+        search: {
+          ...search,
+          interval,
+        },
+      });
     }
-    return project;
+
+    return { project };
   },
+  loader: ({ context: { project } }) => project,
   validateSearch: getAppLogsSchema.extend({
     tail: z.boolean().catch(false),
+    // @ts-expect-error do this so we can catch it properly on the beforeLoad
+    interval: validIntervalSchema.catch(""),
   }),
   search: {
     middlewares: [
@@ -46,27 +78,20 @@ export const Route = createFileRoute("/_authd/_app/dashboard/$projId/logs")({
 });
 
 function RouteComponent() {
-  const project = Route.useLoaderData();
-  const search = useRouterState({
-    select: (state) => state.location.search,
-  }) as GetAppLogsParams & { tail: boolean | undefined };
-  const { data: metrics } = appLogsQueries.metrics.useQuery(project.id, {
-    ...{ ...search, tail: undefined },
-    interval: "1hr",
-  });
-
   return (
     <div
       className="h-[var(--content-height)] w-full flex flex-col gap-3.5 py-3.5 px-6"
-      style={{ "--chart-height": "8rem" } as React.CSSProperties}
+      style={
+        {
+          "--chart-height": "8rem",
+          "--table-height":
+            "var(--content-height)-var(--chart-height)-2.25rem-0.875rem*2",
+        } as React.CSSProperties
+      }
     >
-      <AppLogsPageHeader project={project} />
-      <LogVolumeChart
-        metrics={metrics === null ? [] : (metrics ?? [])}
-        start={search.start!}
-        end={search.end!}
-      />
-      <AppLogTable className="w-full h-[calc(var(--content-height)-var(--chart-height)-2.25rem-0.875rem*2)]" />
+      <AppLogsPageHeader />
+      <LogVolumeChart />
+      <AppLogTable className="w-full min-h-[var(--table-height)] max-h--[var(--table-height)]" />
     </div>
   );
 }

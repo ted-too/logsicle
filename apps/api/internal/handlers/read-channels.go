@@ -21,16 +21,9 @@ func (h *ChannelsHandler) GetEventChannels(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 
 	// Verify project access
-	var project models.Project
-	if err := h.db.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Project not found or access denied",
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to verify project access",
-		})
+	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
 	}
 
 	// Get all event channels for the project
@@ -51,16 +44,9 @@ func (h *ChannelsHandler) GetEventChannel(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 
 	// Verify project access
-	var project models.Project
-	if err := h.db.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Project not found or access denied",
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to verify project access",
-		})
+	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
 	}
 
 	// Get the specific channel

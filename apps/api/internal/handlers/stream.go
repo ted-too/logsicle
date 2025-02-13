@@ -11,7 +11,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/log"
 	"github.com/redis/go-redis/v9"
-	"github.com/ted-too/logsicle/internal/storage/timescale"
+	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 	"gorm.io/gorm"
 )
 
@@ -114,7 +114,7 @@ func (h *StreamHandler) subscribeToLogs(ctx context.Context, projectID string, s
 		var data interface{}
 		switch logType {
 		case "event":
-			var eventLog timescale.EventLog
+			var eventLog models.EventLog
 			if err := json.Unmarshal([]byte(msg.Payload), &eventLog); err != nil {
 				log.Error("Error unmarshaling event log: %v", err)
 				continue

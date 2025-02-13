@@ -4,8 +4,8 @@
 ENVIRONMENT="development"
 SERVICE="test-service"
 COUNT=1
-API_KEY="lsk-v1-x6ai4arma2iargqrkwx37ai3z3ux75uvterxgwl62fe3ltg7qapq"
-PROJECT_ID="proj_01jkqwv3nffrrag6ecgxspx6kq"
+API_KEY="lsk-v1-lnptybb7kmbcgydafr7mo4ebeuc2krfkr36cql3x4traf5tz2mfa"
+PROJECT_ID="proj_01jm05y003fy2vyqe34tmkdfgk"
 API_URL="http://localhost:3005"
 MAX_DAYS=0 # Set to 0 to disable
 
@@ -80,65 +80,64 @@ function random_message {
 function random_fields {
     local user_ids=("usr_123" "usr_456" "usr_789" "usr_abc" "usr_def")
     local user_id=${user_ids[$RANDOM % ${#user_ids[@]}]}
-
-    # Generate random timestamp
-    if [ "$MAX_DAYS" -eq 0 ]; then
-        local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    else
-        # Generate random number of seconds ago (up to MAX_DAYS days ago)
-        local max_seconds=$((MAX_DAYS * 24 * 60 * 60))
-        # Combine multiple RANDOM calls for better distribution
-        local random_seconds=$(( (RANDOM * RANDOM) % max_seconds ))
-        local current_timestamp=$(date +%s)
-        local past_timestamp=$((current_timestamp - random_seconds))
-
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS version
-            local timestamp=$(date -r $past_timestamp -u +"%Y-%m-%dT%H:%M:%SZ")
-        else
-            # Linux version
-            local timestamp=$(date -u -d "@$past_timestamp" +"%Y-%m-%dT%H:%M:%SZ")
-        fi
-    fi
-
     local request_id=$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 8)
+    local duration_ms=$((RANDOM % 1000))
 
-    echo "{\"user_id\":\"$user_id\",\"timestamp\":\"$timestamp\",\"request_id\":\"req_$request_id\",\"duration_ms\":$((RANDOM % 1000))}"
+    echo "{\"user_id\":\"$user_id\",\"request_id\":\"req_$request_id\",\"duration_ms\":$duration_ms}"
 }
 
-# Function to generate random pod ID
+# Function to generate random version
+function random_version {
+    echo "1.0.$((RANDOM % 10))"
+}
+
+# Function to generate random pod ID for host
 function random_pod_id {
-    LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 6
+    echo "${SERVICE}-pod-$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 6)"
+}
+
+# Function to generate random caller line
+function random_caller {
+    local line=$((RANDOM % 500))
+    echo "${SERVICE}.go:${line}"
+}
+
+# Function to generate random function name
+function random_function {
+    echo "Process${SERVICE#*-}"
 }
 
 # Send logs
 for ((i = 1; i <= $COUNT; i++)); do
     echo "Sending log $i of $COUNT..."
 
-    LEVEL=$(random_level)
-    MESSAGE=$(random_message)
-    FIELDS=$(random_fields)
-    POD_ID=$(random_pod_id)
-    CALLER_LINE=$((RANDOM % 500))
-    VERSION_PATCH=$((RANDOM % 10))
+    # Generate random timestamp if MAX_DAYS is set
+    if [ "$MAX_DAYS" -eq 0 ]; then
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    else
+        max_seconds=$((MAX_DAYS * 24 * 60 * 60))
+        random_seconds=$(( (RANDOM * RANDOM) % max_seconds ))
+        current_timestamp=$(date +%s)
+        past_timestamp=$((current_timestamp - random_seconds))
 
-    # Extract timestamp from FIELDS for use in main payload
-    TIMESTAMP=$(echo $FIELDS | grep -o '"timestamp":"[^"]*"' | cut -d'"' -f4)
-    
-    # Remove timestamp from FIELDS
-    FIELDS=$(echo $FIELDS | jq 'del(.timestamp)')
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            TIMESTAMP=$(date -r $past_timestamp -u +"%Y-%m-%dT%H:%M:%SZ")
+        else
+            TIMESTAMP=$(date -u -d "@$past_timestamp" +"%Y-%m-%dT%H:%M:%SZ")
+        fi
+    fi
 
     DATA="{
         \"project_id\":\"$PROJECT_ID\",
-        \"level\":\"$LEVEL\",
-        \"message\":\"$MESSAGE\",
+        \"level\":\"$(random_level)\",
+        \"message\":\"$(random_message)\",
+        \"fields\":$(random_fields),
+        \"caller\":\"$(random_caller)\",
+        \"function\":\"$(random_function)\",
         \"service_name\":\"$SERVICE\",
-        \"fields\":$FIELDS,
-        \"caller\":\"${SERVICE}.go:${CALLER_LINE}\",
-        \"function\":\"Process${SERVICE#*-}\",
-        \"version\":\"1.0.${VERSION_PATCH}\",
+        \"version\":\"$(random_version)\",
         \"environment\":\"$ENVIRONMENT\",
-        \"host\":\"${SERVICE}-pod-${POD_ID}\",
+        \"host\":\"$(random_pod_id)\",
         \"timestamp\":\"$TIMESTAMP\"
     }"
 

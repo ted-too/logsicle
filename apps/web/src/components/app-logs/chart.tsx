@@ -3,25 +3,21 @@
 import { eachHourOfInterval, format, formatISO, parseISO } from "date-fns";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
 } from "@/components/ui/chart";
-import { AppLogMetric } from "@repo/api";
-import { useMemo } from "react";
-
-interface LogVolumeChartProps {
-  metrics: AppLogMetric[];
-  start: Date;
-  end: Date;
-}
+import {
+  AppLogMetric,
+  eachIntervalOfRange,
+  GetAppLogsParams,
+  ValidInterval,
+} from "@repo/api";
+import { memo, useMemo } from "react";
+import { useParams, useRouterState } from "@tanstack/react-router";
+import { appLogsQueries } from "@/qc/queries/app-logs";
 
 const chartConfig = {
   fatal: {
@@ -64,8 +60,23 @@ const formatYAxisValue = (value: number): string => {
   return value.toString();
 };
 
-export function LogVolumeChart({ metrics, start, end }: LogVolumeChartProps) {
-  const allHours = eachHourOfInterval({ start, end });
+export function LogVolumeChart() {
+  const search = useRouterState({
+    select: (state) => state.location.search,
+  }) as GetAppLogsParams & {
+    tail: boolean | undefined;
+    interval: ValidInterval;
+  };
+  const params = useParams({ from: "/_authd/_app/dashboard/$projId/logs" });
+  const { data: metrics } = appLogsQueries.metrics.useSuspenseQuery(
+    params.projId,
+    {
+      ...{ ...search, tail: undefined },
+    }
+  );
+  const allIntervals = useMemo(() => {
+    return eachIntervalOfRange(search.start, search.end, search.interval);
+  }, [search.start, search.end, search.interval]);
 
   const metricMap = useMemo(
     () => new Map(metrics.map((m) => [m.timestamp, m.counts])),
@@ -73,7 +84,7 @@ export function LogVolumeChart({ metrics, start, end }: LogVolumeChartProps) {
   );
 
   const chartData = useMemo(() => {
-    return allHours.map((hour) => {
+    return allIntervals.map((hour) => {
       const timestamp = formatISO(hour);
       return {
         timestamp,
@@ -86,7 +97,7 @@ export function LogVolumeChart({ metrics, start, end }: LogVolumeChartProps) {
         }),
       };
     });
-  }, [allHours, metricMap]);
+  }, [allIntervals, metricMap]);
 
   const yTicks = useMemo(() => {
     // Calculate the maximum sum of all values for each timestamp
@@ -131,7 +142,7 @@ export function LogVolumeChart({ metrics, start, end }: LogVolumeChartProps) {
               tickLine={false}
               axisLine={false}
               tickFormatter={(value, i) => formatTick(value, i === 0)}
-              interval="preserveEnd"
+              interval="equidistantPreserveStart"
               minTickGap={10}
               height={24}
               tickMargin={10}

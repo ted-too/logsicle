@@ -1,19 +1,15 @@
 package handlers
 
 import (
-	"database/sql"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/ted-too/logsicle/internal/storage/models"
-	"github.com/ted-too/logsicle/internal/storage/timescale"
-	"gorm.io/gorm"
+	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
 
 type GetAppLogsQuery struct {
-	ChannelID   *string   `query:"channelId"`
 	Start       time.Time `query:"start"`
 	End         time.Time `query:"end"`
 	Limit       int       `query:"limit"`
@@ -33,19 +29,8 @@ type PaginationMeta struct {
 }
 
 type AppLogResponse struct {
-	Data []timescale.AppLog `json:"data"`
-	Meta PaginationMeta     `json:"meta"`
-}
-
-func verifyDashboardProjectAccess(db *gorm.DB, ctx fiber.Ctx, projectID, userID string) (*models.Project, error) {
-	var project models.Project
-	if err := db.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fiber.NewError(fiber.StatusNotFound, "Project not found or access denied")
-		}
-		return nil, fiber.NewError(fiber.StatusInternalServerError, "Failed to verify project access")
-	}
-	return &project, nil
+	Data []models.AppLog `json:"data"`
+	Meta PaginationMeta  `json:"meta"`
 }
 
 func (h *ReadHandler) GetAppLogs(c fiber.Ctx) error {
@@ -87,13 +72,12 @@ func (h *ReadHandler) GetAppLogs(c fiber.Ctx) error {
 
 	// Build base WHERE clause and args for reuse
 	baseWhere := `
-			WHERE al.project_id = $1
-			AND ($2::text IS NULL OR al.channel_id = $2)
-			AND al.timestamp >= $3
-			AND al.timestamp <= $4
+					WHERE al.project_id = $1
+					AND al.timestamp >= $2
+					AND al.timestamp <= $3
 	`
-	baseArgs := []interface{}{projectID, query.ChannelID, query.Start, query.End}
-	argCount := 5
+	baseArgs := []interface{}{projectID, query.Start, query.End}
+	argCount := 4
 
 	// Build additional filters
 	var additionalFilters string
@@ -113,15 +97,26 @@ func (h *ReadHandler) GetAppLogs(c fiber.Ctx) error {
 		argCount++
 	}
 	if query.Search != nil {
-		additionalFilters += fmt.Sprintf(" AND message ILIKE $%d", argCount)
-		baseArgs = append(baseArgs, fmt.Sprintf("%%%s%%", *query.Search))
-		argCount++
+		additionalFilters += fmt.Sprintf(`
+				AND (
+						message_tsv @@ plainto_tsquery($%d)
+						OR fields_tsv @@ plainto_tsquery($%d)
+						OR message ILIKE $%d
+						OR fields::text ILIKE $%d
+				)`, argCount, argCount, argCount+1, argCount+1)
+
+		searchTerm := *query.Search
+		baseArgs = append(baseArgs,
+			searchTerm,                        // for message_tsv and fields_tsv (same parameter)
+			fmt.Sprintf("%%%s%%", searchTerm), // for ILIKE
+		)
+		argCount += 2
 	}
 
 	// Get total count (without filters)
 	var totalCount int
 	totalCountSQL := "SELECT COUNT(*) FROM app_logs al " + baseWhere
-	err := h.pool.QueryRow(c.Context(), totalCountSQL, baseArgs[:4]...).Scan(&totalCount)
+	err := h.pool.QueryRow(c.Context(), totalCountSQL, baseArgs[:3]...).Scan(&totalCount)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to get total count",
@@ -142,13 +137,11 @@ func (h *ReadHandler) GetAppLogs(c fiber.Ctx) error {
 
 	// Build the main data query
 	dataSQL := `
-			SELECT 
-					al.id, al.project_id, al.channel_id, al.level, al.message,
-					al.fields, al.timestamp, al.caller, al.function,
-					al.service_name, al.version, al.environment, al.host,
-					alc.name as channel_name, alc.color as channel_color
-			FROM app_logs al
-			LEFT JOIN app_log_channels alc ON al.channel_id = alc.id
+					SELECT 
+							al.id, al.project_id, al.level, al.message,
+							al.fields, al.timestamp, al.caller, al.function,
+							al.service_name, al.version, al.environment, al.host
+					FROM app_logs al
 	` + baseWhere + additionalFilters
 
 	// Add pagination
@@ -165,15 +158,13 @@ func (h *ReadHandler) GetAppLogs(c fiber.Ctx) error {
 	}
 	defer rows.Close()
 
-	logs := make([]timescale.AppLog, 0)
+	logs := make([]models.AppLog, 0)
 	for rows.Next() {
-		var log timescale.AppLog
-		var channelName, channelColor sql.NullString
+		var log models.AppLog
 		err := rows.Scan(
-			&log.ID, &log.ProjectID, &log.ChannelID, &log.Level, &log.Message,
+			&log.ID, &log.ProjectID, &log.Level, &log.Message,
 			&log.Fields, &log.Timestamp, &log.Caller, &log.Function,
 			&log.ServiceName, &log.Version, &log.Environment, &log.Host,
-			&channelName, &channelColor,
 		)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -211,7 +202,6 @@ func (h *ReadHandler) GetAppLogs(c fiber.Ctx) error {
 }
 
 type GetAppLogMetricsQuery struct {
-	ChannelID   *string   `query:"channelId"`
 	Start       time.Time `query:"start"`
 	End         time.Time `query:"end"`
 	Interval    string    `query:"interval"` // e.g., '1 hour', '30 minutes', '1 day'
@@ -223,6 +213,26 @@ type GetAppLogMetricsQuery struct {
 type LogLevelMetric struct {
 	Timestamp time.Time        `json:"timestamp"`
 	Counts    map[string]int64 `json:"counts"` // Map of level -> count
+}
+
+// Helper function to suggest appropriate interval based on time range
+func suggestInterval(start, end time.Time) string {
+	duration := end.Sub(start)
+
+	switch {
+	case duration <= 2*time.Hour:
+		return "1 minute"
+	case duration <= 6*time.Hour:
+		return "5 minutes"
+	case duration <= 24*time.Hour:
+		return "15 minutes"
+	case duration <= 7*24*time.Hour:
+		return "1 hour"
+	case duration <= 30*24*time.Hour:
+		return "6 hours"
+	default:
+		return "1 day"
+	}
 }
 
 // FIXME: add appropriate validation for the interval parameter to prevent potential SQL injection
@@ -253,29 +263,27 @@ func (h *ReadHandler) GetAppLogMetrics(c fiber.Ctx) error {
 
 	// Set default interval if not provided
 	if query.Interval == "" {
-		query.Interval = "1 hour"
+		query.Interval = suggestInterval(query.Start, query.End)
 	}
 
 	// Build the metrics query
 	metricsSQL := `
-			SELECT 
-					time_bucket($1, timestamp) AS bucket,
-					level,
-					COUNT(*) as count
-			FROM app_logs
-			WHERE project_id = $2
-			AND timestamp >= $3
-			AND timestamp <= $4
-			AND ($5::text IS NULL OR channel_id = $5)
+					SELECT 
+									time_bucket($1, timestamp) AS bucket,
+									level,
+									COUNT(*) as count
+					FROM app_logs
+					WHERE project_id = $2
+					AND timestamp >= $3
+					AND timestamp <= $4
 	`
 	args := []interface{}{
 		query.Interval,
 		projectID,
 		query.Start,
 		query.End,
-		query.ChannelID,
 	}
-	argCount := 6
+	argCount := 5
 
 	// Add optional filters
 	if query.ServiceName != nil {
@@ -291,9 +299,20 @@ func (h *ReadHandler) GetAppLogMetrics(c fiber.Ctx) error {
 	}
 
 	if query.Search != nil {
-		metricsSQL += fmt.Sprintf(" AND message ILIKE $%d", argCount)
-		args = append(args, fmt.Sprintf("%%%s%%", *query.Search))
-		argCount++
+		metricsSQL += fmt.Sprintf(`
+					AND (
+							message_tsv @@ plainto_tsquery($%d)
+							OR fields_tsv @@ plainto_tsquery($%d)
+							OR message ILIKE $%d
+							OR fields::text ILIKE $%d
+					)`, argCount, argCount, argCount+1, argCount+1)
+
+		searchTerm := *query.Search
+		args = append(args,
+			searchTerm,                        // for message_tsv and fields_tsv (same parameter)
+			fmt.Sprintf("%%%s%%", searchTerm), // for ILIKE
+		)
+		argCount += 2
 	}
 
 	metricsSQL += " GROUP BY bucket, level ORDER BY bucket ASC"

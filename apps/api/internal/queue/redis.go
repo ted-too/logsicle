@@ -7,6 +7,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/ted-too/logsicle/internal/storage/timescale"
+	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
 
 const (
@@ -37,22 +38,22 @@ func NewQueueService(redisURL string, ts *timescale.TimescaleClient) (*QueueServ
 }
 
 // EnqueueEventLog adds an event log to the queue
-func (q *QueueService) EnqueueEventLog(ctx context.Context, log *timescale.EventLog) error {
+func (q *QueueService) EnqueueEventLog(ctx context.Context, log *models.EventLog) error {
 	return q.enqueue(ctx, EventLogStream, log)
 }
 
 // EnqueueAppLog adds an application log to the queue
-func (q *QueueService) EnqueueAppLog(ctx context.Context, log *timescale.AppLog) error {
+func (q *QueueService) EnqueueAppLog(ctx context.Context, log *models.AppLog) error {
 	return q.enqueue(ctx, AppLogStream, log)
 }
 
 // EnqueueRequestLog adds a request log to the queue
-func (q *QueueService) EnqueueRequestLog(ctx context.Context, log *timescale.RequestLog) error {
+func (q *QueueService) EnqueueRequestLog(ctx context.Context, log *models.RequestLog) error {
 	return q.enqueue(ctx, RequestLogStream, log)
 }
 
 // EnqueueMetric adds a metric to the queue
-func (q *QueueService) EnqueueMetric(ctx context.Context, metric *timescale.Metric) error {
+func (q *QueueService) EnqueueMetric(ctx context.Context, metric *models.Metric) error {
 	return q.enqueue(ctx, MetricStream, metric)
 }
 

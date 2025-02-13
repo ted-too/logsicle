@@ -1,5 +1,6 @@
-import type { APIKey, ErrorResponse, FnResponse, Opts } from "@/types";
+import type { ErrorResponse, FnResponse, Opts } from "@/types";
 import { z } from "zod";
+import { APIKey } from "./keys";
 
 export const LOG_RETENTION_DAYS = [3, 7, 14, 30, 90];
 
@@ -132,4 +133,46 @@ export async function listProjects({
   }
 
   return { data: resJSON as Project[], error: null };
+}
+
+export interface ProjectWithLastActivity extends Project {
+  last_activity: {
+    app_logs: string | null;
+    event_logs: string | null;
+    request_logs: string | null;
+    metrics: string | null;
+  };
+}
+
+export async function getProject(
+  projectId: string,
+  { baseURL, ...opts }: Opts
+): Promise<FnResponse<ProjectWithLastActivity>> {
+  const res = await fetch(`${baseURL}/api/v1/projects/${projectId}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    ...opts,
+  });
+
+  let resJSON: unknown | undefined = undefined;
+  try {
+    resJSON = await res.json();
+  } catch (error) {
+    return {
+      data: null,
+      error: {
+        message: "Failed to get project",
+        error: "Failed to parse JSON response",
+      },
+    };
+  }
+
+  if (!res.ok) {
+    return { data: null, error: resJSON as ErrorResponse };
+  }
+
+  return { data: resJSON as ProjectWithLastActivity, error: null };
 }

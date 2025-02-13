@@ -57,7 +57,7 @@ func (g *BaseHandler) callback(c fiber.Ctx) error {
 
 	// Sync user details
 	go func() {
-		_, err := syncUser(context.Background(), logto, g.DB)
+		_, err := syncUser(context.Background(), logto, g.db)
 		if err != nil {
 			log.Printf("Failed to sync user: %v", err)
 		}
@@ -154,7 +154,7 @@ func (g *BaseHandler) getUserHandler(c fiber.Ctx) error {
 	}
 
 	var user models.User
-	g.DB.WithContext(c.Context()).Model(&models.User{}).Where(&models.User{ExternalOauthID: logtoID}).First(&user)
+	g.db.WithContext(c.Context()).Model(&models.User{}).Where(&models.User{ExternalOauthID: logtoID}).First(&user)
 
 	return c.JSON(user)
 }
@@ -183,7 +183,7 @@ func (g *BaseHandler) updateUserHandler(c fiber.Ctx) error {
 
 	// Get existing user
 	var user models.User
-	result := g.DB.WithContext(c.Context()).Model(&models.User{}).Where(&models.User{ExternalOauthID: logtoID}).First(&user)
+	result := g.db.WithContext(c.Context()).Model(&models.User{}).Where(&models.User{ExternalOauthID: logtoID}).First(&user)
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to get user",
@@ -200,7 +200,7 @@ func (g *BaseHandler) updateUserHandler(c fiber.Ctx) error {
 	}
 
 	// Save updates
-	if err := g.DB.WithContext(c.Context()).Save(&user).Error; err != nil {
+	if err := g.db.WithContext(c.Context()).Save(&user).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to update user",
 			"error":   err.Error(),

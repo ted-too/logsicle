@@ -21,7 +21,7 @@ import { Button } from "../ui/button";
 import TimeRangePicker from "./timerange-picker";
 import { Project } from "@repo/api";
 
-export function AppLogsPageHeader({ project }: { project: Project }) {
+export function AppLogsPageHeader() {
   const params = useParams({ from: "/_authd/_app/dashboard/$projId/logs" });
   const prevSearch = useRouterState({
     select: (state) => state.location.search,
@@ -85,7 +85,7 @@ export function AppLogsPageHeader({ project }: { project: Project }) {
               Showing {filteredCount} of {totalCount} events
             </span>
           )}
-          <TimeRangePicker project={project} />
+          <TimeRangePicker />
           <div className="relative">
             <Label htmlFor="search-logs" className="sr-only">
               Search for a log

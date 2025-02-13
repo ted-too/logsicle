@@ -14,7 +14,7 @@ import {
   getLocalTimeZone,
   ZonedDateTime,
 } from "@internationalized/date";
-import { Project } from "@repo/api";
+import { Project, suggestInterval } from "@repo/api";
 import { useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { debounce } from "@tanstack/react-virtual";
 import { add, format, sub } from "date-fns";
@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { useTransition } from "react";
+import { projectsQueries } from "@/qc/queries/projects";
 
 const HR_MM_TIMES = Array.from({ length: 96 }).map((_, i) => {
   const hour = Math.floor(i / 4)
@@ -40,11 +41,14 @@ const HR_MM_TIMES = Array.from({ length: 96 }).map((_, i) => {
   return `${hour}:${minute}`;
 });
 
-export default function TimeRangePicker({ project }: { project: Project }) {
+export default function TimeRangePicker() {
+  const params = useParams({ from: "/_authd/_app/dashboard/$projId/logs" });
+  const { data: project } = projectsQueries.getById.useSuspenseQuery(
+    params.projId
+  );
   const navigate = useNavigate();
   const [isPending, startTransition] = useTransition();
   const timezone = getLocalTimeZone();
-  const params = useParams({ from: "/_authd/_app/dashboard/$projId/logs" });
   const prevSearch = useRouterState({
     select: (state) => state.location.search,
   });
@@ -73,11 +77,16 @@ export default function TimeRangePicker({ project }: { project: Project }) {
         window,
         (value: { start: ZonedDateTime; end: ZonedDateTime }) => {
           startTransition(() => {
+            const interval = suggestInterval(
+              value.start.toDate(),
+              value.end.toDate()
+            );
             navigate({
               to: "/dashboard/$projId/logs",
               params,
               search: {
                 ...prevSearch,
+                interval,
                 start: value.start.toDate(),
                 end: value.end.toDate(),
               },
@@ -106,7 +115,9 @@ export default function TimeRangePicker({ project }: { project: Project }) {
     debouncedNavigate(value);
   }
 
-  const startCutoff = sub(new Date(), { days: project.log_retention_days + 1 });
+  const startCutoff = sub(new Date(), {
+    days: project!.log_retention_days + 1,
+  });
   const endCutoff = add(new Date(), { days: 1 });
 
   const START_TIMES = useMemo(() => {
@@ -161,7 +172,7 @@ export default function TimeRangePicker({ project }: { project: Project }) {
           Time range picker
         </Label>
         <PopoverAnchor>
-          <div className="flex">
+          <div className="flex font-mono">
             <Group className={cn(dateInputStyle, "pe-9")}>
               <DateInput slot="start" short unstyled />
               <span

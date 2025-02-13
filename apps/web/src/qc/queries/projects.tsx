@@ -5,6 +5,7 @@ import {
   createProject,
   CreateProjectRequest,
   deleteAPIKey,
+  getProject,
   listAPIKeys,
   listProjects,
   updateProject,
@@ -36,6 +37,28 @@ export const projectsQueries = {
     useQuery: () => useQuery(projectsQueries.listQueryOptions()),
     useSuspenseQuery: () =>
       useSuspenseQuery(projectsQueries.listQueryOptions()),
+  },
+  getByIdQueryOptions: (
+    projectId: string,
+    opts?: RequestInit
+  ) =>
+    queryOptions({
+      queryKey: ["projects", projectId],
+      queryFn: async () => {
+        if (!projectId) return null;
+        const { data, error } = await getProject(projectId, {
+          baseURL: import.meta.env.PUBLIC_API_URL!,
+          ...opts,
+        });
+        if (error) return Promise.reject(error);
+        return data;
+      },
+    }),
+  getById: {
+    useQuery: (projectId: string) =>
+      useQuery(projectsQueries.getByIdQueryOptions(projectId)),
+    useSuspenseQuery: (projectId: string) =>
+      useSuspenseQuery(projectsQueries.getByIdQueryOptions(projectId)),
   },
   create: () =>
     useMutation({

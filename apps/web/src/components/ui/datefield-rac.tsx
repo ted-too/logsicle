@@ -105,7 +105,7 @@ function DateInput({
           !unstyled && dateInputStyle,
           "[&[data-short=true]_[data-type=day]_+_[data-type=literal]]:hidden",
           "[&[data-short=true]_[data-type=year]]:hidden",
-          "*:data-[type=timeZoneName]:ml-1 *:data-[type=timeZoneName]:bg-accent *:data-[type=timeZoneName]:text-xs *:data-[type=timeZoneName]:px-1",
+          "*:data-[type=timeZoneName]:tracking-widest *:data-[type=timeZoneName]:ml-1 *:data-[type=timeZoneName]:bg-accent *:data-[type=timeZoneName]:text-xs *:data-[type=timeZoneName]:px-1",
           className
         )
       )}
@@ -149,7 +149,8 @@ function DateInput({
           allowedSegments.some((s) => ["month", "day", "year"].includes(s)) &&
           allowedSegments.some((s) => ["hour", "minute", "second"].includes(s))
         ) {
-          return <DateSegment segment={segment} />;
+          const modifiedSegment = {...segment, text: ","};
+          return <DateSegment segment={modifiedSegment} />;
         }
 
         return <></>;

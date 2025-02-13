@@ -1,20 +1,19 @@
-import { AppLog } from "@repo/api";
-import { CellContext, HeaderContext } from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import { Button } from "../ui/button";
-import { Ellipsis } from "lucide-react";
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { AppLog } from "@repo/api";
+import { CellContext, HeaderContext } from "@tanstack/react-table";
 import { Setting3 } from "iconsax-react";
-import { useEffect, useRef, useState } from "react";
+import { Ellipsis } from "lucide-react";
+import { useState } from "react";
 
 export function RowActions({ cell }: CellContext<AppLog, unknown>) {
   return (

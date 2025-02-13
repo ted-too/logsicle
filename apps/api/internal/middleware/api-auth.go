@@ -5,14 +5,21 @@ import (
 	"slices"
 	"strings"
 
+	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/gofiber/fiber/v3"
 	"github.com/ted-too/logsicle/internal/storage/models"
 	"gorm.io/gorm"
 )
 
 type BasicBody struct {
-	ProjectID   string  `json:"project_id" validate:"required"`
+	ProjectID   string  `json:"project_id"`
 	ChannelName *string `json:"channel"`
+}
+
+func (b BasicBody) Validate() error {
+	return validation.ValidateStruct(&b,
+		validation.Field(&b.ProjectID, validation.Required),
+	)
 }
 
 // validatePreflightOrigin checks if the origin is allowed in any project
@@ -47,7 +54,12 @@ func validateOrigin(c fiber.Ctx, db *gorm.DB) (string, *string, error) {
 	// Get project ID from body
 	body := new(BasicBody)
 	if err := c.Bind().JSON(body); err != nil {
-		return "", nil, fiber.NewError(fiber.StatusBadRequest, "Missing project_id")
+		return "", nil, fiber.NewError(fiber.StatusBadRequest, "Invalid json body")
+	}
+
+	err := body.Validate()
+	if err != nil {
+		return "", nil, fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
 	var project models.Project
@@ -99,14 +111,18 @@ func validateAPIKey(c fiber.Ctx, db *gorm.DB, projectID string, channelName *str
 	// Get scope
 	resource, scope := getRequiredScope(c.Method(), c.Path())
 
-	// If channelName is provided, verify channel access
 	var channelID string
-	if channelName != nil {
-		var err error
-		channelID, err = verifyChannelAccess(db, projectID, *channelName, resource)
+	var err error
+	if channelName != nil && resource == "event" {
+		var channel models.EventChannel
+		err = db.Where("name = ? AND project_id = ?", *channelName, projectID).First(&channel).Error
 		if err != nil {
-			return nil, "", fiber.NewError(fiber.StatusForbidden, err.Error())
+			if err == gorm.ErrRecordNotFound {
+				return nil, "", fiber.NewError(fiber.StatusForbidden, "event channel not found or access denied")
+			}
+			return nil, "", fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("failed to verify event channel access: %s", err.Error()))
 		}
+		channelID = channel.ID
 	}
 
 	// Verify the provided key
@@ -120,55 +136,6 @@ func validateAPIKey(c fiber.Ctx, db *gorm.DB, projectID string, channelName *str
 	}
 
 	return nil, "", fiber.NewError(fiber.StatusUnauthorized, "Invalid API key")
-}
-
-func verifyChannelAccess(db *gorm.DB, projectID string, channelName string, channelType string) (string, error) {
-	var channelID string
-	switch channelType {
-	case "event":
-		var channel models.EventChannel
-		err := db.Where("name = ? AND project_id = ?", channelName, projectID).First(&channel).Error
-		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return "", fmt.Errorf("event channel not found or access denied")
-			}
-			return "", fmt.Errorf("failed to verify event channel access: %w", err)
-		}
-		channelID = channel.ID
-	case "app":
-		var channel models.AppLogChannel
-		err := db.Where("name = ? AND project_id = ?", channelName, projectID).First(&channel).Error
-		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return "", fmt.Errorf("app log channel not found or access denied")
-			}
-			return "", fmt.Errorf("failed to verify app log channel access: %w", err)
-		}
-		channelID = channel.ID
-	case "request":
-		var channel models.RequestLogChannel
-		err := db.Where("name = ? AND project_id = ?", channelName, projectID).First(&channel).Error
-		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return "", fmt.Errorf("request log channel not found or access denied")
-			}
-			return "", fmt.Errorf("failed to verify request log channel access: %w", err)
-		}
-		channelID = channel.ID
-	case "trace":
-		var channel models.TraceChannel
-		err := db.Where("name = ? AND project_id = ?", channelName, projectID).First(&channel).Error
-		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return "", fmt.Errorf("trace channel not found or access denied")
-			}
-			return "", fmt.Errorf("failed to verify trace channel access: %w", err)
-		}
-		channelID = channel.ID
-	default:
-		return "", fmt.Errorf("invalid channel type: %s", channelType)
-	}
-	return channelID, nil
 }
 
 // APIAuth middleware checks for valid API key and permissions
@@ -210,7 +177,6 @@ func APIAuth(db *gorm.DB) fiber.Handler {
 	}
 }
 
-// getRequiredScope determines the required scope based on the request
 func getRequiredScope(method, path string) (string, string) {
 	parts := strings.Split(path, "/")
 	parts = slices.DeleteFunc(parts, func(s string) bool { return s == "" })
@@ -232,15 +198,21 @@ func getRequiredScope(method, path string) (string, string) {
 		}
 	case "app":
 		if method == "POST" {
-			scope = models.ScopeLogsWrite
+			scope = models.ScopeAppLogsWrite
 		} else {
-			scope = models.ScopeLogsRead
+			scope = models.ScopeAppLogsRead
 		}
 	case "request":
 		if method == "POST" {
 			scope = models.ScopeRequestWrite
 		} else {
 			scope = models.ScopeRequestRead
+		}
+	case "metric":
+		if method == "POST" {
+			scope = models.ScopeMetricsWrite
+		} else {
+			scope = models.ScopeMetricsRead
 		}
 	case "trace":
 		if method == "POST" {
@@ -255,7 +227,6 @@ func getRequiredScope(method, path string) (string, string) {
 	return resource, scope
 }
 
-// hasScope checks if the API key has the required scope
 func hasScope(scopes []string, requiredScope string) bool {
 	// Check for specific scope
 	for _, scope := range scopes {

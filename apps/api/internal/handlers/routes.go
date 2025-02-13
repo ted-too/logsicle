@@ -33,7 +33,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 		v1SuperAuthd.Get("/metrics/queue", metricsHandler.GetQueueMetrics)
 	}
 
-	baseHandler := NewBaseHandler(db, cfg)
+	baseHandler := NewBaseHandler(db, pool, cfg)
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: cfg.Cors.AllowedOrigins,
@@ -75,13 +75,13 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 		streamHandler := NewStreamHandler(queueService.Redis, db)
 		v1.Get("/stream/:projectId", streamHandler.StreamLogs)
 
-		// Channels routes
+		// Event Channels routes
 		channelsHandler := NewChannelsHandler(db)
-		v1Authd.Post("/projects/:projectId/channels/:type", channelsHandler.CreateChannel)
-		v1Authd.Patch("/projects/:projectId/channels/:type/:id", channelsHandler.UpdateChannel)
-		v1Authd.Delete("/projects/:projectId/channels/:type/:id", channelsHandler.DeleteChannel)
-		v1Authd.Get("/projects/:projectId/channels/events", channelsHandler.GetEventChannels)
-		v1Authd.Get("/projects/:projectId/channels/events/:channelId", channelsHandler.GetEventChannel)
+		v1Authd.Get("/projects/:projectId/events/channels", channelsHandler.GetEventChannels)
+		v1Authd.Get("/projects/:projectId/events/channels/:channelId", channelsHandler.GetEventChannel)
+		v1Authd.Post("/projects/:projectId/events/channels", channelsHandler.CreateChannel)
+		v1Authd.Patch("/projects/:projectId/events/channels/:id", channelsHandler.UpdateChannel)
+		v1Authd.Delete("/projects/:projectId/events/channels/:id", channelsHandler.DeleteChannel)
 
 		// Generic read endpoints
 		readHandler := NewReadHandler(db, pool)

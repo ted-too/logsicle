@@ -11,6 +11,9 @@ export const Route = createFileRoute("/_authd/_app/dashboard/")({
         to: "/dashboard/onboarding",
       });
     }
-    throw redirect({ to: `/dashboard/${projects[0].id}` });
+    throw redirect({
+      to: "/dashboard/$projId",
+      params: { projId: projects[0].id },
+    });
   },
 });

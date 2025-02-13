@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { apiKeysQueries } from "@/qc/queries/projects";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  API_KEY_SCOPE_INFO,
+  API_KEY_WRITE_SCOPE_INFO,
   APIKey,
   createAPIKeySchema,
   Project,
@@ -116,13 +116,13 @@ function CreatedAPIKey({
           Scopes
         </span>
         <div className="flex flex-wrap gap-4">
-          {API_KEY_SCOPE_INFO.length === apiKey.scopes.length ? (
+          {API_KEY_WRITE_SCOPE_INFO.length === apiKey.scopes.length ? (
             <div className="flex items-center gap-2">
               <CircleCheckIcon className="size-4 text-emerald-500" />
               <span>All permissions</span>
             </div>
           ) : (
-            API_KEY_SCOPE_INFO.map((item) => (
+            API_KEY_WRITE_SCOPE_INFO.map((item) => (
               <div key={item.value} className="flex items-center gap-2">
                 {apiKey.scopes.includes(item.value) ? (
                   <CircleCheckIcon className="size-4 text-emerald-500" />
@@ -221,7 +221,7 @@ export function GenAPIKey({
                   onClick={() => {
                     form.setValue(
                       "scopes",
-                      API_KEY_SCOPE_INFO.map((i) => i.value)
+                      API_KEY_WRITE_SCOPE_INFO.map((i) => i.value)
                     );
                   }}
                 >
@@ -232,7 +232,7 @@ export function GenAPIKey({
                 What permissions should this API key have?
               </FormDescription>
               <div className="flex flex-col gap-4">
-                {API_KEY_SCOPE_INFO.map((item) => (
+                {API_KEY_WRITE_SCOPE_INFO.map((item) => (
                   <FormField
                     key={item.value}
                     control={form.control}

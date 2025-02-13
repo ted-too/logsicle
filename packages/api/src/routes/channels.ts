@@ -21,7 +21,7 @@ export async function listEventChannels(
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<EventChannel[]>> {
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/channels/events`,
+    `${baseURL}/api/v1/projects/${projectId}/events/channels`,
     {
       method: "GET",
       headers: {
@@ -58,7 +58,7 @@ export async function getEventChannel(
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<EventChannel>> {
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/channels/events/${channelId}`,
+    `${baseURL}/api/v1/projects/${projectId}/events/channels/${channelId}`,
     {
       method: "GET",
       headers: {

@@ -2,8 +2,6 @@ package storage
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -18,47 +16,6 @@ type BaseModel struct {
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
-}
-
-// Base channel struct with common fields
-type BaseChannel struct {
-	BaseModel
-	Description   sql.NullString `json:"-"`
-	Color         sql.NullString `json:"-"`
-	RetentionDays sql.NullInt16  `json:"-"`
-}
-
-// MarshalJSON implements custom JSON marshaling
-func (bc BaseChannel) MarshalJSON() ([]byte, error) {
-	// Get the base model fields
-	baseJSON, err := json.Marshal(bc.BaseModel)
-	if err != nil {
-		return nil, err
-	}
-
-	// Unmarshal into a map to combine with other fields
-	var result map[string]interface{}
-	if err := json.Unmarshal(baseJSON, &result); err != nil {
-		return nil, err
-	}
-
-	// Add the nullable fields
-	result["description"] = nil
-	if bc.Description.Valid {
-		result["description"] = bc.Description.String
-	}
-
-	result["color"] = nil
-	if bc.Color.Valid {
-		result["color"] = bc.Color.String
-	}
-
-	result["retention_days"] = nil
-	if bc.RetentionDays.Valid {
-		result["retention_days"] = bc.RetentionDays.Int16
-	}
-
-	return json.Marshal(result)
 }
 
 func New(cfg *config.Config) (*gorm.DB, error) {

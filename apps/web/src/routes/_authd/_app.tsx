@@ -28,21 +28,11 @@ function LayoutComponent() {
   const { data } = userQueries.getUser.useSuspenseQuery();
   const [open, setOpen] = useState(false);
 
-  const handleMouseEnter = () => {
-    setOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    setOpen(false);
-  };
-
   return (
     <SidebarProvider open={open} onOpenChange={setOpen}>
       <div className="flex w-svw h-svh">
         <AppSidebar
           user={data}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
         />
         <ContentWrapper>
           <Outlet />

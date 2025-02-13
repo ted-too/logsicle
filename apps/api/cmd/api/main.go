@@ -6,7 +6,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/log"
 	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
@@ -20,15 +19,6 @@ import (
 	"github.com/ted-too/logsicle/internal/storage/timescale"
 )
 
-type structValidator struct {
-	validate *validator.Validate
-}
-
-// Validate method implementation
-func (v *structValidator) Validate(out any) error {
-	return v.validate.Struct(out)
-}
-
 func main() {
 	ctx := context.Background()
 
@@ -41,9 +31,7 @@ func main() {
 	log.SetLevel(log.LevelDebug)
 
 	// Initialize Fiber app
-	app := fiber.New(fiber.Config{
-		StructValidator: &structValidator{validate: validator.New(validator.WithRequiredStructEnabled())},
-	})
+	app := fiber.New()
 
 	app.Use(recoverer.New())
 

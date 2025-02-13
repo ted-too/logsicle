@@ -2,26 +2,25 @@ import type { ErrorResponse, FnResponse, Opts } from "@/types";
 import { z } from "zod";
 
 export const apiKeyScopeSchema = z.enum([
-  "logs:write",
-  "logs:read",
+  "app:write",
+  "app:read",
   "metrics:write",
   "metrics:read",
   "events:write",
   "events:read",
+  "request:write",
+  "request:read",
+  "traces:write",
+  "traces:read",
 ]);
 
 export type APIKeyScope = z.infer<typeof apiKeyScopeSchema>;
 
-export const API_KEY_SCOPE_INFO = [
+export const API_KEY_WRITE_SCOPE_INFO = [
   {
-    value: "logs:write",
-    label: "Write Logs",
-    description: "Allows creating and ingesting application logs, request logs, and event logs"
-  },
-  {
-    value: "logs:read", 
-    label: "Read Logs",
-    description: "Allows retrieving and querying logs"
+    value: "app:write",
+    label: "Write App Logs",
+    description: "Allows creating and ingesting application logs"
   },
   {
     value: "metrics:write",
@@ -29,20 +28,20 @@ export const API_KEY_SCOPE_INFO = [
     description: "Allows sending and recording metrics data"
   },
   {
-    value: "metrics:read",
-    label: "Read Metrics", 
-    description: "Allows retrieving and querying metrics data"
-  },
-  {
     value: "events:write",
     label: "Write Events",
     description: "Allows creating and sending custom events"
   },
   {
-    value: "events:read",
-    label: "Read Events",
-    description: "Allows retrieving and querying events"
-  }
+    value: "request:write",
+    label: "Write Request Logs",
+    description: "Allows creating and ingesting request logs"
+  },
+  {
+    value: "traces:write",
+    label: "Write Traces",
+    description: "Allows creating and ingesting traces"
+  },
 ] as const;
 
 

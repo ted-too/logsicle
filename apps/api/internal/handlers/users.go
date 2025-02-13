@@ -1,26 +1,46 @@
 package handlers
 
 import (
+	"time"
+
+	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/gofiber/fiber/v3"
+	"github.com/jackc/pgx/v5"
 	"github.com/lib/pq"
 	"github.com/sumup/typeid"
 	"github.com/ted-too/logsicle/internal/storage"
 	"github.com/ted-too/logsicle/internal/storage/models"
+	"gorm.io/gorm"
 )
 
 type createProjectRequest struct {
-	Name             string   `json:"name" validate:"required"`
+	Name             string   `json:"name"`
 	AllowedOrigins   []string `json:"allowed_origins"`
 	LogRetentionDays int      `json:"log_retention_days"`
 }
 
-func (g *BaseHandler) createProject(c fiber.Ctx) error {
+func (r createProjectRequest) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Name, validation.Required, validation.Length(1, 255)),
+		validation.Field(&r.LogRetentionDays, validation.Min(1), validation.Max(90)),
+	)
+}
+
+func (h *BaseHandler) createProject(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 
 	body := new(createProjectRequest)
 	if err := c.Bind().Body(body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	err := body.Validate()
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Validation failed",
 			"error":   err.Error(),
 		})
 	}
@@ -40,7 +60,7 @@ func (g *BaseHandler) createProject(c fiber.Ctx) error {
 		LogRetentionDays: body.LogRetentionDays,
 	}
 
-	if err := g.DB.Create(&project).Error; err != nil {
+	if err := h.db.Create(&project).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to create project",
 			"error":   err.Error(),
@@ -56,16 +76,14 @@ type updateProjectRequest struct {
 	LogRetentionDays int      `json:"log_retention_days"`
 }
 
-func (g *BaseHandler) updateProject(c fiber.Ctx) error {
+func (h *BaseHandler) updateProject(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 	projectID := c.Params("id")
 
-	// Check if project exists and belongs to user
-	var project models.Project
-	if err := g.DB.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Project not found",
-		})
+	// Verify project access
+	project, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
 	}
 
 	// Parse request body
@@ -90,7 +108,7 @@ func (g *BaseHandler) updateProject(c fiber.Ctx) error {
 	}
 
 	// Apply updates
-	if err := g.DB.Model(&project).Updates(updates).Error; err != nil {
+	if err := h.db.Model(&project).Updates(updates).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to update project",
 			"error":   err.Error(),
@@ -98,7 +116,7 @@ func (g *BaseHandler) updateProject(c fiber.Ctx) error {
 	}
 
 	// Fetch updated project
-	if err := g.DB.First(&project, "id = ?", projectID).Error; err != nil {
+	if err := h.db.First(&project, "id = ?", projectID).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch updated project",
 			"error":   err.Error(),
@@ -108,11 +126,11 @@ func (g *BaseHandler) updateProject(c fiber.Ctx) error {
 	return c.JSON(project)
 }
 
-func (g *BaseHandler) listProjects(c fiber.Ctx) error {
+func (h *BaseHandler) listProjects(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 
 	var projects []models.Project
-	if err := g.DB.Where("user_id = ?", userID).Preload("APIKeys").Find(&projects).Error; err != nil {
+	if err := h.db.Where("user_id = ?", userID).Preload("APIKeys").Find(&projects).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch projects",
 			"error":   err.Error(),
@@ -122,34 +140,84 @@ func (g *BaseHandler) listProjects(c fiber.Ctx) error {
 	return c.JSON(projects)
 }
 
-func (g *BaseHandler) getProject(c fiber.Ctx) error {
+func verifyDashboardProjectAccess(db *gorm.DB, ctx fiber.Ctx, projectID, userID string) (*models.Project, error) {
+	var project models.Project
+	if err := db.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fiber.NewError(fiber.StatusNotFound, "Project not found or access denied")
+		}
+		return nil, fiber.NewError(fiber.StatusInternalServerError, "Failed to verify project access")
+	}
+	return &project, nil
+}
+
+func (h *BaseHandler) getProject(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 	projectID := c.Params("id")
 
-	var project models.Project
-	if err := g.DB.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Project not found",
-		})
+	// Verify project access
+	project, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
 	}
 
 	// Load associated API keys
-	if err := g.DB.Where("project_id = ?", projectID).Find(&project.APIKeys).Error; err != nil {
+	if err := h.db.Where("project_id = ?", projectID).Find(&project.APIKeys).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch project details",
 			"error":   err.Error(),
 		})
 	}
 
-	return c.JSON(project)
+	// Get the latest log timestamp for each resource type using pgx
+	query := `
+        SELECT 
+            (SELECT MAX(timestamp) FROM app_logs WHERE project_id = $1) as last_app_log,
+            (SELECT MAX(timestamp) FROM event_logs WHERE project_id = $1) as last_event_log,
+            (SELECT MAX(timestamp) FROM request_logs WHERE project_id = $1) as last_request_log
+	`
+	// (SELECT MAX(timestamp) FROM metrics WHERE project_id = $1) as last_metric
+	var lastAppLog, lastEventLog, lastRequestLog *time.Time
+	err = h.pool.QueryRow(c.Context(), query, projectID).Scan(
+		&lastAppLog,
+		&lastEventLog,
+		&lastRequestLog,
+		// &lastMetric,
+	)
+	if err != nil && err != pgx.ErrNoRows {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch last log timestamps",
+			"error":   err.Error(),
+		})
+	}
+
+	// Create a response struct that includes the project and last log timestamps
+	response := fiber.Map{
+		"id":                 project.ID,
+		"created_at":         project.CreatedAt,
+		"updated_at":         project.UpdatedAt,
+		"user_id":            project.UserID,
+		"name":               project.Name,
+		"allowed_origins":    project.AllowedOrigins,
+		"log_retention_days": project.LogRetentionDays,
+		"api_keys":           project.APIKeys,
+		"last_activity": fiber.Map{
+			"app_logs":     lastAppLog,
+			"event_logs":   lastEventLog,
+			"request_logs": lastRequestLog,
+			// "metrics":      lastMetric,
+		},
+	}
+
+	return c.JSON(response)
 }
 
-func (g *BaseHandler) deleteProject(c fiber.Ctx) error {
+func (h *BaseHandler) deleteProject(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 	projectID := c.Params("id")
 
 	// Begin transaction
-	tx := g.DB.Begin()
+	tx := h.db.Begin()
 	if tx.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to start transaction",
@@ -195,26 +263,50 @@ func (g *BaseHandler) deleteProject(c fiber.Ctx) error {
 }
 
 type createAPIKeyRequest struct {
-	Name   string   `json:"name" validate:"required"`
-	Scopes []string `json:"scopes" validate:"required,dive,oneof=logs:write logs:read metrics:write metrics:read events:write events:read"`
+	Name   string   `json:"name"`
+	Scopes []string `json:"scopes"`
 }
 
-func (g *BaseHandler) createAPIKey(c fiber.Ctx) error {
+func (r createAPIKeyRequest) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Name, validation.Required, validation.Length(1, 255)),
+		validation.Field(&r.Scopes, validation.Required, validation.Each(validation.In(
+			models.ScopeAppLogsWrite,
+			models.ScopeAppLogsRead,
+			models.ScopeMetricsWrite,
+			models.ScopeMetricsRead,
+			models.ScopeEventsWrite,
+			models.ScopeEventsRead,
+			models.ScopeRequestWrite,
+			models.ScopeRequestRead,
+			models.ScopeTracesWrite,
+			models.ScopeTracesRead,
+		))),
+	)
+}
+
+func (h *BaseHandler) createAPIKey(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 	projectID := c.Params("id")
 
-	// Verify project ownership
-	var project models.Project
-	if err := g.DB.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Project not found",
+	// Verify project access
+	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
+	}
+
+	input := new(createAPIKeyRequest)
+	if err := c.Bind().Body(input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request body",
+			"error":   err.Error(),
 		})
 	}
 
-	var req createAPIKeyRequest
-	if err := c.Bind().Body(&req); err != nil {
+	err = input.Validate()
+	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid request body",
+			"message": "Validation failed",
 			"error":   err.Error(),
 		})
 	}
@@ -237,13 +329,13 @@ func (g *BaseHandler) createAPIKey(c fiber.Ctx) error {
 	apiKey := models.ApiKey{
 		BaseModel: storage.BaseModel{ID: keyID.String()},
 		ProjectID: projectID,
-		Name:      req.Name,
+		Name:      input.Name,
 		Key:       rawAPIKey,
-		Scopes:    pq.StringArray(req.Scopes),
+		Scopes:    pq.StringArray(input.Scopes),
 	}
 
 	// The BeforeCreate hook will hash the raw key and set the masked version
-	if err := g.DB.Create(&apiKey).Error; err != nil {
+	if err := h.db.Create(&apiKey).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to create API key",
 			"error":   err.Error(),
@@ -260,20 +352,18 @@ func (g *BaseHandler) createAPIKey(c fiber.Ctx) error {
 	})
 }
 
-func (g *BaseHandler) listAPIKeys(c fiber.Ctx) error {
+func (h *BaseHandler) listAPIKeys(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 	projectID := c.Params("id")
 
-	// Verify project ownership
-	var project models.Project
-	if err := g.DB.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Project not found",
-		})
+	// Verify project access
+	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
 	}
 
 	var apiKeys []models.ApiKey
-	if err := g.DB.Where("project_id = ?", projectID).Find(&apiKeys).Error; err != nil {
+	if err := h.db.Where("project_id = ?", projectID).Find(&apiKeys).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch API keys",
 			"error":   err.Error(),
@@ -283,21 +373,19 @@ func (g *BaseHandler) listAPIKeys(c fiber.Ctx) error {
 	return c.JSON(apiKeys)
 }
 
-func (g *BaseHandler) deleteAPIKey(c fiber.Ctx) error {
+func (h *BaseHandler) deleteAPIKey(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 	projectID := c.Params("id")
 	keyID := c.Params("keyId")
 
-	// First verify project ownership
-	var project models.Project
-	if err := g.DB.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Project not found",
-		})
+	// Verify project access
+	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
 	}
 
 	// Delete the API key
-	result := g.DB.Where("id = ? AND project_id = ?", keyID, projectID).Delete(&models.ApiKey{})
+	result := h.db.Where("id = ? AND project_id = ?", keyID, projectID).Delete(&models.ApiKey{})
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to delete API key",

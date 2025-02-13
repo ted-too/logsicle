@@ -4,8 +4,6 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/ted-too/logsicle/internal/storage/models"
-	"gorm.io/gorm"
 )
 
 func (h *ReadHandler) DeleteLog(c fiber.Ctx) error {
@@ -14,19 +12,10 @@ func (h *ReadHandler) DeleteLog(c fiber.Ctx) error {
 	logID := c.Params("id")
 	userID := c.Locals("user-id").(string)
 
-	// Verify project access using GORM
-	var project models.Project
-	if err := h.db.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"message": "Project not found or access denied",
-				"error":   err.Error(),
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to verify project access",
-			"error":   err.Error(),
-		})
+	// Verify project access
+	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
 	}
 
 	// Use pgx for deletion based on log type

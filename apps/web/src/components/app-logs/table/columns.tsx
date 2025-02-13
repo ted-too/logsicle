@@ -1,9 +1,31 @@
 import { cn } from "@/lib/utils";
 import { AppLog } from "@repo/api";
-import { ColumnDef } from "@tanstack/react-table";
+import { Column, ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { BodyCell } from "./body-cell";
+import { FieldsCell } from "./fields-cell";
 import { ColumnVisibility, RowActions } from "./row-actions";
+import { CSSProperties } from "react";
+
+export const getPinningStyles = (
+  column: Column<AppLog>,
+  isHeader = false
+): CSSProperties => {
+  const isPinned = column.getIsPinned();
+
+  return {
+    left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
+    right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
+    position: isPinned ? "sticky" : "relative",
+    width: `calc(var(--col-${column.id}-size) * 1px)`,
+    minWidth: column.columnDef.meta?.minSize,
+    zIndex: isPinned ? 2 : 0,
+    flex: `0 0 calc(var(--col-${column.id}-size) * 1px)`,
+    display: "flex",
+    alignItems: "center",
+    height: "100%",
+    backgroundColor: isHeader ? "#FAFAFA" : undefined,
+  };
+};
 
 export const columns: ColumnDef<AppLog>[] = [
   {
@@ -25,7 +47,7 @@ export const columns: ColumnDef<AppLog>[] = [
         </span>
       </div>
     ),
-    size: 90,
+    size: 196,
     meta: {
       minSize: 196,
     },
@@ -38,7 +60,7 @@ export const columns: ColumnDef<AppLog>[] = [
         {row.getValue("service_name")}
       </div>
     ),
-    size: 48,
+    size: 148,
     meta: {
       minSize: 148,
     },
@@ -58,9 +80,9 @@ export const columns: ColumnDef<AppLog>[] = [
       </div>
     ),
     size: 128,
-    // meta: {
-    //   minSize: "fit-content" as unknown as number,
-    // },
+    meta: {
+      minSize: 128,
+    },
   },
   {
     header: "Msg",
@@ -68,7 +90,7 @@ export const columns: ColumnDef<AppLog>[] = [
     cell: ({ row }) => (
       <div className="truncate">{row.getValue("message")}</div>
     ),
-    size: 48,
+    size: 148,
     meta: {
       minSize: 148,
     },
@@ -76,7 +98,8 @@ export const columns: ColumnDef<AppLog>[] = [
   {
     header: "Body",
     accessorKey: "fields",
-    cell: BodyCell,
+    cell: FieldsCell,
+    // size set dynamically
     meta: {
       minSize: 256,
     },
@@ -87,7 +110,7 @@ export const columns: ColumnDef<AppLog>[] = [
     cell: ({ row }) => (
       <div className="truncate">{row.getValue("caller") || "-"}</div>
     ),
-    size: 48,
+    size: 148,
     meta: {
       minSize: 148,
     },
@@ -98,7 +121,7 @@ export const columns: ColumnDef<AppLog>[] = [
     cell: ({ row }) => (
       <div className="truncate">{row.getValue("function") || "-"}</div>
     ),
-    size: 48,
+    size: 148,
     meta: {
       minSize: 148,
     },
@@ -109,7 +132,7 @@ export const columns: ColumnDef<AppLog>[] = [
     cell: ({ row }) => (
       <div className="truncate">{row.getValue("version") || "-"}</div>
     ),
-    size: 48,
+    size: 148,
     meta: {
       minSize: 148,
     },
@@ -120,7 +143,7 @@ export const columns: ColumnDef<AppLog>[] = [
     cell: ({ row }) => (
       <div className="truncate">{row.getValue("environment") || "-"}</div>
     ),
-    size: 48,
+    size: 148,
     meta: {
       minSize: 148,
     },
@@ -131,7 +154,7 @@ export const columns: ColumnDef<AppLog>[] = [
     cell: ({ row }) => (
       <div className="truncate">{row.getValue("host") || "-"}</div>
     ),
-    size: 48,
+    size: 148,
     meta: {
       minSize: 148,
     },

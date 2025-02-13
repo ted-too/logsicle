@@ -5,24 +5,26 @@ import type {
   PaginatedResponse,
 } from "@/types";
 import { z } from "zod";
-import { optionalStringSchema, timeRangeSchema } from "@/validations";
+import {
+  optionalStringSchema,
+  timeRangeSchema,
+  validIntervalSchema,
+} from "@/validations";
 
 // Types for app logs
 export interface AppLog {
   id: string;
   project_id: string;
-  channel_id: string | null;
   level: LogLevel;
   message: string;
   fields: Record<string, any> | null;
   timestamp: string;
+  service_name: string;
   caller: string | null;
   function: string | null;
-  service_name: string;
   version: string | null;
   environment: string | null;
   host: string | null;
-  // channel: ChannelRelation | null;
 }
 
 // Types for metrics
@@ -48,7 +50,6 @@ export const logLevelSchema = z.enum([
 export type LogLevel = z.infer<typeof logLevelSchema>;
 
 const baseAppLogQuerySchema = z.object({
-  channelId: optionalStringSchema,
   level: logLevelSchema.optional(),
   serviceName: optionalStringSchema,
   environment: optionalStringSchema,
@@ -65,7 +66,7 @@ export const getAppLogsSchema = baseAppLogQuerySchema.extend({
 export type GetAppLogsParams = z.infer<typeof getAppLogsSchema>;
 
 export const getAppLogMetricsSchema = baseAppLogQuerySchema.extend({
-  interval: z.string().default("1 hour"),
+  interval: validIntervalSchema,
 });
 
 export type GetAppLogMetricsParams = z.infer<typeof getAppLogMetricsSchema>;

@@ -8,6 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
@@ -94,15 +95,7 @@ function MenuItems({ items }: MenuItemsProps) {
   ));
 }
 
-export function AppSidebar({
-  user,
-  onMouseEnter,
-  onMouseLeave,
-}: {
-  user: User;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-}) {
+export function AppSidebar({ user }: { user: User }) {
   const { projId } = useParams({ strict: false });
   const displayName = user.name !== "" ? user.name : user.email;
   const avatarFallback = displayName
@@ -117,11 +110,7 @@ export function AppSidebar({
 
   return (
     <TooltipProvider>
-      <Sidebar
-        collapsible="icon"
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-      >
+      <Sidebar collapsible="icon">
         <SidebarContent className="justify-between">
           <SidebarGroup className="p-0">
             <SidebarGroupContent>
@@ -187,6 +176,9 @@ export function AppSidebar({
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className="items-center gap-3 p-2 pl-1">
+                <SidebarMenuItem className="w-full">
+                  <SidebarTrigger />
+                </SidebarMenuItem>
                 <SidebarMenuItem className="w-full">
                   <div className="peer/menu-button h-10 p-2 pl-0 flex w-full items-center justify-start gap-2 overflow-hidden rounded-md text-left text-sm transition-[width,height,padding] group-data-[collapsible=icon]:size-10! [&>span:last-child]:truncate [&>svg]:shrink-0">
                     <Avatar className="size-8">
