@@ -1,13 +1,15 @@
 import { sub, add } from "date-fns";
 import { z } from "zod";
 
-// export const roundToNearest15Minutes = (date: Date) => {
-//   const minutes = date.getMinutes();
-//   const remainder = minutes % 15;
-//   const minutesToAdd = remainder === 0 ? 0 : 15 - remainder;
-//   date.setMinutes(minutes + minutesToAdd, 0, 0);
-//   return date;
-// };
+export const optionalStringSchema = z
+  .string()
+  .optional()
+  .transform((v) => v || undefined);
+
+export const optionalArraySchema = z
+  .array(z.string())
+  .optional()
+  .transform((v) => (v?.length ? v : undefined));
 
 export const dateTimeSchema = z
   .union([z.string(), z.date()])

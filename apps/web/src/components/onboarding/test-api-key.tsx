@@ -52,9 +52,12 @@ export function TestAPIKey({ project }: { project: Project }) {
   const queryClient = useQueryClient();
   const { mutateAsync, isPending } = userQueries.update();
   const [copied, setCopied] = useState<boolean>(false);
-  const logs = useLogStream(project.id, (log) =>
-    toast.success(`${log.type.charAt(0).toUpperCase() + log.type.slice(1)} received`)
-  );
+  const logs = useLogStream(project.id, {
+    callback: (log) =>
+      toast.success(
+        `${log.type.charAt(0).toUpperCase() + log.type.slice(1)} received`
+      ),
+  });
 
   // Get the temporary API key from storage
   const tempApiKey = tempApiKeyStorage.get();

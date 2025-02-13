@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, queueService *queue.QueueService, cfg *config.Config) {
+func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *queue.Processor, queueService *queue.QueueService, cfg *config.Config) {
 	// Health check endpoint
 	app.Get("/health", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
@@ -24,6 +24,13 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, queueService *
 		v1Ingest.Post("/app", ingestHandler.IngestAppLog)
 		v1Ingest.Post("/request", ingestHandler.IngestRequestLog)
 		v1Ingest.Post("/trace", ingestHandler.IngestTrace)
+	}
+
+	v1SuperAuthd := app.Group("/api/v1")
+	// TODO: Make super authd middleware
+	{
+		metricsHandler := NewMetricsHandler(processor)
+		v1SuperAuthd.Get("/metrics/queue", metricsHandler.GetQueueMetrics)
 	}
 
 	baseHandler := NewBaseHandler(db, cfg)
@@ -84,6 +91,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, queueService *
 		v1Authd.Get("/projects/:projectId/events/metrics", readHandler.GetEventMetrics)
 
 		v1Authd.Get("/projects/:projectId/app", readHandler.GetAppLogs)
+		v1Authd.Get("/projects/:projectId/app/metrics", readHandler.GetAppLogMetrics)
 		// v1Authd.Get("/projects/:projectId/app/metrics", readHandler.Get)
 	}
 

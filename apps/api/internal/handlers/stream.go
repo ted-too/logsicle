@@ -11,7 +11,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/log"
 	"github.com/redis/go-redis/v9"
-	"github.com/ted-too/logsicle/internal/storage/models"
 	"github.com/ted-too/logsicle/internal/storage/timescale"
 	"gorm.io/gorm"
 )
@@ -35,16 +34,26 @@ func (h *StreamHandler) StreamLogs(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 
 	// Verify project access
-	var project models.Project
-	if err := h.db.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Project not found or access denied",
-			})
+	if _, err := verifyDashboardProjectAccess(h.db, c, projectID, userID); err != nil {
+		return err
+	}
+
+	// Get log types from query params
+	logTypes := c.Query("types", "") // Default empty string if not provided
+
+	// Convert comma-separated string to slice of types
+	var selectedTypes []string
+	if logTypes != "" {
+		selectedTypes = strings.Split(logTypes, ",")
+		// Validate log types
+		validTypes := map[string]bool{"event": true, "app": true, "request": true, "metric": true}
+		for _, t := range selectedTypes {
+			if !validTypes[t] {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": fmt.Sprintf("Invalid log type: %s", t),
+				})
+			}
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to verify project access",
-		})
 	}
 
 	c.Set("Content-Type", "text/event-stream")
@@ -56,7 +65,7 @@ func (h *StreamHandler) StreamLogs(c fiber.Ctx) error {
 	channel := make(chan LogEvent)
 
 	// Start Redis subscription in a goroutine
-	go h.subscribeToLogs(ctx, projectID, channel)
+	go h.subscribeToLogs(ctx, projectID, selectedTypes, channel)
 
 	c.SendStreamWriter(func(w *bufio.Writer) {
 		for {
@@ -77,13 +86,20 @@ func (h *StreamHandler) StreamLogs(c fiber.Ctx) error {
 	return nil
 }
 
-func (h *StreamHandler) subscribeToLogs(ctx context.Context, projectID string, channel chan LogEvent) {
-	pubsub := h.redis.Subscribe(ctx,
-		fmt.Sprintf("logs:%s:event", projectID),
-		fmt.Sprintf("logs:%s:app", projectID),
-		fmt.Sprintf("logs:%s:request", projectID),
-		fmt.Sprintf("logs:%s:metric", projectID),
-	)
+func (h *StreamHandler) subscribeToLogs(ctx context.Context, projectID string, selectedTypes []string, channel chan LogEvent) {
+	// If no types specified, subscribe to all
+	subscribeTypes := []string{"event", "app", "request", "metric"}
+	if len(selectedTypes) > 0 {
+		subscribeTypes = selectedTypes
+	}
+
+	// Build channels to subscribe to
+	channels := make([]string, len(subscribeTypes))
+	for i, logType := range subscribeTypes {
+		channels[i] = fmt.Sprintf("logs:%s:%s", projectID, logType)
+	}
+
+	pubsub := h.redis.Subscribe(ctx, channels...)
 	defer pubsub.Close()
 
 	for {

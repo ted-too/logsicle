@@ -7,7 +7,7 @@
     "dev": "rsbuild dev --open",
     "lint": "eslint .",
     "preview": "rsbuild preview",
-    "shadcn": "pnpm dlx shadcn@latest"
+    "shadcn": "pnpm dlx shadcn@canary"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
@@ -47,6 +47,7 @@
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
     "react-syntax-highlighter": "^15.6.1",
+    "recharts": "^2.15.1",
     "solar-icon-set": "^1.0.0",
     "sonner": "^1.7.4",
     "tailwind-merge": "^3.0.1",

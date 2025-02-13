@@ -2,10 +2,10 @@
 import {
   deleteAppLog,
   getAppLogMetrics,
+  GetAppLogMetricsParams,
   getAppLogs,
-  LogLevel,
+  GetAppLogsParams,
   Opts,
-  timeRangeSchema,
 } from "@repo/api";
 import {
   keepPreviousData,
@@ -15,72 +15,31 @@ import {
   useQuery,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { z } from "zod";
 import { getQueryClient } from "../query-client";
 
-const DEFAULT_PAGE_SIZE = 20;
-
-// Individual field schemas
-export const optionalStringSchema = z
-  .string()
-  .optional()
-  .transform((v) => v || undefined);
-
-export const logLevelSchema = z
-  .enum(["debug", "info", "warning", "error", "fatal"] as const)
-  .optional()
-  .transform((v) => v || undefined);
-
-// Main schema composition
-export const appLogSearchSchema = z.object({
-  channelId: optionalStringSchema,
-  level: logLevelSchema,
-  serviceName: optionalStringSchema,
-  environment: optionalStringSchema,
-  search: optionalStringSchema,
-  start: timeRangeSchema.start,
-  end: timeRangeSchema.end,
-});
-
-export type AppLogSearch = z.infer<typeof appLogSearchSchema>;
-
-// Validate and parse search params
-export function validateAppLogSearch(
-  search: Record<string, unknown>
-): AppLogSearch {
-  // const now = new Date();
-  // const defaultSearch = {
-  //   ...search,
-  //   start: search.start ?? new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(),
-  //   end: search.end ?? now.toISOString(),
-  // };
-
-  return appLogSearchSchema.parse(search);
-}
+const DEFAULT_PAGE_SIZE = 40;
 
 export const appLogsQueries = {
   list: {
-    useInfiniteQuery: (projectId: string, search: AppLogSearch, opts?: Opts) =>
+    useInfiniteQuery: (
+      projectId: string,
+      search: GetAppLogsParams,
+      opts?: Opts
+    ) =>
       useInfiniteQuery({
         queryKey: ["projects", projectId, "app-logs", search],
-        initialPageParam: new Date().toISOString(),
         refetchOnWindowFocus: false,
         placeholderData: keepPreviousData,
         staleTime: 30 * 1000, // 30 seconds
         gcTime: 5 * 60 * 1000, // 5 minutes
+        initialPageParam: { page: 1 },
         queryFn: async ({ pageParam }) => {
           const { data, error } = await getAppLogs(
             projectId,
             {
-              channelId: search.channelId,
-              level: search.level as LogLevel,
-              serviceName: search.serviceName,
-              environment: search.environment,
-              search: search.search,
-              before: pageParam,
+              ...search,
+              page: pageParam.page,
               limit: DEFAULT_PAGE_SIZE,
-              start: search.start,
-              end: search.end,
             },
             {
               baseURL: import.meta.env.PUBLIC_API_URL!,
@@ -91,47 +50,62 @@ export const appLogsQueries = {
           return data;
         },
         getNextPageParam: (lastPage) => {
-          if (!lastPage.hasNext) return undefined;
-          return lastPage.data[lastPage.data.length - 1]?.timestamp;
+          if (lastPage.meta.nextPage === null) return undefined;
+          return { page: lastPage.meta.nextPage };
         },
         getPreviousPageParam: (firstPage) => {
-          if (!firstPage.hasPrev) return undefined;
-          return firstPage.data[0]?.timestamp;
+          if (firstPage.meta.prevPage === null) return undefined;
+          return { page: firstPage.meta.prevPage };
         },
+        select: (data) => ({
+          pageParams: data.pageParams,
+          pages: data.pages,
+          // Add these for easier access to metadata
+          totalRowCount: data.pages[0]?.meta.totalRowCount ?? 0,
+          totalFilteredRowCount: data.pages[0]?.meta.totalFilteredRowCount ?? 0,
+        }),
       }),
   },
-  metricsQueryOptions: (
-    projectId: string,
-    search: AppLogSearch,
-    opts?: RequestInit
-  ) =>
-    queryOptions({
-      queryKey: ["projects", projectId, "app-logs", "metrics", search],
-      queryFn: async () => {
-        const { data, error } = await getAppLogMetrics(
-          projectId,
-          {
-            channelId: search.channelId,
-            level: search.level as LogLevel,
-            serviceName: search.serviceName,
-            environment: search.environment,
-            start: search.start,
-            end: search.end,
-          },
-          {
-            baseURL: import.meta.env.PUBLIC_API_URL!,
-            ...opts,
-          }
-        );
-        if (error) return Promise.reject(error);
-        return data;
-      },
-    }),
   metrics: {
-    useQuery: (projectId: string, search: AppLogSearch) =>
-      useQuery(appLogsQueries.metricsQueryOptions(projectId, search)),
-    useSuspenseQuery: (projectId: string, search: AppLogSearch) =>
-      useSuspenseQuery(appLogsQueries.metricsQueryOptions(projectId, search)),
+    queryOptions: (
+      projectId: string,
+      search: GetAppLogMetricsParams,
+      opts?: Opts
+    ) =>
+      queryOptions({
+        queryKey: ["projects", projectId, "app-logs", "metrics", search],
+        refetchOnWindowFocus: false,
+        staleTime: 30 * 1000, // 30 seconds
+        gcTime: 5 * 60 * 1000, // 5 minutes
+        queryFn: async () => {
+          const { data, error } = await getAppLogMetrics(
+            projectId,
+            {
+              ...search,
+              interval: search.interval || "1 hour",
+            },
+            {
+              baseURL: import.meta.env.PUBLIC_API_URL!,
+              ...opts,
+            }
+          );
+          if (error) return Promise.reject(error);
+          return data;
+        },
+      }),
+    useQuery: (
+      projectId: string,
+      search: GetAppLogMetricsParams,
+      opts?: Opts
+    ) => useQuery(appLogsQueries.metrics.queryOptions(projectId, search, opts)),
+    useSuspenseQuery: (
+      projectId: string,
+      search: GetAppLogMetricsParams,
+      opts?: Opts
+    ) =>
+      useSuspenseQuery(
+        appLogsQueries.metrics.queryOptions(projectId, search, opts)
+      ),
   },
 };
 

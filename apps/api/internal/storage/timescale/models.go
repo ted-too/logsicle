@@ -379,8 +379,30 @@ type AppLogInput struct {
 	Function    *string        `json:"function,omitempty"`
 	ServiceName string         `json:"service_name"`
 	Version     string         `json:"version,omitempty"`
+	Timestamp   interface{}    `json:"timestamp,omitempty"`
 	Environment string         `json:"environment,omitempty"`
 	Host        string         `json:"host,omitempty"`
+}
+
+func ParseTimestamp(timestamp interface{}) (time.Time, error) {
+	if timestamp == nil {
+		return time.Now(), nil
+	}
+
+	switch v := timestamp.(type) {
+	case string:
+		// Parse RFC3339 or similar string formats
+		return time.Parse(time.RFC3339, v)
+	case float64:
+		// Handle Unix timestamp (either seconds or milliseconds)
+		sec := int64(v)
+		if sec > 1e11 { // Assuming milliseconds if very large
+			sec /= 1000
+		}
+		return time.Unix(sec, 0), nil
+	default:
+		return time.Time{}, fmt.Errorf("unsupported timestamp format")
+	}
 }
 
 func (a AppLogInput) ValidateAndCreate(channelIDInput string) (*AppLog, error) {
@@ -483,6 +505,11 @@ func (a AppLogInput) ValidateAndCreate(channelIDInput string) (*AppLog, error) {
 		}
 	}
 
+	timestamp, err := ParseTimestamp(a.Timestamp)
+	if err != nil {
+		return nil, err
+	}
+
 	return &AppLog{
 		ID:          id.String(),
 		ProjectID:   a.ProjectID,
@@ -496,7 +523,7 @@ func (a AppLogInput) ValidateAndCreate(channelIDInput string) (*AppLog, error) {
 		Version:     version,
 		Environment: environment,
 		Host:        host,
-		Timestamp:   time.Now(),
+		Timestamp:   timestamp,
 	}, nil
 }
 

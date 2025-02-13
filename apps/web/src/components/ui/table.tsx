@@ -3,15 +3,23 @@ import React from "react";
 
 interface TableProps extends React.ComponentProps<"table"> {
   containerClassName?: string;
+  onViewportScroll?: React.UIEventHandler<HTMLDivElement> | undefined;
 }
 
-function Table({ ref, className, containerClassName, ...props }: TableProps) {
+function Table({
+  ref,
+  className,
+  onViewportScroll,
+  containerClassName,
+  ...props
+}: TableProps) {
   return (
     <div
       className={cn(
         "relative w-full overflow-auto bg-background h-full border rounded-lg shadow-xs",
         containerClassName
       )}
+      onScroll={onViewportScroll}
       ref={ref}
     >
       <table
@@ -56,7 +64,7 @@ function TableRow({ className, ...props }: TableRowProps) {
   return (
     <tr
       className={cn(
-        "border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b border-border transition-colors group hover:bg-muted/50 data-[state=selected]:bg-muted",
         className
       )}
       {...props}
@@ -84,7 +92,7 @@ function TableCell({ className, ...props }: TableCellProps) {
   return (
     <td
       className={cn(
-        "px-2.5 h-9 align-middle [&:has([role=checkbox])]:pr-0",
+        "px-2.5 h-9 align-middle [&:has([role=checkbox])]:pr-0 group-hover:bg-muted/50",
         className
       )}
       {...props}

@@ -82,25 +82,30 @@
 }
 
 @theme inline {
-  /* Error/Fatal */
-  --log-error-bg: var(--color-red-50);
-  --log-error-border: var(--color-red-200);
-  --log-error-dot: var(--color-red-500);
+  /* Fatal */
+  --log-fatal-bg: var(--color-red-400);
+  --log-fatal-border: var(--color-red-600);
+  --log-fatal-dot: var(--color-red-600);
+
+  /* Error */
+  --log-error-bg: var(--color-red-100);
+  --log-error-border: var(--color-red-300);
+  --log-error-dot: var(--color-purple-600);
 
   /* Warning */
-  --log-warning-bg: var(--color-yellow-50);
-  --log-warning-border: var(--color-yellow-200);
-  --log-warning-dot: var(--color-yellow-500);
+  --log-warning-bg: var(--color-amber-100);
+  --log-warning-border: var(--color-amber-300);
+  --log-warning-dot: var(--color-amber-600);
 
   /* Info */
-  --log-info-bg: var(--color-green-50);
-  --log-info-border: var(--color-green-200);
-  --log-info-dot: var(--color-green-700);
+  --log-info-bg: var(--color-green-100);
+  --log-info-border: var(--color-green-300);
+  --log-info-dot: var(--color-green-600);
 
   /* Debug */
-  --log-debug-bg: var(--color-sky-50);
-  --log-debug-border: var(--color-sky-200);
-  --log-debug-dot: var(--color-sky-500);
+  --log-debug-bg: var(--color-sky-100);
+  --log-debug-border: var(--color-sky-300);
+  --log-debug-dot: var(--color-sky-600);
 }
 
 /*
@@ -172,9 +177,12 @@
     content: var(--tw-content);
   }
 
-  .app-log-timestamp[data-level="error"]::before,
-  .app-log-timestamp[data-level="fatal"]::before {
+  .app-log-timestamp[data-level="error"]::before {
     background-color: var(--log-error-dot) !important;
+  }
+
+  .app-log-timestamp[data-level="fatal"]::before {
+    background-color: var(--log-fatal-dot) !important;
   }
 
   .app-log-timestamp[data-level="warning"]::before {
@@ -190,8 +198,13 @@
   }
 
   /* Level badge styles */
-  .app-log-level[data-level="error"],
   .app-log-level[data-level="fatal"] {
+    color: var(--color-background) !important;
+    background-color: var(--log-fatal-bg) !important;
+    border-color: var(--log-fatal-border) !important;
+  }
+
+  .app-log-level[data-level="error"] {
     background-color: var(--log-error-bg) !important;
     border-color: var(--log-error-border) !important;
   }

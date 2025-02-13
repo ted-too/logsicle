@@ -19,8 +19,11 @@ export type FnResponse<T> =
 
 export type PaginatedResponse<T> = {
   data: T[];
-  totalCount: number;
-  filteredCount: number;
-  hasNext: boolean;
-  hasPrev: boolean;
+  meta: {
+    totalRowCount: number;
+    totalFilteredRowCount: number;
+    currentPage: number;
+    nextPage: number | null;
+    prevPage: number | null;
+  };
 };

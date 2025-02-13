@@ -2,9 +2,11 @@
 import {
   deleteEventLog,
   getEventLogs,
+  GetEventLogsParams,
+  getEventLogsSchema,
   getEventMetrics,
-  Opts,
-  timeRangeSchema,
+  GetEventMetricsParams,
+  Opts
 } from "@repo/api";
 import {
   keepPreviousData,
@@ -14,33 +16,15 @@ import {
   useQuery,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { z } from "zod";
 import { getQueryClient } from "../query-client";
-import { optionalStringSchema } from "./app-logs";
 
 const DEFAULT_PAGE_SIZE = 20;
 
-// Reusable array schema
-export const optionalArraySchema = z
-  .array(z.string())
-  .optional()
-  .transform((v) => (v?.length ? v : undefined));
-
-// Updated event search schema using reusable components
-export const eventSearchSchema = z.object({
-  channelId: optionalStringSchema,
-  name: optionalStringSchema,
-  tags: optionalArraySchema,
-  start: timeRangeSchema.start,
-  end: timeRangeSchema.end,
-});
-
-export type EventSearch = z.infer<typeof eventSearchSchema>;
 
 // Validate and parse search params
 export function validateEventSearch(
   search: Record<string, unknown>
-): EventSearch {
+): GetEventLogsParams {
   // Handle tags special case as it might come as string or array
   const parsedTags = search.tags
     ? Array.isArray(search.tags)
@@ -48,7 +32,7 @@ export function validateEventSearch(
       : [search.tags]
     : [];
 
-  return eventSearchSchema.parse({
+  return getEventLogsSchema.parse({
     ...search,
     tags: parsedTags,
   });
@@ -56,7 +40,7 @@ export function validateEventSearch(
 
 export const eventsQueries = {
   list: {
-    useInfiniteQuery: (projectId: string, search: EventSearch, opts?: Opts) =>
+    useInfiniteQuery: (projectId: string, search: GetEventLogsParams, opts?: Opts) =>
       useInfiniteQuery({
         queryKey: ["projects", projectId, "events", search],
         initialPageParam: new Date().toISOString(),
@@ -96,7 +80,7 @@ export const eventsQueries = {
   },
   metricsQueryOptions: (
     projectId: string,
-    search: EventSearch,
+    search: GetEventMetricsParams,
     opts?: RequestInit
   ) =>
     queryOptions({
@@ -120,9 +104,9 @@ export const eventsQueries = {
       },
     }),
   metrics: {
-    useQuery: (projectId: string, search: EventSearch) =>
+    useQuery: (projectId: string, search: GetEventLogsParams) =>
       useQuery(eventsQueries.metricsQueryOptions(projectId, search)),
-    useSuspenseQuery: (projectId: string, search: EventSearch) =>
+    useSuspenseQuery: (projectId: string, search: GetEventLogsParams) =>
       useSuspenseQuery(eventsQueries.metricsQueryOptions(projectId, search)),
   },
 };

@@ -5,7 +5,7 @@ import type {
   PaginatedResponse,
 } from "@/types";
 import { z } from "zod";
-import { timeRangeSchema } from "@/validations";
+import { optionalStringSchema, timeRangeSchema } from "@/validations";
 
 // Types for app logs
 export interface AppLog {
@@ -27,8 +27,14 @@ export interface AppLog {
 
 // Types for metrics
 export interface AppLogMetric {
-  bucket: string;
-  count: number;
+  timestamp: string;
+  counts: {
+    debug: number;
+    error: number;
+    fatal: number;
+    info: number;
+    warning: number;
+  };
 }
 
 // Query parameter schemas
@@ -41,27 +47,25 @@ export const logLevelSchema = z.enum([
 ]);
 export type LogLevel = z.infer<typeof logLevelSchema>;
 
-export const getAppLogsSchema = z.object({
-  channelId: z.string().optional(),
-  before: z.string().datetime().optional(), // ISO string
-  limit: z.number().min(1).max(100).optional(),
+const baseAppLogQuerySchema = z.object({
+  channelId: optionalStringSchema,
   level: logLevelSchema.optional(),
-  serviceName: z.string().optional(),
-  environment: z.string().optional(),
-  search: z.string().optional(),
+  serviceName: optionalStringSchema,
+  environment: optionalStringSchema,
+  search: optionalStringSchema,
   start: timeRangeSchema.start,
   end: timeRangeSchema.end,
 });
 
+export const getAppLogsSchema = baseAppLogQuerySchema.extend({
+  limit: z.number().min(1).max(100).default(20),
+  page: z.number().min(1).default(1),
+});
+
 export type GetAppLogsParams = z.infer<typeof getAppLogsSchema>;
 
-export const getAppLogMetricsSchema = z.object({
-  channelId: z.string().optional(),
-  level: logLevelSchema.optional(),
-  serviceName: z.string().optional(),
-  environment: z.string().optional(),
-  start: timeRangeSchema.start,
-  end: timeRangeSchema.end,
+export const getAppLogMetricsSchema = baseAppLogQuerySchema.extend({
+  interval: z.string().default("1 hour"),
 });
 
 export type GetAppLogMetricsParams = z.infer<typeof getAppLogMetricsSchema>;
@@ -196,4 +200,68 @@ export async function deleteAppLog(
   }
 
   return { data: undefined, error: null };
+}
+
+// Add these to your existing types
+export interface LogLevelCounts {
+  [level: string]: number; // e.g., { "error": 5, "info": 120, "warn": 10 }
+}
+
+export interface LogMetric {
+  timestamp: string;
+  counts: LogLevelCounts;
+}
+
+// Add this to your existing parameter schemas
+export const logMetricsSchema = z.object({
+  channelId: z.string().optional(),
+  level: logLevelSchema.optional(),
+  serviceName: z.string().optional(),
+  environment: z.string().optional(),
+  search: z.string().optional(),
+  interval: z.string().optional(), // e.g., '1 hour', '30 minutes', '1 day'
+  start: timeRangeSchema.start,
+  end: timeRangeSchema.end,
+});
+
+export type GetLogMetricsParams = z.infer<typeof logMetricsSchema>;
+
+// Add this new function to fetch the metrics
+export async function getLogMetrics(
+  projectId: string,
+  params: GetLogMetricsParams,
+  { baseURL, ...opts }: Opts
+): Promise<FnResponse<LogMetric[]>> {
+  const queryString = buildQueryString(params);
+
+  const res = await fetch(
+    `${baseURL}/api/v1/projects/${projectId}/logs/metrics${queryString}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      ...opts,
+    }
+  );
+
+  let resJSON: unknown | undefined = undefined;
+  try {
+    resJSON = await res.json();
+  } catch (error) {
+    return {
+      data: null,
+      error: {
+        message: "Failed to fetch log metrics",
+        error: "Failed to parse JSON response",
+      },
+    };
+  }
+
+  if (!res.ok) {
+    return { data: null, error: resJSON as ErrorResponse };
+  }
+
+  return { data: resJSON as LogMetric[], error: null };
 }

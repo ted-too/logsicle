@@ -89,7 +89,7 @@ func main() {
 	processor.Start(processorCtx)
 
 	// Setup routes
-	handlers.SetupRoutes(app, db, ts.Pool, queueService, cfg)
+	handlers.SetupRoutes(app, db, ts.Pool, processor, queueService, cfg)
 
 	// Initialize server with graceful shutdown
 	s := server.NewServer(app, cfg)

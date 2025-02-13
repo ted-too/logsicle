@@ -4,7 +4,7 @@ import {
   type Opts,
   type PaginatedResponse,
 } from "@/types";
-import { timeRangeSchema } from "@/validations";
+import { optionalArraySchema, optionalStringSchema, timeRangeSchema } from "@/validations";
 import { z } from "zod";
 
 export interface ChannelRelation {
@@ -32,13 +32,12 @@ export interface EventMetric {
 }
 
 export const getEventLogsSchema = z.object({
-  channelId: z.string().optional(),
-  before: z.string().datetime().optional(), // ISO string
-  limit: z.number().min(1).max(100).optional(),
-  name: z.string().optional(),
-  tags: z.array(z.string()).optional(),
+  channelId: optionalStringSchema,
+  name: optionalStringSchema,
+  tags: optionalArraySchema,
   start: timeRangeSchema.start,
   end: timeRangeSchema.end,
+  limit: z.number().min(1).max(100).optional(),
 });
 
 export type GetEventLogsParams = z.infer<typeof getEventLogsSchema>;

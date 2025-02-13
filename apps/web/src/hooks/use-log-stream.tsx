@@ -1,4 +1,3 @@
-// apps/web/src/hooks/useLogStream.ts
 import { useEffect, useState } from "react";
 
 interface EventLog {
@@ -69,23 +68,40 @@ type LogEvent =
 
 export function useLogStream(
   projectId: string,
-  callback?: (log: LogEvent) => any | Promise<any>
+  options?: {
+    enabled?: boolean;
+    types?: Array<"event" | "app" | "request" | "metric">;
+    callback?: (log: LogEvent) => any | Promise<any>;
+  }
 ) {
   const [logs, setLogs] = useState<LogEvent[]>([]);
+  const enabled = options?.enabled ?? true; // Default to true if not specified
 
   useEffect(() => {
-    const eventSource = new EventSource(
-      `${import.meta.env.PUBLIC_API_URL}/api/v1/stream/${projectId}`,
-      { withCredentials: true }
+    // If disabled, don't create the EventSource
+    if (!enabled) return;
+
+    // Build URL with query parameters
+    const url = new URL(
+      `${import.meta.env.PUBLIC_API_URL}/api/v1/stream/${projectId}`
     );
+
+    // Add types to query parameters if specified
+    if (options?.types && options.types.length > 0) {
+      url.searchParams.set("types", options.types.join(","));
+    }
+
+    const eventSource = new EventSource(url.toString(), {
+      withCredentials: true,
+    });
 
     eventSource.onmessage = async (event) => {
       const logEvent: LogEvent = JSON.parse(event.data);
       setLogs((prev) => [logEvent, ...prev].slice(0, 1000));
 
-      if (callback) {
+      if (options?.callback) {
         try {
-          await callback(logEvent);
+          await options.callback(logEvent);
         } catch (error) {
           console.error("Error executing callback:", error);
         }
@@ -100,7 +116,7 @@ export function useLogStream(
     return () => {
       eventSource.close();
     };
-  }, [projectId, callback]); // Added callback to dependencies
+  }, [projectId, options, enabled]);
 
   return logs;
 }

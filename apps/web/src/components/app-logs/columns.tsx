@@ -57,10 +57,10 @@ export const columns: ColumnDef<AppLog>[] = [
         {row.getValue("level")}
       </div>
     ),
-    size: 48,
-    meta: {
-      minSize: "fit-content" as unknown as number,
-    },
+    size: 128,
+    // meta: {
+    //   minSize: "fit-content" as unknown as number,
+    // },
   },
   {
     header: "Msg",

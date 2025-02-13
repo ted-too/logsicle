@@ -107,7 +107,7 @@ export default function TimeRangePicker({ project }: { project: Project }) {
   }
 
   const startCutoff = sub(new Date(), { days: project.log_retention_days + 1 });
-  const endCutoff = add(new Date(), { hours: 12 });
+  const endCutoff = add(new Date(), { days: 1 });
 
   const START_TIMES = useMemo(() => {
     const filteredTimes = HR_MM_TIMES.filter((time) => {

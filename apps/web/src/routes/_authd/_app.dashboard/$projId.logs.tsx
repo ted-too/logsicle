@@ -1,13 +1,16 @@
+import { LogVolumeChart } from "@/components/app-logs/chart";
 import { AppLogsPageHeader } from "@/components/app-logs/page-header";
 import { AppLogTable } from "@/components/app-logs/table";
-import { appLogSearchSchema } from "@/qc/queries/app-logs";
+import { appLogsQueries } from "@/qc/queries/app-logs";
 import { projectsQueries } from "@/qc/queries/projects";
+import { GetAppLogsParams, getAppLogsSchema } from "@repo/api";
 import {
   createFileRoute,
   notFound,
   redirect,
   retainSearchParams,
   stripSearchParams,
+  useRouterState,
 } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -27,7 +30,7 @@ export const Route = createFileRoute("/_authd/_app/dashboard/$projId/logs")({
     }
     return project;
   },
-  validateSearch: appLogSearchSchema.extend({
+  validateSearch: getAppLogsSchema.extend({
     tail: z.boolean().catch(false),
   }),
   search: {
@@ -35,6 +38,7 @@ export const Route = createFileRoute("/_authd/_app/dashboard/$projId/logs")({
       retainSearchParams(["start", "end"]),
       stripSearchParams({
         tail: false,
+        page: 1,
       }),
     ],
   },
@@ -42,17 +46,27 @@ export const Route = createFileRoute("/_authd/_app/dashboard/$projId/logs")({
 });
 
 function RouteComponent() {
-  const search = Route.useSearch();
   const project = Route.useLoaderData();
+  const search = useRouterState({
+    select: (state) => state.location.search,
+  }) as GetAppLogsParams & { tail: boolean | undefined };
+  const { data: metrics } = appLogsQueries.metrics.useQuery(project.id, {
+    ...{ ...search, tail: undefined },
+    interval: "1hr",
+  });
 
   return (
-    <div className="h-[var(--content-height)] w-full flex flex-col gap-3.5 py-3.5 px-6">
+    <div
+      className="h-[var(--content-height)] w-full flex flex-col gap-3.5 py-3.5 px-6"
+      style={{ "--chart-height": "8rem" } as React.CSSProperties}
+    >
       <AppLogsPageHeader project={project} />
-      <div className="w-full h-32 bg-red-50"></div>
-      {/* <EventsPageHeader selectedChannel={selectedChannel} /> */}
-      <main className="w-full h-[calc(var(--content-height)-8rem-2.25rem-0.875rem*2)] h- grow">
-        <AppLogTable />
-      </main>
+      <LogVolumeChart
+        metrics={metrics === null ? [] : (metrics ?? [])}
+        start={search.start!}
+        end={search.end!}
+      />
+      <AppLogTable className="w-full h-[calc(var(--content-height)-var(--chart-height)-2.25rem-0.875rem*2)]" />
     </div>
   );
 }
