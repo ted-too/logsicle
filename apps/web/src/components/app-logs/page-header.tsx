@@ -80,6 +80,7 @@ export function AppLogsPageHeader() {
       </div>
       <div>
         <div className="flex items-center gap-4">
+          {/* TODO: make this part of the search input */}
           {prevSearch.search !== undefined && (
             <span className="text-xs text-muted-foreground">
               Showing {filteredCount} of {totalCount} events
@@ -124,7 +125,7 @@ export function AppLogsPageHeader() {
             }
           >
             <PlayCircle variant="Bold" color="currentColor" />
-            {prevSearch.tail ? "Stop" : "Tail"}
+            {prevSearch.tail ? "Stop" : "Live"}
           </Button>
         </div>
       </div>

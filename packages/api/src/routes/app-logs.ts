@@ -176,7 +176,7 @@ export async function deleteAppLog(
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<void>> {
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/logs/app/${logId}`,
+    `${baseURL}/api/v1/projects/${projectId}/app/${logId}`,
     {
       method: "DELETE",
       headers: {

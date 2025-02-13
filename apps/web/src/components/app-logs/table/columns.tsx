@@ -99,6 +99,7 @@ export const columns: ColumnDef<AppLog>[] = [
     header: "Body",
     accessorKey: "fields",
     cell: FieldsCell,
+    enableHiding: false,
     // size set dynamically
     meta: {
       minSize: 256,

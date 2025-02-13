@@ -154,7 +154,7 @@ export async function deleteEventLog(
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<void>> {
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/resource/event/${logId}`,
+    `${baseURL}/api/v1/projects/${projectId}/event/${logId}`,
     {
       method: "DELETE",
       headers: {

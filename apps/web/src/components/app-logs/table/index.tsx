@@ -26,6 +26,7 @@ declare module "@tanstack/react-table" {
   }
   interface TableMeta<TData extends RowData> {
     containerRef: React.RefObject<HTMLDivElement | null>;
+    handleResize: (containerWidth: number) => void;
   }
 }
 
@@ -145,6 +146,40 @@ export function AppLogTable({
 
   const [colSizing, setColSizing] = useState<ColumnSizingState>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+
+  const handleResize = useCallback(
+    (containerWidth: number) => {
+      const tableElement = containerRef.current;
+      if (!tableElement) return;
+
+      // Get all th elements
+      const thElements = tableElement.querySelectorAll("th");
+      const columnId = "fields"; // The column we want to resize
+
+      // Calculate total width of other columns
+      let otherColumnsWidth = 0;
+      thElements.forEach((th) => {
+        if (th.getAttribute("data-column-id") !== columnId) {
+          otherColumnsWidth += th.getBoundingClientRect().width;
+        }
+      });
+      // Calculate new width for the fields column
+      let newFieldWidth = Math.max(200, containerWidth - otherColumnsWidth);
+
+      if (newFieldWidth + otherColumnsWidth > containerWidth) {
+        // If the new width is larger than the container,
+        newFieldWidth = containerWidth - otherColumnsWidth; // Set it to the remaining space
+      }
+
+      // Update column sizing
+      setColSizing((prev) => ({
+        ...prev,
+        [columnId]: newFieldWidth,
+      }));
+    },
+    [containerRef, setColSizing]
+  );
+
   const table = useReactTable({
     data: flatData,
     columns,
@@ -159,6 +194,7 @@ export function AppLogTable({
     getCoreRowModel: getCoreRowModel(),
     meta: {
       containerRef,
+      handleResize,
     },
   });
 
@@ -193,31 +229,7 @@ export function AppLogTable({
 
   useResizeObserver(containerRef, (entry) => {
     if (!entry) return;
-
-    const containerWidth = entry.contentRect.width;
-    const tableElement = containerRef.current;
-    if (!tableElement) return;
-
-    // Get all th elements
-    const thElements = tableElement.querySelectorAll("th");
-    const columnId = "fields"; // The column we want to resize
-
-    // Calculate total width of other columns
-    let otherColumnsWidth = 0;
-    thElements.forEach((th) => {
-      if (th.getAttribute("data-column-id") !== columnId) {
-        otherColumnsWidth += th.getBoundingClientRect().width;
-      }
-    });
-
-    // Calculate new width for the fields column
-    const newFieldsWidth = Math.max(200, containerWidth - otherColumnsWidth); // 200px minimum
-
-    // Update column sizing
-    setColSizing((prev) => ({
-      ...prev,
-      [columnId]: newFieldsWidth,
-    }));
+    handleResize(entry.contentRect.width);
   });
 
   return (
