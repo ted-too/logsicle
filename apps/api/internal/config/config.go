@@ -12,6 +12,7 @@ type Config struct {
 	Dev             bool   `toml:"dev" env:"DEV"`
 	Cors            struct {
 		AllowedOrigins []string `toml:"allowed_origins" env:"CORS_ALLOWED_ORIGINS"`
+		CookieDomain   string   `toml:"cookie_domain" env:CORS_COOKIE_DOMAIN`
 	} `toml:"cors"`
 	Storage struct {
 		Dsn             string `toml:"dsn" env:"DB_DSN"`

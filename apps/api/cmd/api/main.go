@@ -47,6 +47,7 @@ func main() {
 
 	app.Use(session.New(session.Config{
 		Storage:        redisStorage,
+		CookieDomain:   cfg.Cors.CookieDomain,
 		KeyLookup:      "cookie:session_id",
 		CookieSecure:   !cfg.Dev, // For HTTPS
 		CookieHTTPOnly: true,

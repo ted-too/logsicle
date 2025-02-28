@@ -61,5 +61,6 @@ export const ensureUser = (user: User | null, currentLocation?: string) => {
         redirect: currentLocation ?? window.location.href,
       },
     });
-  return user;
+    
+  return user!;
 };

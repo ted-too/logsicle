@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"log"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -35,9 +37,12 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 
 	baseHandler := NewBaseHandler(db, pool, cfg)
 
+	log.Printf("[DEBUG] Allowed origins: %s", cfg.Cors.AllowedOrigins)
+
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: cfg.Cors.AllowedOrigins,
-		AllowHeaders: []string{"Origin", "Content-Type", "Accept"},
+		AllowOrigins:     cfg.Cors.AllowedOrigins,
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
+		AllowCredentials: true,
 	}))
 
 	v1 := app.Group("/api/v1")

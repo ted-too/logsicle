@@ -68,14 +68,16 @@ export function LogVolumeChart() {
     interval: ValidInterval;
   };
   const params = useParams({ from: "/_authd/_app/dashboard/$projId/logs" });
-  const { data: metrics } = appLogsQueries.metrics.useSuspenseQuery(
-    params.projId,
-    {
-      ...{ ...search, tail: undefined },
-    }
-  );
+  const { data } = appLogsQueries.metrics.useQuery(params.projId, {
+    ...{ ...search, tail: undefined },
+  });
+  const metrics = data ?? [];
   const allIntervals = useMemo(() => {
-    return eachIntervalOfRange(search.start, search.end, search.interval);
+    return eachIntervalOfRange(
+      search.start,
+      search.end,
+      search.interval || "1 hour"
+    );
   }, [search.start, search.end, search.interval]);
 
   const metricMap = useMemo(

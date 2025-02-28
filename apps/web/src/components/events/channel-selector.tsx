@@ -199,18 +199,15 @@ function InternalChannelSelector({ channels }: ChannelSelectorProps) {
                   name="color"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Color</FormLabel>
+                      <FormLabel className="h-max">Color</FormLabel>
                       <FormControl>
                         <RadioGroup
                           onValueChange={field.onChange}
                           defaultValue={field.value}
-                          className="flex flex-wrap gap-2 min-h-9 items-center"
+                          className="flex flex-wrap gap-4 h-9 items-center"
                         >
                           {AVAILABLE_COLORS.map((c) => (
-                            <FormItem
-                              key={c}
-                              className="flex items-center space-x-3 space-y-0"
-                            >
+                            <FormItem key={c}>
                               <FormControl>
                                 <RadioGroupItem
                                   className="aspect-square cursor-pointer relative h-4 w-4 rounded-full focus:outline-none data-[state=checked]:border border-primary focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
@@ -222,9 +219,6 @@ function InternalChannelSelector({ channels }: ChannelSelectorProps) {
                                   </RadioGroupIndicator>
                                 </RadioGroupItem>
                               </FormControl>
-                              <FormLabel className="sr-only">
-                                All new messages
-                              </FormLabel>
                             </FormItem>
                           ))}
                         </RadioGroup>
