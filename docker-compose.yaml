@@ -6,8 +6,6 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     container_name: logsicle-api
-    ports:
-      - "3005:3005"
     environment:
       - PORT=3005
       - DB_DSN=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-logsicle}?sslmode=disable
@@ -17,14 +15,14 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - REDIS_QUEUE_URL=redis://redis:6379/1
       - REDIS_SESSION_URL=redis://redis:6379/2
-      - CORS_ALLOWED_ORIGINS=${SERVICE_URL_WEB:-http://localhost:3000}
+      - CORS_ALLOWED_ORIGINS=${WEB_URL:-http://localhost:3000}
       - CORS_COOKIE_DOMAIN=${SERVICE_COOKIE_DOMAIN}
       - AUTH_ENDPOINT=${AUTH_ENDPOINT}
       - AUTH_APP_ID=${AUTH_APP_ID}
       - AUTH_APP_SECRET=${AUTH_APP_SECRET}
       - AUTH_SIGN_IN_URL=${AUTH_SIGN_IN_URL}
-      - AUTH_REDIRECT_URL=${SERVICE_URL_API}/api/v1/auth/callback
-      - AUTH_FRONTEND_URL=${SERVICE_URL_WEB:-http://localhost:3000}
+      - AUTH_REDIRECT_URL=${API_URL}/api/v1/auth/callback
+      - AUTH_FRONTEND_URL=${WEB_URL:-http://localhost:3000}
       - DEV=${DEV:-false}
     depends_on:
       migrations:
@@ -39,11 +37,10 @@ services:
       context: .
       dockerfile: ./apps/web/Dockerfile
     container_name: logsicle-web
-    ports:
-      - "3000:3000"
     environment:
       - NODE_ENV=production
-      - PUBLIC_API_URL=${SERVICE_URL_API}
+      - PORT=3000
+      - PUBLIC_API_URL=${API_URL}
     depends_on:
       - api
     networks:
