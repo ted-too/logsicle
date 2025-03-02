@@ -55,6 +55,7 @@ services:
       dockerfile: Dockerfile.migrations
     container_name: logsicle-migrations
     command: [ "migrate", "apply", "--url", "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-logsicle}?search_path=public&sslmode=disable" ]
+    restart: "no" # Important: don't restart after completion
     depends_on:
       postgres:
         condition: service_healthy
