@@ -10,4 +10,10 @@ export default defineConfig({
       plugins: [TanStackRouterRspack({ autoCodeSplitting: true })],
     },
   },
+  source: {
+    define: {
+      // @ts-expect-error - This is a valid import
+      'import.meta.env.PUBLIC_API_URL': JSON.stringify(import.meta.env.PUBLIC_API_URL),
+    },
+  },
 });
