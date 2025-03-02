@@ -36,11 +36,11 @@ services:
     build:
       context: .
       dockerfile: ./apps/web/Dockerfile
+      args:
+        - PUBLIC_API_URL=${API_URL}
     container_name: logsicle-web
     environment:
-      - NODE_ENV=production
       - PORT=3000
-      - PUBLIC_API_URL=${API_URL}
     depends_on:
       - api
     networks:

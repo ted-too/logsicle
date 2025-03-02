@@ -21,6 +21,12 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
 # BUILD LAYER: Use cached dependencies to build the app
 FROM dependencies AS build
 COPY apps/web ./apps/web
+
+# Set build-time environment variables
+ARG PUBLIC_API_URL
+ENV PUBLIC_API_URL=${PUBLIC_API_URL}
+ENV NODE_ENV=production
+
 RUN pnpm --filter web build
 
 # PRODUCTION LAYER: Create the final image with just the built files
