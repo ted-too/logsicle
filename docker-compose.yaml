@@ -10,7 +10,7 @@ services:
       - "3005:3005"
     environment:
       - PORT=3005
-      - DB_DSN=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-logsicle}?sslmode=disable
+      - DB_DSN=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5433/${POSTGRES_DB:-logsicle}?sslmode=disable
       - DB_MAX_OPEN_CONNS=25
       - DB_MAX_IDLE_CONNS=25
       - DB_CONN_MAX_LIFETIME=15m
@@ -53,7 +53,7 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile.migrations
-    command: [ "migrate", "apply", "--url", "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-logsicle}?search_path=public&sslmode=disable" ]
+    command: [ "migrate", "apply", "--url", "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5433/${POSTGRES_DB:-logsicle}?search_path=public&sslmode=disable" ]
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,7 +70,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-logsicle}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - logsicle_postgres_data:/var/lib/postgresql/data
     healthcheck:
