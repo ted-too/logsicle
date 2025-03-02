@@ -37,10 +37,10 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 
 	baseHandler := NewBaseHandler(db, pool, cfg)
 
-	log.Printf("[DEBUG] Allowed origins: %s", cfg.Cors.AllowedOrigins)
+	log.Printf("[DEBUG] Allowed origins: %s", cfg.GetAllowedOrigins())
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     cfg.Cors.AllowedOrigins,
+		AllowOrigins:     cfg.GetAllowedOrigins(),
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
 		AllowCredentials: true,
 	}))

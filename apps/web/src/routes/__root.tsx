@@ -8,7 +8,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     component: () => (
       <>
         <Outlet />
-        <TanStackRouterDevtools position="bottom-right" />
+        {import.meta.env.DEV && (
+          <TanStackRouterDevtools position="bottom-right" />
+        )}
         <Toaster position="bottom-right" richColors />
       </>
     ),

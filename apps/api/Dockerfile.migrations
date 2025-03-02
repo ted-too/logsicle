@@ -1,0 +1,6 @@
+FROM arigaio/atlas:latest
+
+# Copy migration files
+COPY ./internal/storage/migrations /migrations
+
+# No entrypoint needed - we'll specify the command in docker-compose
