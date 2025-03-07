@@ -27,9 +27,12 @@ services:
 
       - API_URL=${API_URL}
       - WEB_URL=${WEB_URL}
-
-      # Coolify options
-      - SERVICE_FQDN_API_3005
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -47,15 +50,20 @@ services:
       - 3000
     environment:
       - PORT=3000
-
-      # Coolify-specific options
-      - SERVICE_FQDN_WEB_3000
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     depends_on:
       - api
     networks:
       - logsicle-network
 
   migrations:
+    # Coolify-specific option to exclude from healthchecks
+    exclude_from_hc: true
     build:
       context: ./apps/api
       dockerfile: Dockerfile.migrations
@@ -64,8 +72,6 @@ services:
     restart: "no" # Important: don't restart after completion
     networks:
       - logsicle-network
-    # Coolify-specific option to exclude from healthchecks
-    exclude_from_hc: true
 
 networks:
   logsicle-network:

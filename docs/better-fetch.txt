@@ -1,0 +1,994 @@
+# https://better-fetch.vercel.app/docs llms-full.txt
+
+On this page
+
+# Introduction
+
+# [Better Fetch](https://better-fetch.vercel.app/docs\#better-fetch)
+
+Better Fetch is an advanced fetch wrapper for TypeScript that supports any Standard Schema-compliant validator (like Zod, Valibot, ArkType, etc) for runtime validation and type inference. It features error-as-value handling, pre-defined routes, hooks, plugins and more. Works on the browser, node (version 18+), workers, deno and bun.
+
+## [Features](https://better-fetch.vercel.app/docs\#features)
+
+[**Schema Agnostic** \\
+Use any Standard Schema compatible validator (Zod, Valibot, ArkType, etc).](https://better-fetch.vercel.app/docs#) [**Type safety** \\
+Advanced type inference and runtime validations powered by Standard Schema.](https://better-fetch.vercel.app/docs#) [**Smart Parser** \\
+Smart response parser for any content type](https://better-fetch.vercel.app/docs#) [**Fetch Schema** \\
+Pre defined routes with schema validations](https://better-fetch.vercel.app/docs/fetch-schema) [**Extensible** \\
+Plugins and hooks to extend the functionality](https://better-fetch.vercel.app/docs/plugins) [**Advanced Retry** \\
+Advanced retry mechanisms](https://better-fetch.vercel.app/docs/timeout-and-retry) [**Compatible with fetch and fetch-like APIs** \\
+Wraps around fetch and works on the browser, node (version 18+), workers, deno and bun.](https://better-fetch.vercel.app/docs#)
+
+### On this page
+
+[Better Fetch](https://better-fetch.vercel.app/docs#better-fetch) [Features](https://better-fetch.vercel.app/docs#features)# Better Fetch
+
+Advanced fetch wrapper for typescript with standard schema validations (using zod, valibot, arktype or any other compliant validator), pre-defined routes, callbacks, plugins and more.
+
+[Docs](https://better-fetch.vercel.app/docs) [Github](https://github.com/bekacru/better-fetch)On this page
+
+# Extra Options
+
+These are better fetch specefic options.
+
+### [Better Fetch Options](https://better-fetch.vercel.app/docs/extra-options\#better-fetch-options)
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `onRequest` | `<T extends Record<string, any>>(context: RequestContext<T>) => void | RequestContext<any> | Promise<void | RequestContext<any>>` | - |
+| `onResponse` | `(context: ResponseContext) => void | ResponseContext | Response | Promise<void | ResponseContext | Response>` | - |
+| `onSuccess` | `(context: SuccessContext<any>) => void | Promise<void>` | - |
+| `onError` | `(context: ErrorContext) => void | Promise<void>` | - |
+| `onRetry` | `(response: ResponseContext) => void | Promise<void>` | - |
+| `hookOptions` | `{ cloneResponse?: boolean | undefined; }` | - |
+| `timeout` | `number` | - |
+| `customFetchImpl` | `FetchEsque` | - |
+| `plugins` | `BetterFetchPlugin[]` | - |
+| `baseURL` | `string` | - |
+| `throw` | `boolean` | `false` |
+| `auth` | `Auth` | - |
+| `query` | `any` | - |
+| `params` | `any` | - |
+| `duplex` | `"full" | "half"` | - |
+| `jsonParser` | `(text: string) => any` | - |
+| `retry` | `RetryOptions` | - |
+| `retryAttempt` | `number` | - |
+| `output` | `StandardSchemaV1<unknown, unknown> | { new (blobParts?: BlobPart[] | undefined, options?: BlobPropertyBag | undefined): Blob; prototype: Blob; } | { ...; }` | - |
+| `errorSchema` | `StandardSchemaV1<unknown, unknown>` | - |
+| `disableValidation` | `boolean` | `false` |
+
+### On this page
+
+[Better Fetch Options](https://better-fetch.vercel.app/docs/extra-options#better-fetch-options)On this page
+
+# Dynamic Parameters
+
+Dynamic parameters are parameters that are defined in the url path. They are defined using the `:` prefix. When the request is made, the dynamic parameters will be replaced with the values passed in the `params` option.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+
+const $fetch = createFetch({
+    baseURL: "http://localhost:3000",
+})
+
+const res = await $fetch("/path/:id", {
+    params: {
+        id: "1"
+    }
+})
+
+const res2 = await $fetch("/repos/:owner/:repo", {
+    params: {
+        owner: "octocat",
+        repo: "hello-world"
+    }
+})
+```
+
+### On this page
+
+No HeadingsOn this page
+
+# Authorization
+
+Authorization is a way that allows you to add authentication headers to the request.
+Currently, supports `Bearer` and `Basic` authorization.
+
+### [Bearer](https://better-fetch.vercel.app/docs/authorization\#bearer)
+
+The bearer authorization is used to add a bearer token to the request. The token is added to the `Authorization` header.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+
+const $fetch = createFetch({
+    baseURL: "http://localhost:3000",
+    auth: {
+        type: "Bearer",
+        token: "my-token",
+    },
+})
+```
+
+You can also pass a function that returns a string.
+
+fetch.ts
+
+```
+const $fetch = createFetch({
+    baseURL: "http://localhost:3000",
+    auth: {
+        type: "Bearer",
+        token: () => authStore.getToken(),
+    },
+})
+```
+
+The function will be called only once when the request is made. If it returns undefined, the header will not be added to the request.
+
+### [Basic](https://better-fetch.vercel.app/docs/authorization\#basic)
+
+The basic authorization is used to add a basic authentication to the request. The username and password are added to the `Authorization` header.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+
+const $fetch = createFetch({
+    baseURL: "http://localhost:3000",
+    auth: {
+        type: "Basic",
+        username: "my-username",
+        password: "my-password",
+    },
+})
+```
+
+### On this page
+
+[Bearer](https://better-fetch.vercel.app/docs/authorization#bearer) [Basic](https://better-fetch.vercel.app/docs/authorization#basic)On this page
+
+# Default Types
+
+## [Default Output](https://better-fetch.vercel.app/docs/default-types\#default-output)
+
+By default, the response data will always be of type `unknown`. If you want to customize the default type you can pass the `defaultOutput` option to the `createFetch` function.
+Note: When you supply a custom output schema using a Standard Schema validator (for example, zod or any alternative),
+the provided output schema will override the `defaultOutput` type. This approach offers a strongly typed solution without locking you to a single library.
+
+This only serves as a type for the response data it's not used as a validation schema.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+// Example using zod (or any Standard Schema compliant library)
+import { z } from "zod";
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    defaultOutput: z.any(),
+})
+
+const { data, error } = await $fetch("/todos/1")
+
+
+Hover over the data object to see the type
+```
+
+If you define output schema, the default output type will be ignored.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+import { z } from "zod";
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    defaultOutput: z.any(),
+});
+
+const { data, error } = await $fetch("/todos/1", {
+    output: z.object({
+        userId: z.string(),
+        id: z.number(),
+        title: z.string(),
+        completed: z.boolean(),
+    }),
+})
+
+Hover over the data object to see the type
+```
+
+## [Default error](https://better-fetch.vercel.app/docs/default-types\#default-error)
+
+The default error type is:
+
+```
+{ status: number, statusText: string, message?: string }
+```
+
+If you want a custom error type, you can pass a `defaultError` option to the `createFetch` function.
+Remember: Your custom error type builds on top of the default properties, and if your API returns a JSON error,
+// it will be merged with your definition.
+
+The `status` and `statusText` properties are always defined. Your custom error definitions are only
+inferred if the API returns a JSON error object.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+import { z } from "zod"; // Example only
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    defaultError: z.object({
+        message: z.string().optional(),
+        error: z.string(),
+    }),
+})
+
+const { data, error } = await $fetch("/todos/1")
+
+Hover over the error object to see the type
+```
+
+### On this page
+
+[Default Output](https://better-fetch.vercel.app/docs/default-types#default-output) [Default error](https://better-fetch.vercel.app/docs/default-types#default-error)On this page
+
+# Hooks
+
+Hooks are functions that are called at different stages of the request lifecycle.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+
+const $fetch = createFetch({
+    baseURL: "http://localhost:3000",
+    onRequest(context) {
+        return context;
+    },
+    onResponse(context) {
+        return context.response
+    },
+    onError(context) {
+    },
+    onSuccess(context) {
+    },
+})
+```
+
+## [On Request](https://better-fetch.vercel.app/docs/hooks\#on-request)
+
+a callback function that will be called when a request is about to be made. The function will be called with the request context as an argument and it's expected to return the modified request context.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+
+const $fetch = createFetch({
+    baseURL: "http://localhost:3000",
+    onRequest(context) {
+        // do something with the context
+        return context;
+    },
+})
+```
+
+## [On Response](https://better-fetch.vercel.app/docs/hooks\#on-response)
+
+a callback function that will be called when a response is received. The function will be called with the response context which includes the `response` and the `requestContext` as an argument and it's expected to return response.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+
+const $fetch = createFetch({
+    baseURL: "http://localhost:3000",
+    onResponse(context) {
+        // do something with the context
+        return context.response // return the response
+    },
+})
+```
+
+## [On Success and On Error](https://better-fetch.vercel.app/docs/hooks\#on-success-and-on-error)
+
+on success and on error are callbacks that will be called when a request is successful or when an error occurs. The function will be called with the response context as an argument and it's not expeceted to return anything.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+
+const $fetch = createFetch({
+    baseURL: "http://localhost:3000",
+    onSuccess(context) {
+        // do something with the context
+    },
+    onError(context) {
+        // do something with the context
+    },
+})
+```
+
+### On this page
+
+[On Request](https://better-fetch.vercel.app/docs/hooks#on-request) [On Response](https://better-fetch.vercel.app/docs/hooks#on-response) [On Success and On Error](https://better-fetch.vercel.app/docs/hooks#on-success-and-on-error)On this page
+
+# Handling Errors
+
+## [Default Error Type](https://better-fetch.vercel.app/docs/handling-errors\#default-error-type)
+
+Better fetch by default returns response errors as a value. By defaullt, the error object has 3 properties `status`, `statusText` and `message` properties.
+
+`status` and `statusText` are always defined. If the api returns a json error object it will be parsed and returned with the error object. By default `error` includes `message` property that can be string or undefined.
+
+fetch.ts
+
+```
+import { betterFetch } from '@better-fetch/fetch';
+import { z } from 'zod';
+
+const { error } = await betterFetch("https://jsonplaceholder.typicode.com/todos/1");
+
+Hover over the error object to see the type
+```
+
+## [Custom Error Type](https://better-fetch.vercel.app/docs/handling-errors\#custom-error-type)
+
+You can pass a custom error type to be inferred as a second generic argument.
+
+```
+import { betterFetch } from 'better-fetch';
+
+const { error } = await betterFetch<{
+    id: number;
+    userId: string;
+    title: string;
+    completed: boolean;
+},
+{
+    message?: string;
+    error?: string;
+}>("https://jsonplaceholder.typicode.com/todos/1");
+```
+
+If you pass a custom error type, it will override the default error type except for the status and statusText properties. If you still need the message property, you need to include it in your custom error type.
+
+## [Throwing Errors](https://better-fetch.vercel.app/docs/handling-errors\#throwing-errors)
+
+If you prefer to throw errors instead of returning them, you can use the `throw` option.
+
+When you pass the `throw` option, the `betterFetch` function will throw an error. And instead of returning `data` and `error` object it'll only the response data as it is.
+
+fetch.ts
+
+```
+import { betterFetch } from '@better-fetch/fetch';
+import { z } from 'zod';
+
+const data = await betterFetch("https://jsonplaceholder.typicode.com/todos/1", {
+    throw: true,
+    output: z.object({
+        userId: z.string(),
+        id: z.number(),
+        title: z.string(),
+        completed: z.boolean(),
+    }),
+});
+```
+
+## [Inferring Response When Using Generics and `throw` Option](https://better-fetch.vercel.app/docs/handling-errors\#inferring-response-when-using-generics-and-throw-option)
+
+When you pass the `throw` option to the `betterFetch` function, it will throw an error instead of returning it. This means the error will not be returned as a value. However, if you specify the response type as a generic, the `error` object will still be returned, and `data` will be inferred as possibly `null` or the specified type. This issue arises because the `throw` option cannot be inferred when a generic value is passed, due to a TypeScript limitation.
+
+To address this, you have two options. If you use either option, the `error` object will no longer exist, and the response type will be inferred correctly without being unioned with `null`.
+
+1. Create a custom fetch instance with the `throw` option.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+
+export const $fetch = createFetch({
+  baseURL: "https://jsonplaceholder.typicode.com",
+  retry: 2,
+  throw: true,
+});
+
+
+const data = await $fetch<{
+  userId: number;
+  id: number;
+  title: string;
+  completed: boolean;
+}>("/todos/1");
+```
+
+2. Pass false as a second generic argument to the `betterFetch` function.
+
+fetch.ts
+
+```
+import { betterFetch } from '@better-fetch/fetch';
+import { z } from 'zod';
+
+const data = await betterFetch<{
+    userId: number;
+    id: number;
+    title: string;
+    completed: boolean;
+},
+false
+>("https://jsonplaceholder.typicode.com/todos/1");
+```
+
+### On this page
+
+[Default Error Type](https://better-fetch.vercel.app/docs/handling-errors#default-error-type) [Custom Error Type](https://better-fetch.vercel.app/docs/handling-errors#custom-error-type) [Throwing Errors](https://better-fetch.vercel.app/docs/handling-errors#throwing-errors) [Inferring Response When Using Generics and throw Option](https://better-fetch.vercel.app/docs/handling-errors#inferring-response-when-using-generics-and-throw-option)On this page
+
+# Timeout and Retry
+
+Timeout and retry are two options that can be used to control the request timeout and retry behavior.
+
+## [Timeout](https://better-fetch.vercel.app/docs/timeout-and-retry\#timeout)
+
+You can set the timeout in milliseconds.
+
+fetch.ts
+
+```
+const res = await $fetch("/api/users", {
+    timeout: 10000,
+});
+```
+
+## [Auto Retry](https://better-fetch.vercel.app/docs/timeout-and-retry\#auto-retry)
+
+You can set the retry count and interval in milliseconds.
+
+fetch.ts
+
+```
+const res = await $fetch("/api/users", {
+    retry: 3
+});
+```
+
+## [Advanced Retry Options](https://better-fetch.vercel.app/docs/timeout-and-retry\#advanced-retry-options)
+
+Better fetch provides flexible retry mechanisms with both linear and exponential backoff strategies. You can customize the retry behavior to suit your specific needs.
+
+Basic retry with number of attempts:
+
+fetch.ts
+
+```
+const res = await $fetch("https://jsonplaceholder.typicode.com/todos/1", {
+  retry: 3
+});
+```
+
+Linear retry strategy:
+
+fetch.ts
+
+```
+const res = await $fetch("https://jsonplaceholder.typicode.com/todos/1", {
+  retry: {
+    type: "linear",
+    attempts: 3,
+    delay: 1000 // 1 second delay between each attempt
+  }
+});
+```
+
+Exponential backoff strategy:
+
+fetch.ts
+
+```
+const res = await $fetch("https://jsonplaceholder.typicode.com/todos/1", {
+    retry: {
+        count: 3,
+        interval: 1000, //optional
+    type: "exponential",
+    attempts: 5,
+    baseDelay: 1000, // Start with 1 second delay
+    maxDelay: 10000 // Cap the delay at 10 seconds, so requests would go out after 1s then 2s, 4s, 8s, 10s
+  }
+});
+```
+
+Custom retry condition:
+
+fetch.ts
+
+```
+const res = await $fetch("https://jsonplaceholder.typicode.com/todos/1", {
+  retry: {
+    type: "linear",
+    attempts: 3,
+    delay: 1000,
+    shouldRetry: (response) => {
+      if(response === null) return true;
+      if(response.status === 429) return true;
+      if(response.status !== 200) return true;
+      return response.json().then(
+        data => data.completed === false
+      ).catch(
+        err => true
+      )
+    }
+  }
+});
+```
+
+Retry with callback:
+
+fetch.ts
+
+```
+const res = await $fetch("https://jsonplaceholder.typicode.com/todos/1", {
+  retry: 3,
+  onRetry: (response) => {
+    console.log(`Retrying request.`);
+    }
+});
+```
+
+### On this page
+
+[Timeout](https://better-fetch.vercel.app/docs/timeout-and-retry#timeout) [Auto Retry](https://better-fetch.vercel.app/docs/timeout-and-retry#auto-retry) [Advanced Retry Options](https://better-fetch.vercel.app/docs/timeout-and-retry#advanced-retry-options)On this page
+
+# Fetch Schema
+
+Fetch schema allows you to pre-define the URL path and the shape of request and response data. You can easily document your API using this schema.
+
+Better Fetch now uses Standard Schema internally, allowing you to bring your own Standard Schema-compliant validator (e.g., Zod, Valibot, ArkType).
+
+To create a fetch schema, you need to import the `createSchema` function from `@better-fetch/fetch`.
+
+npmpnpmyarnbun
+
+```
+npm i zod
+```
+
+To create a fetch schema, you need to import the `createSchema` function from `@better-fetch/fetch`.
+
+fetch.ts
+
+```
+import { createSchema, createFetch } from "@better-fetch/fetch";
+import { z } from "zod";
+
+export const schema = createSchema({
+    "/path": {
+        input: z.object({
+            userId: z.string(),
+            id: z.number(),
+            title: z.string(),
+            completed: z.boolean(),
+        }),
+        output: z.object({
+            userId: z.string(),
+            id: z.number(),
+            title: z.string(),
+            completed: z.boolean(),
+        }),
+    }
+})
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    schema: schema
+});
+```
+
+## [Fetch Schema](https://better-fetch.vercel.app/docs/fetch-schema\#fetch-schema)
+
+The Fetch Schema is a map of path/url and schema. The path is the url path and the schema is an object with
+`input`, `output`, `query` and `params` keys.
+
+The `input` key is the schema of the request data. The `output` key is the schema of the response data. The `query` key is the schema of the query params. The `params` key is dynamic path parameters.
+
+### [Input](https://better-fetch.vercel.app/docs/fetch-schema\#input)
+
+The input schema is the schema of the request data. The `input` key is the schema of the request data. If you defined an input schema, the data will be required to be passed as a body of the request.
+
+If you define an input schema, a `post` method will be used to make the request and if there is no input schema, a `get` method will be used. See [method modifiers](https://better-fetch.vercel.app/docs/fetch-schema#method-modifiers) section for defining specific methods.
+
+fetch.ts
+
+```
+import { createFetch, createSchema } from "@better-fetch/fetch";
+import { z } from "zod";
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    schema: createSchema({
+        "/path": {
+            input: z.object({
+                userId: z.string(),
+                id: z.number(),
+                title: z.string(),
+                completed: z.boolean(),
+            }),
+        },
+    }),
+})
+
+const { data, error } = await $fetch("/path", {
+    body: {}
+Type '{}' is missing the following properties from type '{ userId: string; id: number; title: string; completed: boolean; }': userId, id, title, completed})
+```
+
+To make the body optional you can wrap the schema with `z.optional`.
+
+### [Output](https://better-fetch.vercel.app/docs/fetch-schema\#output)
+
+The `output` key is the schema of the response data. If you defined an output schema, the data will be returned as the response body.
+
+fetch.ts
+
+```
+import { createFetch, createSchema } from "@better-fetch/fetch";
+import { z } from "zod";
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    schema: createSchema({
+        "/path": {
+            output: z.object({
+                userId: z.string(),
+                id: z.number(),
+                title: z.string(),
+                completed: z.boolean(),
+            }),
+        },
+    }),
+})
+
+const { data, error } = await $fetch("/path")
+
+Hover over the data object to see the type
+```
+
+### [Query](https://better-fetch.vercel.app/docs/fetch-schema\#query)
+
+The query schema is the schema of the query params. The `query` key is the schema of the query params. If you defined a query schema, the data will be passed as the query params.
+
+fetch.ts
+
+```
+import { createFetch, createSchema } from "@better-fetch/fetch";
+import { z } from "zod";
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    schema: createSchema({
+        "/path": {
+            query: z.object({
+                userId: z.string(),
+                id: z.number(),
+                title: z.string(),
+                completed: z.boolean(),
+            }),
+        },
+    }),
+})
+
+const { data, error } = await $fetch("/path", {
+    query: {}
+Type '{}' is missing the following properties from type '{ userId: string; id: number; title: string; completed: boolean; }': userId, id, title, completed})
+
+Hover over the data object to see the type
+```
+
+### [Dynamic Path Parameters](https://better-fetch.vercel.app/docs/fetch-schema\#dynamic-path-parameters)
+
+The params schema is the schema of the path params. You can either use the `params` key to define the paramters or prepend `:` to the path to make the parameters dynamic.
+
+If you define more than one dynamic path parameter using the string modifier the paramters will be required to be passed as an array of values in the order they are defined.
+
+fetch.ts
+
+```
+import { createFetch, createSchema } from "@better-fetch/fetch";
+import { z } from "zod";
+
+const schema = createSchema({
+    "/user/:id": {
+        output: z.object({
+            name: z.string(),
+        }),
+    },
+    "/post": {
+        params: z.object({
+            id: z.string(),
+            title: z.string(),
+        }),
+    },
+    "/post/:id/:title": {
+        output: z.object({
+            title: z.string(),
+        }),
+    }
+})
+
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    schema: schema
+})
+
+const response1 = await $fetch("/user/:id", {
+    params: {
+        id: "1",
+    }
+})
+
+const response2 = await $fetch("/post", {
+    params: {
+        id: "1",
+        title: "title"
+    },
+})
+
+const response3 = await $fetch("/post/:id/:title", {
+    params: {
+        id: "1",
+        title: "title"
+    }
+})
+```
+
+### [Method Modifiers](https://better-fetch.vercel.app/docs/fetch-schema\#method-modifiers)
+
+By default the `get` and `post` methods are used to make the request based on whether the input schema is defined or not. You can use the `method` modifier to define the method to be used.
+
+The method modifiers are `@get`, `@post`, `@put`, `@patch`, `@delete` and `@head`. You prepend the method name to the path to define the method.
+
+fetch.ts
+
+```
+import { createFetch, createSchema } from "@better-fetch/fetch";
+import { z } from "zod";
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    schema: createSchema({
+        "@put/user": {
+            input: z.object({
+                title: z.string(),
+                completed: z.boolean(),
+            }),
+            output: z.object({
+               title: z.string(),
+               completed: z.boolean(),
+            }),
+        },
+    }),
+})
+
+const { data, error } = await $fetch("/@put/user", {
+    body: {
+        title: "title",
+        completed: true,
+    }
+})
+
+the request will be made to "/user" path with a PUT method.
+```
+
+## [Strict Schema](https://better-fetch.vercel.app/docs/fetch-schema\#strict-schema)
+
+By default if you define schema better fetch still allows you to make a call to other routes that's not defined on the schema. If you want to enforce only the keys defined to be inferred as valid you can use pass the `strict` option to the schema.
+
+fetch.ts
+
+```
+import { createFetch, createSchema } from "@better-fetch/fetch";
+import { z } from "zod";
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    schema: createSchema({
+        "/path": {
+            output: z.object({
+                userId: z.string(),
+                id: z.number(),
+                title: z.string(),
+                completed: z.boolean(),
+            }),
+        },
+    },
+    {
+        strict: true
+    }),
+})
+const { data, error } = await $fetch("/invalid-path")
+Argument of type '"/invalid-path"' is not assignable to parameter of type '"/path"'.
+```
+
+### On this page
+
+[Fetch Schema](https://better-fetch.vercel.app/docs/fetch-schema#fetch-schema) [Input](https://better-fetch.vercel.app/docs/fetch-schema#input) [Output](https://better-fetch.vercel.app/docs/fetch-schema#output) [Query](https://better-fetch.vercel.app/docs/fetch-schema#query) [Dynamic Path Parameters](https://better-fetch.vercel.app/docs/fetch-schema#dynamic-path-parameters) [Method Modifiers](https://better-fetch.vercel.app/docs/fetch-schema#method-modifiers) [Strict Schema](https://better-fetch.vercel.app/docs/fetch-schema#strict-schema)On this page
+
+# Getting Started
+
+### [Installation](https://better-fetch.vercel.app/docs/getting-started\#installation)
+
+npmpnpmyarnbun
+
+```
+npm i @better-fetch/fetch
+```
+
+If you plan to use runtime validation, you need to install [standard schema](https://github.com/standard-schema/standard-schema) compliant validator like [zod](https://github.com/colinhacks/zod), [valibot](https://valibot.dev/), [arktype](https://github.com/arktypeio/arktype) and so on.
+
+npmpnpmyarnbun
+
+```
+npm i zod # valibot, arktype...
+```
+
+### [Quick Start](https://better-fetch.vercel.app/docs/getting-started\#quick-start)
+
+The fastest way to start using Better Fetch is to import the `betterFetch` function.
+You can define the response type using generics or use a schema that supports Standard Schema (recommended).
+
+fetch.ts
+
+```
+import { betterFetch } from '@better-fetch/fetch';
+
+// Using generic type
+const { data, error } = await betterFetch<{
+    userId: string;
+    id: number;
+    title: string;
+    completed: boolean;
+}>("https://jsonplaceholder.typicode.com/todos/1");
+
+
+// Using a Standard Schema validator (for example, zod)
+import { z } from 'zod'; // or your preferred Standard Schema compliant library
+
+const { data: todos, error: todoError } = await betterFetch("https://jsonplaceholder.typicode.com/todos/1", {
+    output: z.object({
+        userId: z.string(),
+        id: z.number(),
+        title: z.string(),
+        completed: z.boolean(),
+    })
+});
+
+Hover over the data object to see the type
+```
+
+Make sure `strict` mode is enabled in your tsconfig when using schema validations.
+
+Better fetch by default returns a `Promise` that resolves to an object of `data` and `error` but if you pass the `throw` option, it will return the parsed response data only.
+
+### [Create Fetch](https://better-fetch.vercel.app/docs/getting-started\#create-fetch)
+
+Create Fetch allows you to create a better fetch instance with custom configurations.
+
+fetch.ts
+
+```
+import { createFetch } from "@better-fetch/fetch";
+
+export const $fetch = createFetch({
+  baseURL: "https://jsonplaceholder.typicode.com",
+  retry: {
+      type: "linear",
+      attempts: 3,
+      delay: 1000
+  }
+});
+
+const { data, error } = await $fetch<{
+  userId: number;
+  id: number;
+  title: string;
+  completed: boolean;
+}>("/todos/1");
+```
+
+You can pass more options see the [Fetch Options](https://better-fetch.vercel.app/docs/fetch-options) section for more details.
+
+### [Throwing Errors](https://better-fetch.vercel.app/docs/getting-started\#throwing-errors)
+
+You can throw errors instead of returning them by passing the `throw` option.
+
+If you pass the `throw` option, the `betterFetch` function will throw an error. And instead of returning `data` and `error` object it'll only the response data as it is.
+
+fetch.ts
+
+```
+import { createFetch } from '@better-fetch/fetch';
+import { z } from 'zod';
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    throw: true,
+});
+
+const data = await $fetch<{
+    userId: number;
+}>("https://jsonplaceholder.typicode.com/todos/1");
+```
+
+Learn more about handling errors [Handling Errors](https://better-fetch.vercel.app/docs/handling-errors) section.
+
+### [Fetch Schema](https://better-fetch.vercel.app/docs/getting-started\#fetch-schema)
+
+Fetch schema enables you to pre-define the URL path and the shape of request and response data. This makes it easy to document your API.
+
+Plugins can also define fetch schemas. See [Plugins](https://better-fetch.vercel.app/docs/plugins) section for more details.
+
+The output of the schema will be validated using your schema and if the validation fails, it'll throw an error.
+
+fetch.ts
+
+```
+import { createSchema, createFetch } from "@better-fetch/fetch";
+
+// ZOD example
+import { z } from "zod";
+
+export const zodSchema = createSchema({
+    "/path": {
+        input: z.object({
+            userId: z.string(),
+            id: z.number(),
+            title: z.string(),
+            completed: z.boolean(),
+        }),
+        output: z.object({
+            userId: z.string(),
+            id: z.number(),
+            title: z.string(),
+            completed: z.boolean(),
+        }),
+    }
+})
+
+const $fetch = createFetch({
+    baseURL: "https://jsonplaceholder.typicode.com",
+    schema: zodSchema
+});
+
+const { data, error } = await $fetch("/path", {
+    body: {
+        userId: "1",
+        id: 1,
+        title: "title",
+        completed: true,
+    },
+});
+```
+
+Learn more about fetch schema [Fetch Schema](https://better-fetch.vercel.app/docs/fetch-schema) section.
+
+### On this page
+
+[Installation](https://better-fetch.vercel.app/docs/getting-started#installation) [Quick Start](https://better-fetch.vercel.app/docs/getting-started#quick-start) [Create Fetch](https://better-fetch.vercel.app/docs/getting-started#create-fetch) [Throwing Errors](https://better-fetch.vercel.app/docs/getting-started#throwing-errors) [Fetch Schema](https://better-fetch.vercel.app/docs/getting-started#fetch-schema)

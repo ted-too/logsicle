@@ -7,7 +7,7 @@
   },
   "references": [
     {
-      "path": "../../packages/api"
+      "path": "../../packages/internal-api"
     }
   ],
   "include": ["src"],
