@@ -33,9 +33,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    depends_on:
-      migrations:
-        condition: service_completed_successfully
+    # depends_on:
+    #   migrations:
+    #     condition: service_completed_successfully
     networks:
       - logsicle-network
 
