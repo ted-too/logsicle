@@ -16,6 +16,8 @@ type Config struct {
 	Port            string `toml:"port" env:"PORT"`
 	ShutdownTimeout string `toml:"shutdown_timeout"`
 	Dev             bool   `toml:"dev" env:"DEV"`
+	ApiBaseURL      string `toml:"api_base_url" env:"API_URL"`
+	WebBaseURL      string `toml:"web_base_url" env:"WEB_URL"`
 	Cors            struct {
 		// Change the type to string for env parsing
 		AllowedOrigins      string   `toml:"-" env:"CORS_ALLOWED_ORIGINS"`
@@ -33,12 +35,12 @@ type Config struct {
 		RedisSessionURL string `toml:"redis_session_url" env:"REDIS_SESSION_URL"`
 	} `toml:"storage"`
 	Auth struct {
-		Endpoint    string   `toml:"endpoint" env:"AUTH_ENDPOINT"`
-		AppID       string   `toml:"app_id" env:"AUTH_APP_ID"`
-		AppSecret   string   `toml:"app_secret" env:"AUTH_APP_SECRET"`
-		SignInURL   string   `toml:"sign_in_url" env:"AUTH_SIGN_IN_URL"`
-		RedirectURL string   `toml:"redirect_url" env:"AUTH_REDIRECT_URL"`
-		FrontendURL string   `toml:"frontend_url" env:"AUTH_FRONTEND_URL"`
+		Endpoint    string `toml:"endpoint" env:"AUTH_ENDPOINT"`
+		AppID       string `toml:"app_id" env:"AUTH_APP_ID"`
+		AppSecret   string `toml:"app_secret" env:"AUTH_APP_SECRET"`
+		SignInURL   string
+		RedirectURL string
+		FrontendURL string
 		Resources   []string `toml:"resources" env:"AUTH_RESOURCES"`
 	} `toml:"auth"`
 }
@@ -78,6 +80,8 @@ func (c Config) Validate() error {
 	if err := validation.ValidateStruct(&c,
 		validation.Field(&c.Port, validation.Required, is.Digit),
 		validation.Field(&c.ShutdownTimeout, validation.Required, validation.By(validateDuration)),
+		validation.Field(&c.ApiBaseURL, validation.Required, is.URL),
+		validation.Field(&c.WebBaseURL, validation.Required, is.URL),
 	); err != nil {
 		return err
 	}
@@ -122,6 +126,30 @@ func (c Config) Validate() error {
 	return nil
 }
 
+func (c *Config) SetDefaultValues() {
+	if c.ShutdownTimeout == "" {
+		c.ShutdownTimeout = "5s"
+	}
+
+	// Set derived URLs if base URLs are provided and the derived URLs aren't explicitly set
+	if c.ApiBaseURL != "" {
+		apiBase := strings.TrimSuffix(c.ApiBaseURL, "/")
+
+		// Only set these if they weren't explicitly provided
+		if c.Auth.SignInURL == "" {
+			c.Auth.SignInURL = fmt.Sprintf("%s/v1/auth/sign-in", apiBase)
+		}
+
+		if c.Auth.RedirectURL == "" {
+			c.Auth.RedirectURL = fmt.Sprintf("%s/v1/auth/callback", apiBase)
+		}
+	}
+
+	if c.WebBaseURL != "" && c.Auth.FrontendURL == "" {
+		c.Auth.FrontendURL = c.WebBaseURL
+	}
+}
+
 func LoadConfig(path string) (*Config, error) {
 	config := &Config{}
 
@@ -132,25 +160,30 @@ func LoadConfig(path string) (*Config, error) {
 		if err := toml.NewDecoder(file).Decode(&config); err != nil {
 			return nil, fmt.Errorf("error parsing TOML file: %w", err)
 		}
+		config.SetDefaultValues()
+		// Validate the configuration
+		if err := config.Validate(); err != nil {
+			return nil, fmt.Errorf("config validation failed: %w", err)
+		}
+
+		return config, nil
+
 	} else if !os.IsNotExist(err) {
 		// If error is not "file not found", return it
 		return nil, fmt.Errorf("error opening config file: %w", err)
 	}
-	// If file doesn't exist, we'll rely entirely on environment variables
 
-	// Parse environment variables using env package
-	// This will override any values from the TOML file
+	// If file doesn't exist, we'll rely entirely on environment variables
 	if err := env.Parse(config); err != nil {
 		return nil, fmt.Errorf("error parsing environment variables: %w", err)
 	}
 
 	// Set defaults for required fields if not provided
-	if config.ShutdownTimeout == "" {
-		config.ShutdownTimeout = "5s"
-	}
+
 	// TODO: Implement RBAC
 	config.Auth.Resources = []string{"*"}
 
+	config.SetDefaultValues()
 	// Validate the configuration
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)

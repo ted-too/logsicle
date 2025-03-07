@@ -8,6 +8,8 @@ services:
       - 3005
     environment:
       - PORT=3005
+      - DEV=${DEV:-false}
+
       - DB_DSN=${POSTGRES_DSN}
       - DB_MAX_OPEN_CONNS=25
       - DB_MAX_IDLE_CONNS=25
@@ -15,15 +17,16 @@ services:
       - REDIS_URL=${REDIS_DSN}/0
       - REDIS_QUEUE_URL=${REDIS_DSN}/1
       - REDIS_SESSION_URL=${REDIS_DSN}/2
+
       - CORS_ALLOWED_ORIGINS=$SERVICE_URL_WEB
       - CORS_COOKIE_DOMAIN=${LOGSICLE_DOMAIN}
+
       - AUTH_ENDPOINT=${AUTH_ENDPOINT}
       - AUTH_APP_ID=${AUTH_APP_ID}
       - AUTH_APP_SECRET=${AUTH_APP_SECRET}
-      - AUTH_SIGN_IN_URL=$SERVICE_URL_API/v1/auth/sign-in
-      - AUTH_REDIRECT_URL=$SERVICE_URL_API/v1/auth/callback
-      - AUTH_FRONTEND_URL=$SERVICE_URL_WEB
-      - DEV=${DEV:-false}
+
+      - API_URL=$SERVICE_URL_API
+      - WEB_URL=$SERVICE_URL_WEB
 
       # Coolify options
       - SERVICE_FQDN_API_3005
