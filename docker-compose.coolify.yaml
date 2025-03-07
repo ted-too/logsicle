@@ -1,0 +1,74 @@
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: logsicle-api
+    expose:
+      - 3005
+    environment:
+      - PORT=3005
+      - DB_DSN=${POSTGRES_DSN}
+      - DB_MAX_OPEN_CONNS=25
+      - DB_MAX_IDLE_CONNS=25
+      - DB_CONN_MAX_LIFETIME=15m
+      - REDIS_URL=${REDIS_DSN}/0
+      - REDIS_QUEUE_URL=${REDIS_DSN}/1
+      - REDIS_SESSION_URL=${REDIS_DSN}/2
+      - CORS_ALLOWED_ORIGINS=${SERVICE_URL_WEB}
+      - CORS_COOKIE_DOMAIN=${SERVICE_FQDN_API}
+      - AUTH_ENDPOINT=${AUTH_ENDPOINT}
+      - AUTH_APP_ID=${AUTH_APP_ID}
+      - AUTH_APP_SECRET=${AUTH_APP_SECRET}
+      - AUTH_SIGN_IN_URL=${SERVICE_URL_API}/v1/auth/sign-in
+      - AUTH_REDIRECT_URL=${SERVICE_URL_API}/v1/auth/callback
+      - AUTH_FRONTEND_URL=${SERVICE_URL_WEB}
+      - DEV=${DEV:-false}
+
+      # Coolify options
+      - SERVICE_FQDN_API_3005
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    networks:
+      - logsicle-network
+
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      args:
+        - PUBLIC_API_URL=${SERVICE_URL_API}
+    container_name: logsicle-web
+    expose:
+      - 3000
+    environment:
+      - PORT=3000
+
+      # Coolify-specific options
+      - SERVICE_FQDN_WEB_3000
+    depends_on:
+      - api
+    networks:
+      - logsicle-network
+
+  migrations:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.migrations
+    container_name: logsicle-migrations
+    command: [ "migrate", "apply", "--url", "${POSTGRES_DSN}" ]
+    restart: "no" # Important: don't restart after completion
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - logsicle-network
+    # Coolify-specific option to exclude from healthchecks
+    exclude_from_hc: true
+
+networks:
+  logsicle-network:
+    driver: bridge
