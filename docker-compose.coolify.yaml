@@ -61,17 +61,17 @@ services:
   #   networks:
   #     - logsicle-network
 
-  migrations:
-    # Coolify-specific option to exclude from healthchecks
-    exclude_from_hc: true
-    build:
-      context: ./apps/api
-      dockerfile: Dockerfile.migrations
-    container_name: logsicle-migrations
-    command: [ "migrate", "apply", "--url", "${POSTGRES_DSN}&search_path=public" ]
-    restart: "no" # Important: don't restart after completion
-    networks:
-      - logsicle-network
+  # migrations:
+  #   # Coolify-specific option to exclude from healthchecks
+  #   exclude_from_hc: true
+  #   build:
+  #     context: ./apps/api
+  #     dockerfile: Dockerfile.migrations
+  #   container_name: logsicle-migrations
+  #   command: [ "migrate", "apply", "--url", "${POSTGRES_DSN}&search_path=public" ]
+  #   restart: "no" # Important: don't restart after completion
+  #   networks:
+  #     - logsicle-network
 
 networks:
   logsicle-network:
