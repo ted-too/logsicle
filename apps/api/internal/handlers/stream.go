@@ -1,4 +1,3 @@
-// apps/api/internal/handlers/stream.go
 package handlers
 
 import (

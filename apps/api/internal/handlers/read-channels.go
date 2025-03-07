@@ -1,5 +1,3 @@
-// apps/api/internal/handlers/channels.go
-
 package handlers
 
 import (

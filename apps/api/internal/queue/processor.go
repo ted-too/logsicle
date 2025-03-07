@@ -1,4 +1,3 @@
-// apps/api/internal/queue/processor.go
 package queue
 
 import (

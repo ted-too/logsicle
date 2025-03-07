@@ -143,7 +143,7 @@ for ((i = 1; i <= $COUNT; i++)); do
 
     echo "Log timestamp: $TIMESTAMP"
 
-    curl --location "$API_URL/api/v1/ingest/app" \
+    curl --location "$API_URL/v1/ingest/app" \
         --header 'Content-Type: application/json' \
         --header "Authorization: Bearer $API_KEY" \
         --data "$DATA"

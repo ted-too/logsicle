@@ -53,7 +53,7 @@ for ((i=1; i<=$COUNT; i++)); do
     
     METADATA=$(generate_metadata $i)
     
-    curl --location "$API_URL/api/v1/ingest/event" \
+    curl --location "$API_URL/v1/ingest/event" \
         --header 'Content-Type: application/json' \
         --header "Authorization: Bearer $API_KEY" \
         --data "{

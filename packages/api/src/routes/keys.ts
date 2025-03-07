@@ -68,7 +68,7 @@ export async function createAPIKey(
   data: CreateAPIKeyRequest,
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<APIKey>> {
-  const res = await fetch(`${baseURL}/api/v1/projects/${projectId}/api-keys`, {
+  const res = await fetch(`${baseURL}/v1/projects/${projectId}/api-keys`, {
     method: "POST",
     body: JSON.stringify(data),
     headers: {
@@ -102,7 +102,7 @@ export async function listAPIKeys(
   projectId: string,
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<APIKey[]>> {
-  const res = await fetch(`${baseURL}/api/v1/projects/${projectId}/api-keys`, {
+  const res = await fetch(`${baseURL}/v1/projects/${projectId}/api-keys`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -137,7 +137,7 @@ export async function deleteAPIKey(
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<null>> {
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/api-keys/${keyId}`,
+    `${baseURL}/v1/projects/${projectId}/api-keys/${keyId}`,
     {
       method: "DELETE",
       headers: {

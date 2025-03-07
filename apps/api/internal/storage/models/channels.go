@@ -1,5 +1,3 @@
-// apps/api/internal/storage/models/channels.go
-
 package models
 
 import (

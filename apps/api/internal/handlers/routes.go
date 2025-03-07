@@ -19,7 +19,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 	})
 
 	ingestHandler := NewIngestHandler(queueService)
-	v1Ingest := app.Group("/api/v1/ingest")
+	v1Ingest := app.Group("/v1/ingest")
 	v1Ingest.Use(middleware.APIAuth(db))
 	{
 		v1Ingest.Post("/event", ingestHandler.IngestEventLog)
@@ -28,7 +28,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 		v1Ingest.Post("/trace", ingestHandler.IngestTrace)
 	}
 
-	v1SuperAuthd := app.Group("/api/v1")
+	v1SuperAuthd := app.Group("/v1")
 	// TODO: Make super authd middleware
 	{
 		metricsHandler := NewMetricsHandler(processor)
@@ -45,7 +45,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 		AllowCredentials: true,
 	}))
 
-	v1 := app.Group("/api/v1")
+	v1 := app.Group("/v1")
 	{
 		v1.Get("/auth/sign-in", baseHandler.signIn)
 		v1.Get("/auth/sign-out", baseHandler.signOut)
@@ -55,7 +55,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 		}
 	}
 
-	v1Authd := app.Group("/api/v1")
+	v1Authd := app.Group("/v1")
 	v1Authd.Use(middleware.AuthMiddleware(cfg, db))
 	{
 		v1Authd.Get("/me", baseHandler.getUserHandler)

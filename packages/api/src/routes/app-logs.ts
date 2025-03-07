@@ -98,7 +98,7 @@ export async function getAppLogs(
   const queryString = buildQueryString(params);
 
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/app${queryString}`,
+    `${baseURL}/v1/projects/${projectId}/app${queryString}`,
     {
       method: "GET",
       headers: {
@@ -138,7 +138,7 @@ export async function getAppLogMetrics(
   const queryString = buildQueryString(params);
 
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/app/metrics${queryString}`,
+    `${baseURL}/v1/projects/${projectId}/app/metrics${queryString}`,
     {
       method: "GET",
       headers: {
@@ -176,7 +176,7 @@ export async function deleteAppLog(
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<void>> {
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/app/${logId}`,
+    `${baseURL}/v1/projects/${projectId}/app/${logId}`,
     {
       method: "DELETE",
       headers: {
@@ -236,7 +236,7 @@ export async function getLogMetrics(
   const queryString = buildQueryString(params);
 
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/logs/metrics${queryString}`,
+    `${baseURL}/v1/projects/${projectId}/logs/metrics${queryString}`,
     {
       method: "GET",
       headers: {

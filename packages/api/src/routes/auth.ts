@@ -18,7 +18,7 @@ export async function getUser({
   ...opts
 }: Opts): Promise<User | null> {
   try {
-    const res = await fetch(`${baseURL}/api/v1/me`, {
+    const res = await fetch(`${baseURL}/v1/me`, {
       credentials: "include",
       ...opts,
     });
@@ -44,7 +44,7 @@ export async function updateUser(
   input: UpdateUserRequest,
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<User>> {
-  const res = await fetch(`${baseURL}/api/v1/me`, {
+  const res = await fetch(`${baseURL}/v1/me`, {
     method: "PATCH",
     body: JSON.stringify(input),
     headers: {

@@ -83,7 +83,7 @@ export function useLogStream(
 
     // Build URL with query parameters
     const url = new URL(
-      `${import.meta.env.PUBLIC_API_URL}/api/v1/stream/${projectId}`
+      `${import.meta.env.PUBLIC_API_URL}/v1/stream/${projectId}`
     );
 
     // Add types to query parameters if specified

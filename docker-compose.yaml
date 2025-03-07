@@ -6,6 +6,8 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     container_name: logsicle-api
+    expose:
+      - 3005
     environment:
       - PORT=3005
       - DB_DSN=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-logsicle}?sslmode=disable
@@ -20,8 +22,8 @@ services:
       - AUTH_ENDPOINT=${AUTH_ENDPOINT}
       - AUTH_APP_ID=${AUTH_APP_ID}
       - AUTH_APP_SECRET=${AUTH_APP_SECRET}
-      - AUTH_SIGN_IN_URL=${API_URL}/api/v1/auth/sign-in
-      - AUTH_REDIRECT_URL=${API_URL}/api/v1/auth/callback
+      - AUTH_SIGN_IN_URL=${API_URL}/v1/auth/sign-in
+      - AUTH_REDIRECT_URL=${API_URL}/v1/auth/callback
       - AUTH_FRONTEND_URL=${WEB_URL}
       - DEV=${DEV:-false}
     depends_on:
@@ -39,6 +41,8 @@ services:
       args:
         - PUBLIC_API_URL=${API_URL}
     container_name: logsicle-web
+    expose:
+      - 3000
     environment:
       - PORT=3000
     depends_on:

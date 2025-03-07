@@ -1,4 +1,3 @@
-// packages/api/src/routes/channels.ts
 
 import type { ErrorResponse, FnResponse, Opts } from "@/types";
 
@@ -21,7 +20,7 @@ export async function listEventChannels(
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<EventChannel[]>> {
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/events/channels`,
+    `${baseURL}/v1/projects/${projectId}/events/channels`,
     {
       method: "GET",
       headers: {
@@ -58,7 +57,7 @@ export async function getEventChannel(
   { baseURL, ...opts }: Opts
 ): Promise<FnResponse<EventChannel>> {
   const res = await fetch(
-    `${baseURL}/api/v1/projects/${projectId}/events/channels/${channelId}`,
+    `${baseURL}/v1/projects/${projectId}/events/channels/${channelId}`,
     {
       method: "GET",
       headers: {
