@@ -180,12 +180,12 @@ func APIAuth(db *gorm.DB) fiber.Handler {
 func getRequiredScope(method, path string) (string, string) {
 	parts := strings.Split(path, "/")
 	parts = slices.DeleteFunc(parts, func(s string) bool { return s == "" })
-	if len(parts) < 4 {
+	if len(parts) < 3 {
 		return "", ""
 	}
 
 	// Get resource from path
-	resource := parts[3]
+	resource := parts[2]
 
 	// Determine scope based on resource and method
 	var scope string
