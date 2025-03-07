@@ -57,7 +57,7 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile.migrations
     container_name: logsicle-migrations
-    command: [ "migrate", "apply", "--url", "${POSTGRES_DSN}" ]
+    command: [ "migrate", "apply", "--url", "${POSTGRES_DSN}&search_path=public" ]
     restart: "no" # Important: don't restart after completion
     networks:
       - logsicle-network
