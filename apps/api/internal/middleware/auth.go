@@ -31,12 +31,13 @@ func AuthMiddleware(cfg *config.Config, db *gorm.DB) fiber.Handler {
 			})
 		}
 
-		isAuthenticated := oidcClient.IsAuthenticated()
-
-		if !isAuthenticated {
-			log.Printf("Unauthorized access attempt to path: %s", c.Path())
+		// Try to get token claims, which will handle refresh if needed
+		claims, err := oidcClient.GetIDTokenClaims(c.Context())
+		if err != nil {
+			log.Printf("Authentication failed: %v", err)
 			// Redirect to sign-in for browser requests
 			if strings.Contains(c.Get("Accept"), "text/html") {
+				log.Printf("Unauthorized access attempt to path: %s", c.Path())
 				return c.Redirect().Status(fiber.StatusTemporaryRedirect).To("/v1/auth/sign-in")
 			}
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -44,23 +45,10 @@ func AuthMiddleware(cfg *config.Config, db *gorm.DB) fiber.Handler {
 			})
 		}
 
-		idTokenClaims, err := oidcClient.GetIDTokenClaims(c.Context())
-		if err != nil {
-			log.Printf("Failed to get token claims: %v", err)
-			// If token refresh failed, redirect to sign-in for browser requests
-			if strings.Contains(err.Error(), "failed to refresh token") && strings.Contains(c.Get("Accept"), "text/html") {
-				return c.Redirect().Status(fiber.StatusTemporaryRedirect).To("/v1/auth/sign-in")
-			}
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to get token claims",
-				"error":   err.Error(),
-			})
-		}
-
-		c.Locals("oauth-id", idTokenClaims.Sub)
+		c.Locals("oauth-id", claims.Sub)
 
 		var user models.User
-		if err := db.Where("external_oauth_id = ?", idTokenClaims.Sub).First(&user).Error; err != nil {
+		if err := db.Where("external_oauth_id = ?", claims.Sub).First(&user).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 					"message": "User not found",

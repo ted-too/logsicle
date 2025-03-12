@@ -2,10 +2,13 @@ package models
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
+	"github.com/gosimple/slug"
 	"github.com/sumup/typeid"
 	"github.com/ted-too/logsicle/internal/storage"
+	"gorm.io/gorm"
 )
 
 // Organization prefix for TypeID
@@ -21,10 +24,27 @@ type OrganizationID = typeid.Sortable[OrganizationPrefix]
 type Organization struct {
 	storage.BaseModel
 	Name        string           `gorm:"not null" json:"name"`
+	Slug        string           `gorm:"not null;unique" json:"slug"`
 	Description string           `json:"description"`
 	CreatedBy   string           `gorm:"index;not null" json:"created_by"` // User ID who created the organization
 	Projects    []Project        `json:"projects,omitempty"`
 	Members     []TeamMembership `json:"members,omitempty" gorm:"foreignKey:OrganizationID"`
+}
+
+func (o *Organization) BeforeCreate(tx *gorm.DB) (err error) {
+	// Generate initial slug from name
+	o.Slug = slug.Make(o.Name)
+
+	var count int64
+	if err := tx.Model(&Organization{}).Where("slug = ?", o.Slug).Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count > 0 {
+		o.Slug = o.Slug + "-" + strconv.FormatInt(count+1, 10)
+	}
+
+	return nil
 }
 
 // Role defines the permission level within an organization

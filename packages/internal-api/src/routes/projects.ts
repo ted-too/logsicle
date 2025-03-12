@@ -28,6 +28,7 @@ export interface Project {
 	user_id: string;
 	organization_id: string;
 	name: string;
+	slug: string;
 	allowed_origins: string[];
 	log_retention_days: number;
 	// TODO: Add types for these

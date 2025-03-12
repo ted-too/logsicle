@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -23,6 +24,21 @@ const (
 	idTokenKey      = "oidc_id_token"
 	refreshTokenKey = "oidc_refresh_token"
 	expiryKey       = "oidc_expiry"
+)
+
+var (
+	ErrStateNotFound                    = errors.New("state not found in session")
+	ErrStateMissing                     = errors.New("state parameter missing from request")
+	ErrStateMismatch                    = errors.New("state mismatch")
+	ErrCodeNotFound                     = errors.New("code not found in request")
+	ErrIDTokenNotFound                  = errors.New("id_token not found in OAuth2 token")
+	ErrNotAuthenticated                 = errors.New("not authenticated")
+	ErrIDTokenMissing                   = errors.New("id token not found in session")
+	ErrInvalidIDTokenFormat             = errors.New("invalid id token format in session")
+	ErrIDTokenMissingAfterRefresh       = errors.New("id token not found after refresh")
+	ErrInvalidIDTokenFormatAfterRefresh = errors.New("invalid id token format after refresh")
+	ErrRefreshTokenNotFound             = errors.New("refresh token not found in session")
+	ErrInvalidRefreshToken              = errors.New("invalid refresh token format or empty refresh token")
 )
 
 // IDTokenClaims represents the claims in an ID token
@@ -42,6 +58,7 @@ type OIDCClient struct {
 	verifier     *oidc.IDTokenVerifier
 	oauth2Config *oauth2.Config
 	session      *session.Middleware
+	refreshMutex sync.Mutex
 }
 
 // NewClient creates a new OIDC client
@@ -97,24 +114,24 @@ func (c *OIDCClient) HandleSignInCallback(ctx context.Context, r *http.Request) 
 	// Verify state
 	expectedState := c.session.Get(stateKey)
 	if expectedState == nil {
-		return errors.New("state not found in session")
+		return ErrStateNotFound
 	}
 
 	// Get state from query parameters
 	query := r.URL.Query()
 	state := query.Get("state")
 	if state == "" {
-		return errors.New("state parameter missing from request")
+		return ErrStateMissing
 	}
 
 	if state != expectedState.(string) {
-		return errors.New("state mismatch")
+		return ErrStateMismatch
 	}
 
 	// Exchange code for token
 	code := query.Get("code")
 	if code == "" {
-		return errors.New("code not found in request")
+		return ErrCodeNotFound
 	}
 
 	oauth2Token, err := c.oauth2Config.Exchange(ctx, code)
@@ -125,7 +142,7 @@ func (c *OIDCClient) HandleSignInCallback(ctx context.Context, r *http.Request) 
 	// Extract ID token
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 	if !ok {
-		return errors.New("id_token not found in OAuth2 token")
+		return ErrIDTokenNotFound
 	}
 
 	// Verify ID token
@@ -157,7 +174,8 @@ func (c *OIDCClient) IsAuthenticated() bool {
 		return false
 	}
 
-	// Check if the token is expired
+	// If token exists but is expired, don't refresh here
+	// Let GetIDTokenClaims handle the refresh if needed
 	expiryStr, ok := c.session.Get(expiryKey).(string)
 	if !ok {
 		return false
@@ -169,32 +187,22 @@ func (c *OIDCClient) IsAuthenticated() bool {
 		return false
 	}
 
-	// If token is expired, try to refresh it
-	if time.Now().After(expiry) {
-		log.Printf("Token expired, attempting to refresh during IsAuthenticated check")
-		if err := c.RefreshToken(context.Background()); err != nil {
-			log.Printf("Failed to refresh token: %v", err)
-			return false
-		}
-	}
-
-	return true
+	return !time.Now().After(expiry)
 }
 
 // GetIDTokenClaims returns the claims from the ID token
 func (c *OIDCClient) GetIDTokenClaims(ctx context.Context) (*IDTokenClaims, error) {
-	if !c.IsAuthenticated() {
-		return nil, errors.New("not authenticated")
-	}
+	c.refreshMutex.Lock()
+	defer c.refreshMutex.Unlock()
 
 	rawIDTokenVal := c.session.Get(idTokenKey)
 	if rawIDTokenVal == nil {
-		return nil, errors.New("id token not found in session")
+		return nil, ErrIDTokenMissing
 	}
 
 	rawIDToken, ok := rawIDTokenVal.(string)
 	if !ok {
-		return nil, errors.New("invalid id token format in session")
+		return nil, ErrInvalidIDTokenFormat
 	}
 
 	// Try to verify the token
@@ -203,21 +211,45 @@ func (c *OIDCClient) GetIDTokenClaims(ctx context.Context) (*IDTokenClaims, erro
 		// Check if the error is due to token expiration
 		if strings.Contains(err.Error(), "token is expired") {
 			// Try to refresh the token
-			log.Printf("Token expired, attempting to refresh")
-			if err := c.RefreshToken(ctx); err != nil {
-				return nil, err
+			log.Printf("Token expired, attempting to refresh in GetIDTokenClaims")
+
+			// Perform the actual token refresh
+			refreshTokenVal := c.session.Get(refreshTokenKey)
+			if refreshTokenVal == nil {
+				return nil, ErrRefreshTokenNotFound
 			}
 
-			// Get the new ID token
-			newRawIDTokenVal := c.session.Get(idTokenKey)
-			if newRawIDTokenVal == nil {
-				return nil, errors.New("id token not found after refresh")
+			refreshToken, ok := refreshTokenVal.(string)
+			if !ok || refreshToken == "" {
+				return nil, ErrInvalidRefreshToken
 			}
 
-			newRawIDToken, ok := newRawIDTokenVal.(string)
+			// Create a token source with the refresh token
+			ts := c.oauth2Config.TokenSource(ctx, &oauth2.Token{
+				RefreshToken: refreshToken,
+			})
+
+			// Get a new token
+			newToken, err := ts.Token()
+			if err != nil {
+				return nil, fmt.Errorf("failed to refresh token: %w", err)
+			}
+
+			// Extract ID token
+			newRawIDToken, ok := newToken.Extra("id_token").(string)
 			if !ok {
-				return nil, errors.New("invalid id token format after refresh")
+				return nil, ErrIDTokenNotFound
 			}
+
+			// Store the new tokens in session
+			c.session.Set(tokenKey, newToken.AccessToken)
+			c.session.Set(idTokenKey, newRawIDToken)
+			if newToken.RefreshToken != "" {
+				c.session.Set(refreshTokenKey, newToken.RefreshToken)
+			}
+			c.session.Set(expiryKey, newToken.Expiry.Format(time.RFC3339))
+
+			log.Printf("Token refreshed successfully in GetIDTokenClaims, new expiry: %s", newToken.Expiry.Format(time.RFC3339))
 
 			// Verify the new token
 			idToken, err = c.verifier.Verify(ctx, newRawIDToken)
@@ -239,14 +271,23 @@ func (c *OIDCClient) GetIDTokenClaims(ctx context.Context) (*IDTokenClaims, erro
 
 // RefreshToken refreshes the OAuth2 token using the refresh token
 func (c *OIDCClient) RefreshToken(ctx context.Context) error {
+	c.refreshMutex.Lock()
+	defer c.refreshMutex.Unlock()
+
+	// Check if token is still expired after acquiring lock
+	// Another goroutine might have refreshed it while we were waiting
+	if !c.isTokenExpired() {
+		return nil
+	}
+
 	refreshTokenVal := c.session.Get(refreshTokenKey)
 	if refreshTokenVal == nil {
-		return errors.New("refresh token not found in session")
+		return ErrRefreshTokenNotFound
 	}
 
 	refreshToken, ok := refreshTokenVal.(string)
 	if !ok || refreshToken == "" {
-		return errors.New("invalid refresh token format or empty refresh token")
+		return ErrInvalidRefreshToken
 	}
 
 	// Create a token source with the refresh token
@@ -263,7 +304,7 @@ func (c *OIDCClient) RefreshToken(ctx context.Context) error {
 	// Extract ID token
 	rawIDToken, ok := newToken.Extra("id_token").(string)
 	if !ok {
-		return errors.New("id_token not found in refreshed OAuth2 token")
+		return ErrIDTokenNotFound
 	}
 
 	// Store the new tokens in session
@@ -277,6 +318,21 @@ func (c *OIDCClient) RefreshToken(ctx context.Context) error {
 	log.Printf("Token refreshed successfully, new expiry: %s", newToken.Expiry.Format(time.RFC3339))
 
 	return nil
+}
+
+// isTokenExpired checks if the current token is expired
+func (c *OIDCClient) isTokenExpired() bool {
+	expiryStr, ok := c.session.Get(expiryKey).(string)
+	if !ok {
+		return true
+	}
+
+	expiry, err := time.Parse(time.RFC3339, expiryStr)
+	if err != nil {
+		return true
+	}
+
+	return time.Now().After(expiry)
 }
 
 // SignOut signs the user out

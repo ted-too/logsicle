@@ -63,7 +63,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 
 		// Organization routes
 		v1Authd.Post("/organizations", baseHandler.createOrganization)
-		v1Authd.Get("/organizations", baseHandler.listOrganizations)
+		v1Authd.Get("/organizations", baseHandler.listUserOrganizations)
 		v1Authd.Get("/organizations/:id", baseHandler.getOrganization)
 		v1Authd.Patch("/organizations/:id", baseHandler.updateOrganization)
 		v1Authd.Delete("/organizations/:id", baseHandler.deleteOrganization)

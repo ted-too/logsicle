@@ -19,10 +19,12 @@ export function OnboardingHeader({ user }: { user: User }) {
     .split(" ")
     .map((n) => n[0])
     .join("");
+
   return (
     <div className="sticky flex h-12 w-full items-center border-b border-border">
       <div className="mx-auto flex w-full max-w-[960px] items-center justify-between">
         <span className="text-sm font-semibold">Getting Started</span>
+        {/* TODO: Make a component for this */}
         <DropdownMenu>
           <DropdownMenuTrigger className="cursor-pointer" asChild>
             <Button

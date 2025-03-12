@@ -157,27 +157,19 @@ func (h *BaseHandler) createOrganization(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(org)
 }
 
-// listOrganizations lists all organizations the user is a member of
-func (h *BaseHandler) listOrganizations(c fiber.Ctx) error {
+// listUserOrganizations lists all organizations the user is a member of
+func (h *BaseHandler) listUserOrganizations(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 
 	var memberships []models.TeamMembership
-	if err := h.db.Preload("Organization").Where("user_id = ?", userID).Find(&memberships).Error; err != nil {
+	if err := h.db.Preload("Organization").Preload("Organization.Projects").Where("user_id = ?", userID).Find(&memberships).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch organizations",
 			"error":   err.Error(),
 		})
 	}
 
-	// Extract organizations from memberships
-	organizations := make([]models.Organization, 0, len(memberships))
-	for _, membership := range memberships {
-		if membership.Organization != nil {
-			organizations = append(organizations, *membership.Organization)
-		}
-	}
-
-	return c.JSON(organizations)
+	return c.JSON(memberships)
 }
 
 // getOrganization gets a single organization by ID

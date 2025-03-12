@@ -1,6 +1,7 @@
 import { AppSidebar, ContentWrapper } from "@/components/layout/app-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ensureUser, userQueries } from "@/qc/queries/auth";
+import { organizationsQueries } from "@/qc/queries/organizations";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -19,21 +20,22 @@ export const Route = createFileRoute("/_authd/_app")({
       });
     }
 
-    return user;
+    const organizations = await context.queryClient.ensureQueryData(
+      organizationsQueries.listQueryOptions()
+    );
+
+    return { user, organizations };
   },
   component: LayoutComponent,
 });
 
 function LayoutComponent() {
-  const { data } = userQueries.getUser.useSuspenseQuery();
   const [open, setOpen] = useState(false);
 
   return (
     <SidebarProvider open={open} onOpenChange={setOpen}>
       <div className="flex w-svw h-svh">
-        <AppSidebar
-          user={data}
-        />
+        <AppSidebar />
         <ContentWrapper>
           <Outlet />
         </ContentWrapper>

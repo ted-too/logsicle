@@ -7,7 +7,7 @@ import {
   deleteOrganization,
   getOrganization,
   listOrganizationMembers,
-  listOrganizations,
+  listUserOrganizations,
   removeOrganizationMember,
   updateOrganization,
   UpdateOrganizationRequest,
@@ -29,7 +29,7 @@ export const organizationsQueries = {
     queryOptions({
       queryKey: ["organizations"],
       queryFn: async () => {
-        const { data, error } = await listOrganizations({
+        const { data, error } = await listUserOrganizations({
           baseURL: import.meta.env.PUBLIC_API_URL!,
           ...opts,
         });

@@ -12,10 +12,22 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { User } from "@repo/api";
-import { Link, useLocation, useParams } from "@tanstack/react-router";
+import { Organization, Project, User } from "@repo/api";
+import {
+  Link,
+  useLocation,
+  useParams,
+  useRouter,
+} from "@tanstack/react-router";
 import { Brodcast, Category2, Setting2, Warning2 } from "iconsax-react";
-import { LogOut } from "lucide-react";
+import {
+  BadgeCheck,
+  Bell,
+  ChevronsUpDown,
+  CreditCard,
+  LogOut,
+  Sparkles,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import {
@@ -25,6 +37,26 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { AppHeader } from "./app-header";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronsUpDownIcon, PlusIcon } from "lucide-react";
+import { Skeleton } from "../ui/skeleton";
+import { organizationsQueries } from "@/qc/queries/organizations";
+import { useMemo } from "react";
+import { userQueries } from "@/qc/queries/auth";
 
 // Menu items.
 const getMenuList = (params: { projId: string; pathname: string }) => [
@@ -58,12 +90,6 @@ const getMenuList = (params: { projId: string; pathname: string }) => [
     icon: Warning2,
     active: params.pathname.includes(`/dashboard/${params.projId}/alerts`),
   },
-  {
-    title: "Settings",
-    url: `/dashboard/${params.projId}/settings`,
-    icon: Setting2,
-    active: params.pathname.includes(`/dashboard/${params.projId}/settings`),
-  },
 ];
 
 interface MenuItem {
@@ -95,7 +121,11 @@ function MenuItems({ items }: MenuItemsProps) {
   ));
 }
 
-export function AppSidebar({ user }: { user: User }) {
+// TODO: Make this suspense properly
+export function AppSidebar() {
+  const { data: user } = userQueries.getUser.useSuspenseQuery();
+  const { isMobile } = useSidebar();
+  const router = useRouter();
   const { projId } = useParams({ strict: false });
   const displayName = user.name !== "" ? user.name : user.email;
   const avatarFallback = displayName
@@ -105,8 +135,28 @@ export function AppSidebar({ user }: { user: User }) {
   const pathname = useLocation({
     select: (location) => location.pathname,
   });
-
   const menuList = getMenuList({ projId: projId!, pathname });
+
+  const { data: useOrganizations, isPending: isUserOrganizationsPending } =
+    organizationsQueries.list.useQuery();
+
+  const availableProjects = useMemo(
+    () =>
+      (useOrganizations ?? []).flatMap(
+        ({ organization }) => organization.projects
+      ),
+    [useOrganizations]
+  );
+
+  const availableOrganizations = useMemo(
+    () => (useOrganizations ?? []).map(({ organization }) => organization),
+    [useOrganizations]
+  );
+
+  const currentProject = useMemo(
+    () => availableProjects.find((p) => p.id === projId),
+    [availableProjects, projId]
+  );
 
   return (
     <TooltipProvider>
@@ -175,43 +225,154 @@ export function AppSidebar({ user }: { user: User }) {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-          <SidebarGroup>
+          <SidebarGroup className="p-0">
             <SidebarGroupContent>
-              <SidebarMenu className="items-center gap-3 p-2 pl-1">
+              <SidebarMenu className="items-center gap-3 p-2">
                 <SidebarMenuItem className="w-full">
-                  <SidebarTrigger />
+                  <SidebarTrigger className="ml-1.5" />
                 </SidebarMenuItem>
                 <SidebarMenuItem className="w-full">
-                  <div className="peer/menu-button h-10 p-2 pl-0 flex w-full items-center justify-start gap-2 overflow-hidden rounded-md text-left text-sm transition-[width,height,padding] group-data-[collapsible=icon]:size-10! [&>span:last-child]:truncate [&>svg]:shrink-0">
-                    <Avatar className="size-8">
-                      <AvatarImage src={user.avatar_url ?? undefined} />
-                      <AvatarFallback className="uppercase">
-                        {avatarFallback}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex items-center w-full justify-between">
-                      <span>{displayName}</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <SidebarMenuButton asChild>
-                            <Button
-                              variant="link"
-                              className="p-0 size-max [&>svg]:size-3"
-                              size="icon"
-                              asChild
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton
+                        size="lg"
+                        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground min-h-12 pl-0 rounded-lg cursor-pointer"
+                      >
+                        <Avatar className="h-8 w-8 rounded-lg shrink-0 ml-1">
+                          <AvatarImage
+                            src={user.avatar_url ?? undefined}
+                            alt={user.name}
+                          />
+                          <AvatarFallback className="rounded-lg">
+                            CN
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold">
+                            {user.name}
+                          </span>
+                          <span className="truncate text-xs">{user.email}</span>
+                        </div>
+                        <ChevronsUpDown className="ml-auto size-4" />
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                      side={isMobile ? "bottom" : "right"}
+                      align="end"
+                      sideOffset={4}
+                    >
+                      <DropdownMenuLabel className="p-0 font-normal">
+                        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                          <Avatar className="h-8 w-8 rounded-lg">
+                            <AvatarImage
+                              src={user.avatar_url ?? undefined}
+                              alt={user.name}
+                            />
+                            <AvatarFallback className="rounded-lg">
+                              CN
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="grid flex-1 text-left text-sm leading-tight">
+                            <span className="truncate font-semibold">
+                              {user.name}
+                            </span>
+                            <span className="truncate text-xs">
+                              {user.email}
+                            </span>
+                          </div>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuSub>
+                          <DropdownMenuLabel className="font-light text-muted-foreground text-xs">
+                            Organization
+                          </DropdownMenuLabel>
+                          <DropdownMenuSubTrigger>
+                            <span className="truncate text-sm">
+                              {/* {
+                                useOrganizations?.find(
+                                  (o) =>
+                                    o.id === currentProject?.organization_id
+                                )?.name
+                              } */}
+                              TODO
+                            </span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuPortal>
+                            <DropdownMenuSubContent
+                              sideOffset={10}
+                              className="rounded-lg w-52"
                             >
-                              <Link to="/auth/sign-out">
-                                <LogOut />
-                              </Link>
-                            </Button>
-                          </SidebarMenuButton>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="text-xs p-1.5">
-                          <p>Logout</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </div>
+                              <DropdownMenuRadioGroup
+                                // value={currentProject?.organization_id}
+                                onValueChange={(v) =>
+                                  router.navigate({ to: `/dashboard/${v}` })
+                                }
+                              >
+                                {availableOrganizations.map((p) => (
+                                  <DropdownMenuRadioItem
+                                    key={p.id}
+                                    value={p.id}
+                                    className="font-base text-xs truncate"
+                                  >
+                                    {p.name}
+                                  </DropdownMenuRadioItem>
+                                ))}
+                              </DropdownMenuRadioGroup>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="font-base justify-between text-xs [&>svg]:size-3">
+                                Create <PlusIcon />
+                              </DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuPortal>
+                        </DropdownMenuSub>
+                        <DropdownMenuSub>
+                          <DropdownMenuLabel className="font-light text-muted-foreground text-xs">
+                            Project
+                          </DropdownMenuLabel>
+                          <DropdownMenuSubTrigger>
+                            <span className="truncate">
+                              {currentProject?.name}
+                            </span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuPortal>
+                            <DropdownMenuSubContent
+                              sideOffset={10}
+                              className="rounded-lg w-52"
+                            >
+                              {availableProjects.map((v) => (
+                                <DropdownMenuItem
+                                  key={v.id}
+                                  className="font-base text-xs truncate"
+                                >
+                                  {v.name}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuPortal>
+                        </DropdownMenuSub>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link to="/dashboard/settings">
+                          <Setting2
+                            className="shrink-0 [&>path]:stroke-2"
+                            size={16}
+                            color="currentColor"
+                          />
+                          Settings
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {/* FIXME: Make logout work */}
+                      <DropdownMenuItem>
+                        <LogOut />
+                        Log out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>

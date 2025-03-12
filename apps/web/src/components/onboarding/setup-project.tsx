@@ -29,6 +29,7 @@ import {
   LOG_RETENTION_DAYS,
   Organization,
   Project,
+  UserOrganization,
 } from "@repo/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { XIcon } from "lucide-react";
@@ -42,7 +43,7 @@ export function SetupProject({
 }: {
   steps: { next: () => void; prev: () => void };
   project: Project | undefined;
-  organizations: Organization[];
+  organizations: UserOrganization[];
 }) {
   const queryClient = useQueryClient();
   const [parent] = useAutoAnimate();
@@ -66,7 +67,7 @@ export function SetupProject({
             name: "",
             log_retention_days: LOG_RETENTION_DAYS[0],
             allowed_origins: [],
-            organization_id: defaultOrganization?.id || "",
+            organization_id: defaultOrganization?.organization_id || "",
           },
   });
 

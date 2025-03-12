@@ -1,5 +1,6 @@
-import type { ErrorResponse, FnResponse, Opts, Organization, TeamMembership, Role } from "@/types";
+import type { ErrorResponse, FnResponse, Opts } from "@/types";
 import { z } from "zod";
+import { Project } from "./projects";
 
 // Schemas
 export const createOrganizationSchema = z.object({
@@ -7,14 +8,18 @@ export const createOrganizationSchema = z.object({
   description: z.string().optional(),
 });
 
-export type CreateOrganizationRequest = z.infer<typeof createOrganizationSchema>;
+export type CreateOrganizationRequest = z.infer<
+  typeof createOrganizationSchema
+>;
 
 export const updateOrganizationSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
   description: z.string().optional(),
 });
 
-export type UpdateOrganizationRequest = z.infer<typeof updateOrganizationSchema>;
+export type UpdateOrganizationRequest = z.infer<
+  typeof updateOrganizationSchema
+>;
 
 export const addMemberSchema = z.object({
   user_id: z.string().min(1, "User ID is required"),
@@ -29,12 +34,49 @@ export const updateMemberRoleSchema = z.object({
 
 export type UpdateMemberRoleRequest = z.infer<typeof updateMemberRoleSchema>;
 
+// Organization role type
+export type Role = "owner" | "admin" | "member";
+
+// Organization interface
+export interface Organization {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  slug: string;
+  description: string;
+  created_by: string;
+  members: TeamMembership[];
+  projects: Pick<Project, "id" | "name" | "slug">[];
+}
+
+// Team membership interface
+export interface TeamMembership {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  organization_id: string;
+  user_id: string;
+  role: Role;
+  joined_at: string;
+  invited_by: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatar_url?: string;
+  };
+  organization: Organization;
+}
+
+export type UserOrganization = Omit<TeamMembership, "user">;
+
 // API Functions
 
 // Create a new organization
 export async function createOrganization(
   data: CreateOrganizationRequest,
-  { baseURL, ...opts }: Opts,
+  { baseURL, ...opts }: Opts
 ): Promise<FnResponse<Organization>> {
   const res = await fetch(`${baseURL}/v1/organizations`, {
     method: "POST",
@@ -67,10 +109,10 @@ export async function createOrganization(
 }
 
 // List all organizations the user is a member of
-export async function listOrganizations({
+export async function listUserOrganizations({
   baseURL,
   ...opts
-}: Opts): Promise<FnResponse<Organization[]>> {
+}: Opts): Promise<FnResponse<UserOrganization[]>> {
   const res = await fetch(`${baseURL}/v1/organizations`, {
     method: "GET",
     headers: {
@@ -97,13 +139,13 @@ export async function listOrganizations({
     return { data: null, error: resJSON as ErrorResponse };
   }
 
-  return { data: resJSON as Organization[], error: null };
+  return { data: resJSON as UserOrganization[], error: null };
 }
 
 // Get a single organization by ID
 export async function getOrganization(
   organizationId: string,
-  { baseURL, ...opts }: Opts,
+  { baseURL, ...opts }: Opts
 ): Promise<FnResponse<Organization>> {
   const res = await fetch(`${baseURL}/v1/organizations/${organizationId}`, {
     method: "GET",
@@ -138,7 +180,7 @@ export async function getOrganization(
 export async function updateOrganization(
   organizationId: string,
   data: UpdateOrganizationRequest,
-  { baseURL, ...opts }: Opts,
+  { baseURL, ...opts }: Opts
 ): Promise<FnResponse<Organization>> {
   const res = await fetch(`${baseURL}/v1/organizations/${organizationId}`, {
     method: "PATCH",
@@ -173,7 +215,7 @@ export async function updateOrganization(
 // Delete an organization
 export async function deleteOrganization(
   organizationId: string,
-  { baseURL, ...opts }: Opts,
+  { baseURL, ...opts }: Opts
 ): Promise<FnResponse<null>> {
   const res = await fetch(`${baseURL}/v1/organizations/${organizationId}`, {
     method: "DELETE",
@@ -206,16 +248,19 @@ export async function deleteOrganization(
 // List all members of an organization
 export async function listOrganizationMembers(
   organizationId: string,
-  { baseURL, ...opts }: Opts,
+  { baseURL, ...opts }: Opts
 ): Promise<FnResponse<TeamMembership[]>> {
-  const res = await fetch(`${baseURL}/v1/organizations/${organizationId}/members`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    ...opts,
-  });
+  const res = await fetch(
+    `${baseURL}/v1/organizations/${organizationId}/members`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      ...opts,
+    }
+  );
 
   let resJSON: unknown | undefined = undefined;
   try {
@@ -241,17 +286,20 @@ export async function listOrganizationMembers(
 export async function addOrganizationMember(
   organizationId: string,
   data: AddMemberRequest,
-  { baseURL, ...opts }: Opts,
+  { baseURL, ...opts }: Opts
 ): Promise<FnResponse<TeamMembership>> {
-  const res = await fetch(`${baseURL}/v1/organizations/${organizationId}/members`, {
-    method: "POST",
-    body: JSON.stringify(data),
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    ...opts,
-  });
+  const res = await fetch(
+    `${baseURL}/v1/organizations/${organizationId}/members`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      ...opts,
+    }
+  );
 
   let resJSON: unknown | undefined = undefined;
   try {
@@ -278,17 +326,20 @@ export async function updateOrganizationMember(
   organizationId: string,
   memberId: string,
   data: UpdateMemberRoleRequest,
-  { baseURL, ...opts }: Opts,
+  { baseURL, ...opts }: Opts
 ): Promise<FnResponse<TeamMembership>> {
-  const res = await fetch(`${baseURL}/v1/organizations/${organizationId}/members/${memberId}`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    ...opts,
-  });
+  const res = await fetch(
+    `${baseURL}/v1/organizations/${organizationId}/members/${memberId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      ...opts,
+    }
+  );
 
   let resJSON: unknown | undefined = undefined;
   try {
@@ -314,16 +365,19 @@ export async function updateOrganizationMember(
 export async function removeOrganizationMember(
   organizationId: string,
   memberId: string,
-  { baseURL, ...opts }: Opts,
+  { baseURL, ...opts }: Opts
 ): Promise<FnResponse<null>> {
-  const res = await fetch(`${baseURL}/v1/organizations/${organizationId}/members/${memberId}`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    ...opts,
-  });
+  const res = await fetch(
+    `${baseURL}/v1/organizations/${organizationId}/members/${memberId}`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      ...opts,
+    }
+  );
 
   if (!res.ok) {
     let resJSON: unknown | undefined = undefined;
@@ -342,4 +396,4 @@ export async function removeOrganizationMember(
   }
 
   return { data: null, error: null };
-} 
+}
