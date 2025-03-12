@@ -30,6 +30,11 @@ func (g *BaseHandler) signIn(c fiber.Ctx) error {
 		})
 	}
 
+	// Store redirect path in session if provided
+	if redirectPath := c.Query("redirect"); redirectPath != "" {
+		session.Set("redirect_after_auth", redirectPath)
+	}
+
 	oidcClient, err := oidc.NewClient(c.Context(), g.Config, session)
 	if err != nil {
 		log.Printf("Failed to initialize OIDC client: %v", err)
@@ -124,7 +129,42 @@ func (g *BaseHandler) callback(c fiber.Ctx) error {
 		})
 	}
 
-	redirectURL := frontendURL.JoinPath("/dashboard").String()
+	idTokenClaims, err := oidcClient.GetIDTokenClaims(c.Context())
+	if err != nil {
+		redirectURL := frontendURL.JoinPath("/settings").String()
+		log.Printf("Error getting token claims, redirecting to settings: %v", err)
+		return c.Redirect().Status(fiber.StatusTemporaryRedirect).To(redirectURL)
+	}
+
+	// Get redirect path from session, default to first org if not set
+	redirectPath := "/settings" // Default to settings
+	if storedRedirect := session.Get("redirect_after_auth"); storedRedirect != nil {
+		if path, ok := storedRedirect.(string); ok && path != "" {
+			redirectPath = path
+			session.Delete("redirect_after_auth")
+		}
+	} else {
+		var userId string
+		if err := g.db.Model(&models.User{}).Where("external_oauth_id = ?", idTokenClaims.Sub).Select("id").Find(&userId).Error; err != nil {
+			redirectURL := frontendURL.JoinPath("/settings").String()
+			log.Printf("Error finding user, redirecting to settings: %v", err)
+			return c.Redirect().Status(fiber.StatusTemporaryRedirect).To(redirectURL)
+		}
+
+		// Find first team membership for user
+		var membership models.TeamMembership
+		if err := g.db.Where("user_id = ?", userId).
+			Order("created_at asc").
+			Preload("Organization").
+			First(&membership).Error; err != nil {
+			log.Printf("Failed to get user's first organization: %v", err)
+			redirectURL := frontendURL.JoinPath("/settings").String()
+			return c.Redirect().Status(fiber.StatusTemporaryRedirect).To(redirectURL)
+		}
+		redirectPath = "/" + membership.Organization.Slug
+	}
+
+	redirectURL := frontendURL.JoinPath(redirectPath).String()
 	log.Printf("Redirecting to: %s", redirectURL)
 	return c.Redirect().Status(fiber.StatusTemporaryRedirect).To(redirectURL)
 }

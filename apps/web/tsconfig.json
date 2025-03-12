@@ -1,0 +1,15 @@
+{
+  "extends": "@repo/typescript-config/web.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+  },
+  "references": [
+    {
+      "path": "../../packages/internal-api"
+    }
+  ],
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

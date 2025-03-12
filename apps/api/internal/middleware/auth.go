@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"log"
-	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
@@ -34,12 +33,8 @@ func AuthMiddleware(cfg *config.Config, db *gorm.DB) fiber.Handler {
 		// Try to get token claims, which will handle refresh if needed
 		claims, err := oidcClient.GetIDTokenClaims(c.Context())
 		if err != nil {
-			log.Printf("Authentication failed: %v", err)
-			// Redirect to sign-in for browser requests
-			if strings.Contains(c.Get("Accept"), "text/html") {
-				log.Printf("Unauthorized access attempt to path: %s", c.Path())
-				return c.Redirect().Status(fiber.StatusTemporaryRedirect).To("/v1/auth/sign-in")
-			}
+			log.Printf("Authentication failed on path %s: %v", c.Path(), err)
+			log.Printf("Headers: %v", c.GetReqHeaders())
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"message": "Unauthorized",
 			})

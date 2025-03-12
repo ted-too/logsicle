@@ -47,7 +47,7 @@ export interface Organization {
   description: string;
   created_by: string;
   members: TeamMembership[];
-  projects: Pick<Project, "id" | "name" | "slug">[];
+  projects: Project[];
 }
 
 // Team membership interface

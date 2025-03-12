@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { ErrorResponse, FnResponse, Opts } from "..";
+import { $fetch, type ErrorResponse, type FnResponse, type Opts } from "..";
+import { betterFetch } from "@better-fetch/fetch";
 
 export interface User {
   id: string;

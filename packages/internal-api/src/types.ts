@@ -1,5 +1,5 @@
 export interface Opts extends RequestInit {
-  baseURL: string;
+  baseURL?: string;
 }
 
 export interface ErrorResponse {

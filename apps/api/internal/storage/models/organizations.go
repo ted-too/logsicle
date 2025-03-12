@@ -1,7 +1,6 @@
 package models
 
 import (
-	"encoding/json"
 	"strconv"
 	"time"
 
@@ -27,8 +26,8 @@ type Organization struct {
 	Slug        string           `gorm:"not null;unique" json:"slug"`
 	Description string           `json:"description"`
 	CreatedBy   string           `gorm:"index;not null" json:"created_by"` // User ID who created the organization
-	Projects    []Project        `json:"projects,omitempty"`
-	Members     []TeamMembership `json:"members,omitempty" gorm:"foreignKey:OrganizationID"`
+	Projects    []Project        `json:"projects"`
+	Members     []TeamMembership `json:"members" gorm:"foreignKey:OrganizationID"`
 }
 
 func (o *Organization) BeforeCreate(tx *gorm.DB) (err error) {
@@ -73,68 +72,69 @@ type TeamMembership struct {
 	Role           Role          `gorm:"not null;default:'member'" json:"role"`
 	JoinedAt       time.Time     `gorm:"not null" json:"joined_at"`
 	InvitedBy      string        `json:"invited_by"` // User ID who invited this member
-	User           *User         `json:"user,omitempty" gorm:"foreignKey:UserID"`
-	Organization   *Organization `json:"organization,omitempty" gorm:"foreignKey:OrganizationID"`
+	User           *User         `json:"user" gorm:"foreignKey:UserID"`
+	Organization   *Organization `json:"organization" gorm:"foreignKey:OrganizationID"`
 }
 
-// Custom JSON marshaling for Organization
-func (o Organization) MarshalJSON() ([]byte, error) {
-	// Get the base model fields
-	baseJSON, err := json.Marshal(o.BaseModel)
-	if err != nil {
-		return nil, err
-	}
+// // Custom JSON marshaling for Organization
+// func (o Organization) MarshalJSON() ([]byte, error) {
+// 	// Get the base model fields
+// 	baseJSON, err := json.Marshal(o.BaseModel)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// Unmarshal into a map to combine with other fields
-	var result map[string]interface{}
-	if err := json.Unmarshal(baseJSON, &result); err != nil {
-		return nil, err
-	}
+// 	// Unmarshal into a map to combine with other fields
+// 	var result map[string]interface{}
+// 	if err := json.Unmarshal(baseJSON, &result); err != nil {
+// 		return nil, err
+// 	}
 
-	// Add the fields
-	result["name"] = o.Name
-	result["description"] = o.Description
-	result["created_by"] = o.CreatedBy
+// 	// Add the fields
+// 	result["name"] = o.Name
+// 	result["slug"] = o.Slug
+// 	result["description"] = o.Description
+// 	result["created_by"] = o.CreatedBy
 
-	if o.Projects != nil {
-		result["projects"] = o.Projects
-	}
+// 	if o.Projects != nil {
+// 		result["projects"] = o.Projects
+// 	}
 
-	if o.Members != nil {
-		result["members"] = o.Members
-	}
+// 	if o.Members != nil {
+// 		result["members"] = o.Members
+// 	}
 
-	return json.Marshal(result)
-}
+// 	return json.Marshal(result)
+// }
 
-// Custom JSON marshaling for TeamMembership
-func (tm TeamMembership) MarshalJSON() ([]byte, error) {
-	// Get the base model fields
-	baseJSON, err := json.Marshal(tm.BaseModel)
-	if err != nil {
-		return nil, err
-	}
+// // Custom JSON marshaling for TeamMembership
+// func (tm TeamMembership) MarshalJSON() ([]byte, error) {
+// 	// Get the base model fields
+// 	baseJSON, err := json.Marshal(tm.BaseModel)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// Unmarshal into a map to combine with other fields
-	var result map[string]interface{}
-	if err := json.Unmarshal(baseJSON, &result); err != nil {
-		return nil, err
-	}
+// 	// Unmarshal into a map to combine with other fields
+// 	var result map[string]interface{}
+// 	if err := json.Unmarshal(baseJSON, &result); err != nil {
+// 		return nil, err
+// 	}
 
-	// Add the fields
-	result["organization_id"] = tm.OrganizationID
-	result["user_id"] = tm.UserID
-	result["role"] = tm.Role
-	result["joined_at"] = tm.JoinedAt
-	result["invited_by"] = tm.InvitedBy
+// 	// Add the fields
+// 	result["organization_id"] = tm.OrganizationID
+// 	result["user_id"] = tm.UserID
+// 	result["role"] = tm.Role
+// 	result["joined_at"] = tm.JoinedAt
+// 	result["invited_by"] = tm.InvitedBy
 
-	if tm.User != nil {
-		result["user"] = tm.User
-	}
+// 	if tm.User != nil {
+// 		result["user"] = tm.User
+// 	}
 
-	if tm.Organization != nil {
-		result["organization"] = tm.Organization
-	}
+// 	if tm.Organization != nil {
+// 		result["organization"] = tm.Organization
+// 	}
 
-	return json.Marshal(result)
-}
+// 	return json.Marshal(result)
+// }
