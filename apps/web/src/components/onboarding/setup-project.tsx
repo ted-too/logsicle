@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "@/components/ui/sonner-wrapper";
 import { cn } from "@/lib/utils";
 import { projectsQueries } from "@/qc/queries/projects";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
@@ -26,25 +27,31 @@ import {
   allowedOriginSchema,
   createProjectSchema,
   LOG_RETENTION_DAYS,
+  Organization,
   Project,
 } from "@repo/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { XIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { toast } from "@/components/ui/sonner-wrapper";
 
 export function SetupProject({
   steps,
   project,
+  organizations,
 }: {
   steps: { next: () => void; prev: () => void };
   project: Project | undefined;
+  organizations: Organization[];
 }) {
   const queryClient = useQueryClient();
   const [parent] = useAutoAnimate();
   const { mutateAsync: createProject } = projectsQueries.create();
   const { mutateAsync: updateProject } = projectsQueries.update();
+
+  // Get the first organization (which should be the default one)
+  const defaultOrganization = organizations[0];
+
   const form = useForm<z.infer<typeof createProjectSchema>>({
     resolver: zodResolver(createProjectSchema),
     defaultValues:
@@ -53,13 +60,24 @@ export function SetupProject({
             name: project.name,
             log_retention_days: project.log_retention_days,
             allowed_origins: project.allowed_origins,
+            organization_id: project.organization_id,
           }
         : {
             name: "",
             log_retention_days: LOG_RETENTION_DAYS[0],
             allowed_origins: [],
+            organization_id: defaultOrganization?.id || "",
           },
   });
+
+  // If no default organization is found, show an error
+  if (!defaultOrganization) {
+    return (
+      <div className="text-destructive">
+        Error: No organization found. Please contact support.
+      </div>
+    );
+  }
 
   async function onSubmit(input: z.infer<typeof createProjectSchema>) {
     try {
@@ -135,7 +153,6 @@ export function SetupProject({
         <FormField
           control={form.control}
           name="allowed_origins"
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           render={({ field: { onChange, onBlur: _, value, ...field } }) => (
             <FormItem className="col-span-2">
               <FormLabel>Allowed origins</FormLabel>

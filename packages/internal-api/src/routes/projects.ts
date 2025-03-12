@@ -16,6 +16,7 @@ export const createProjectSchema = z.object({
 		.refine((val) => LOG_RETENTION_DAYS.includes(val), {
 			message: `Log retention days must be one of: ${LOG_RETENTION_DAYS.join(", ")}`,
 		}),
+	organization_id: z.string().min(1, "Organization ID is required"),
 });
 
 export type CreateProjectRequest = z.infer<typeof createProjectSchema>;
@@ -25,6 +26,7 @@ export interface Project {
 	created_at: string;
 	updated_at: string;
 	user_id: string;
+	organization_id: string;
 	name: string;
 	allowed_origins: string[];
 	log_retention_days: number;
@@ -104,9 +106,15 @@ export async function updateProject(
 
 export async function listProjects({
 	baseURL,
+	organizationId,
 	...opts
-}: Opts): Promise<FnResponse<Project[]>> {
-	const res = await fetch(`${baseURL}/v1/projects`, {
+}: Opts & { organizationId?: string }): Promise<FnResponse<Project[]>> {
+	const url = new URL(`${baseURL}/v1/projects`);
+	if (organizationId) {
+		url.searchParams.append('organization_id', organizationId);
+	}
+
+	const res = await fetch(url.toString(), {
 		method: "GET",
 		headers: {
 			"Content-Type": "application/json",

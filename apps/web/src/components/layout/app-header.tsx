@@ -3,9 +3,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { projectsQueries } from "@/qc/queries/projects";
@@ -13,10 +17,12 @@ import { useParams, useRouter } from "@tanstack/react-router";
 import { ChevronsUpDownIcon, PlusIcon } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import { HeaderBreadcrumbs } from "./header-breadcrumbs";
-
+import { organizationsQueries } from "@/qc/queries/organizations";
 export function AppHeader() {
   const router = useRouter();
   const { data, isPending } = projectsQueries.list.useQuery();
+  const { data: organizations, isPending: isOrganizationsPending } =
+    organizationsQueries.list.useQuery();
   const { projId } = useParams({ strict: false });
   const currentProject = data?.find((p) => p.id === projId);
 
@@ -31,8 +37,41 @@ export function AppHeader() {
         <DropdownMenuContent
           align="end"
           onCloseAutoFocus={(e) => e.preventDefault()}
-          className="rounded-lg"
+          className="rounded-lg w-52"
         >
+          {isOrganizationsPending ? (
+            <Skeleton className="h-7 w-[calc(100%-1rem)] mx-2 my-1.5" />
+          ) : (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="[&_svg]:size-3">
+                <span className="truncate text-xs">
+                  {
+                    organizations?.find(
+                      (o) => o.id === currentProject?.organization_id
+                    )?.name
+                  }
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent
+                  sideOffset={10}
+                  className="rounded-lg w-52"
+                >
+                  <DropdownMenuLabel className="font-light text-muted-foreground text-xs">
+                    Organizations
+                  </DropdownMenuLabel>
+                  {organizations?.map((o) => (
+                    <DropdownMenuItem
+                      key={o.id}
+                      className="font-base text-xs truncate"
+                    >
+                      {o.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+          )}
           <DropdownMenuLabel className="font-light text-muted-foreground text-xs">
             Projects
           </DropdownMenuLabel>

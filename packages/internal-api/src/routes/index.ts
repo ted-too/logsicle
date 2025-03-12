@@ -7,3 +7,4 @@ export * from "./channels";
 export * from "./create-channels";
 export * from "./update-channels";
 export * from "./delete-channel";
+export * from "./organizations";

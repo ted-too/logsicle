@@ -56,7 +56,7 @@ func NewClient(ctx context.Context, cfg *config.Config, session *session.Middlew
 		ClientSecret: cfg.Auth.AppSecret,
 		RedirectURL:  cfg.Auth.RedirectURL,
 		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
+		Scopes:       []string{oidc.ScopeOpenID, "email", "profile", "offline_access"},
 	}
 
 	return &OIDCClient{
@@ -138,7 +138,10 @@ func (c *OIDCClient) HandleSignInCallback(ctx context.Context, r *http.Request) 
 	c.session.Set(tokenKey, oauth2Token.AccessToken)
 	c.session.Set(idTokenKey, rawIDToken)
 	if oauth2Token.RefreshToken != "" {
+		log.Printf("Setting refresh token in session: %s", oauth2Token.RefreshToken)
 		c.session.Set(refreshTokenKey, oauth2Token.RefreshToken)
+	} else {
+		log.Printf("No refresh token found in OAuth2 token")
 	}
 	c.session.Set(expiryKey, oauth2Token.Expiry.Format(time.RFC3339))
 
@@ -202,7 +205,7 @@ func (c *OIDCClient) GetIDTokenClaims(ctx context.Context) (*IDTokenClaims, erro
 			// Try to refresh the token
 			log.Printf("Token expired, attempting to refresh")
 			if err := c.RefreshToken(ctx); err != nil {
-				return nil, fmt.Errorf("failed to refresh token: %w", err)
+				return nil, err
 			}
 
 			// Get the new ID token

@@ -13,6 +13,7 @@ import { useState } from "react";
 import { GenAPIKey } from "./gen-api-key";
 import { SetupProject } from "./setup-project";
 import { TestAPIKey } from "./test-api-key";
+import { organizationsQueries } from "@/qc/queries/organizations";
 
 const STEPS = [
   {
@@ -35,6 +36,7 @@ const STEPS = [
 ];
 
 export function MainOnboardingForm() {
+  const { data: organizations } = organizationsQueries.list.useSuspenseQuery();
   const { data: initialData } = projectsQueries.list.useSuspenseQuery();
   let initialStep = 0;
   if (initialData.length > 0) {
@@ -91,6 +93,7 @@ export function MainOnboardingForm() {
               <Component
                 steps={{ next: nextStep, prev: prevStep }}
                 project={initialData[0]}
+                organizations={organizations}
               />
             </AccordionContent>
           </AccordionItem>

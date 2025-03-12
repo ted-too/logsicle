@@ -21,29 +21,31 @@ import { getQueryClient } from "../query-client";
 const queryClient = getQueryClient();
 
 export const projectsQueries = {
-  listQueryOptions: (opts?: RequestInit) =>
+  listQueryOptions: (opts?: { organizationId?: string, requestInit?: RequestInit }) =>
     queryOptions({
-      queryKey: ["projects"],
+      queryKey: ["projects", opts?.organizationId ?? "all"],
       queryFn: async () => {
         const { data, error } = await listProjects({
           baseURL: import.meta.env.PUBLIC_API_URL!,
-          ...opts,
+          organizationId: opts?.organizationId,
+          ...opts?.requestInit,
         });
         if (error) return Promise.reject(error);
         return data;
       },
     }),
   list: {
-    useQuery: () => useQuery(projectsQueries.listQueryOptions()),
-    useSuspenseQuery: () =>
-      useSuspenseQuery(projectsQueries.listQueryOptions()),
+    useQuery: (opts?: { organizationId?: string, requestInit?: RequestInit }) => 
+      useQuery(projectsQueries.listQueryOptions(opts)),
+    useSuspenseQuery: (opts?: { organizationId?: string, requestInit?: RequestInit }) =>
+      useSuspenseQuery(projectsQueries.listQueryOptions(opts)),
   },
   getByIdQueryOptions: (
     projectId: string,
     opts?: RequestInit
   ) =>
     queryOptions({
-      queryKey: ["projects", projectId],
+      queryKey: ["projects", "detail", projectId],
       queryFn: async () => {
         if (!projectId) return null;
         const { data, error } = await getProject(projectId, {
@@ -69,6 +71,17 @@ export const projectsQueries = {
         if (error) return Promise.reject(error);
         return data;
       },
+      onSuccess: (data) => {
+        // Invalidate both the "all" projects list and the organization-specific list
+        queryClient.invalidateQueries({
+          queryKey: ["projects", "all"],
+        });
+        if (data.organization_id) {
+          queryClient.invalidateQueries({
+            queryKey: ["projects", data.organization_id],
+          });
+        }
+      },
     }),
   update: () =>
     useMutation({
@@ -85,9 +98,18 @@ export const projectsQueries = {
         if (error) return Promise.reject(error);
         return data;
       },
-      onSuccess: () => {
+      onSuccess: (data) => {
+        // Invalidate both the "all" projects list and the organization-specific list
         queryClient.invalidateQueries({
-          queryKey: projectsQueries.listQueryOptions().queryKey,
+          queryKey: ["projects", "all"],
+        });
+        if (data.organization_id) {
+          queryClient.invalidateQueries({
+            queryKey: ["projects", data.organization_id],
+          });
+        }
+        queryClient.invalidateQueries({
+          queryKey: ["projects", "detail", data.id],
         });
       },
     }),
@@ -96,7 +118,7 @@ export const projectsQueries = {
 export const apiKeysQueries = {
   listQueryOptions: (projectId: string, opts?: RequestInit) =>
     queryOptions({
-      queryKey: ["projects", projectId, "api-keys"],
+      queryKey: ["projects", "detail", projectId, "api-keys"],
       queryFn: async () => {
         if (projectId === "") return [];
         const { data, error } = await listAPIKeys(projectId, {
@@ -128,9 +150,12 @@ export const apiKeysQueries = {
         if (error) return Promise.reject(error);
         return data;
       },
-      onSuccess: () => {
+      onSuccess: (_data, { projectId }) => {
         queryClient.invalidateQueries({
-          queryKey: projectsQueries.listQueryOptions().queryKey,
+          queryKey: ["projects", "detail", projectId, "api-keys"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["projects", "detail", projectId],
         });
       },
     }),
@@ -151,7 +176,10 @@ export const apiKeysQueries = {
       },
       onSuccess: (_data, { projectId }) => {
         queryClient.invalidateQueries({
-          queryKey: apiKeysQueries.listQueryOptions(projectId).queryKey,
+          queryKey: ["projects", "detail", projectId, "api-keys"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["projects", "detail", projectId],
         });
       },
     }),

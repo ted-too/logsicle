@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/sumup/typeid"
 	"github.com/ted-too/logsicle/internal/integrations/oidc"
+	"github.com/ted-too/logsicle/internal/storage"
 	"github.com/ted-too/logsicle/internal/storage/models"
 	"gorm.io/gorm"
 )
@@ -207,6 +209,8 @@ func syncUser(ctx context.Context, oidcClient *oidc.OIDCClient, db *gorm.DB) (*m
 		return nil, result.Error
 	}
 
+	isNewUser := result.Error == gorm.ErrRecordNotFound
+
 	if user.ID == "" {
 		userID, err := typeid.New[models.UserID]()
 		if err != nil {
@@ -221,10 +225,78 @@ func syncUser(ctx context.Context, oidcClient *oidc.OIDCClient, db *gorm.DB) (*m
 	user.Name = idTokenClaims.Name
 	user.LastLoginAt = time.Now()
 
-	if result.Error == gorm.ErrRecordNotFound {
-		return &user, db.WithContext(ctx).Create(&user).Error
+	// Start a transaction for creating/updating user and potentially creating default organization
+	tx := db.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
 	}
-	return &user, db.WithContext(ctx).Save(&user).Error
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if isNewUser {
+		if err := tx.Create(&user).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+
+		// Create default organization for new user
+		orgID, err := typeid.New[models.OrganizationID]()
+		if err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+
+		defaultOrg := models.Organization{
+			BaseModel: storage.BaseModel{
+				ID: orgID.String(),
+			},
+			Name:        fmt.Sprintf("%s's Organization", user.Name),
+			Description: "Default organization",
+			CreatedBy:   user.ID,
+		}
+
+		if err := tx.Create(&defaultOrg).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+
+		// Create team membership for the user as owner
+		membershipID, err := typeid.New[models.TeamMembershipID]()
+		if err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+
+		membership := models.TeamMembership{
+			BaseModel: storage.BaseModel{
+				ID: membershipID.String(),
+			},
+			OrganizationID: defaultOrg.ID,
+			UserID:         user.ID,
+			Role:           models.RoleOwner,
+			JoinedAt:       time.Now(),
+			InvitedBy:      user.ID,
+		}
+
+		if err := tx.Create(&membership).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	} else {
+		if err := tx.Save(&user).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 func (g *BaseHandler) getUserHandler(c fiber.Ctx) error {
