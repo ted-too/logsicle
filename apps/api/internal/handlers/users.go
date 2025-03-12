@@ -17,12 +17,14 @@ type createProjectRequest struct {
 	Name             string   `json:"name"`
 	AllowedOrigins   []string `json:"allowed_origins"`
 	LogRetentionDays int      `json:"log_retention_days"`
+	OrganizationID   string   `json:"organization_id"`
 }
 
 func (r createProjectRequest) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name, validation.Required, validation.Length(1, 255)),
 		validation.Field(&r.LogRetentionDays, validation.Min(1), validation.Max(90)),
+		validation.Field(&r.OrganizationID, validation.Required),
 	)
 }
 
@@ -45,6 +47,14 @@ func (h *BaseHandler) createProject(c fiber.Ctx) error {
 		})
 	}
 
+	// Verify organization access with admin or owner role
+	_, err = verifyOrganizationRole(h.db, body.OrganizationID, userID, []models.Role{models.RoleOwner, models.RoleAdmin})
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"message": "You don't have permission to create projects in this organization",
+		})
+	}
+
 	projectID, err := typeid.New[models.ProjectID]()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -55,6 +65,7 @@ func (h *BaseHandler) createProject(c fiber.Ctx) error {
 	project := models.Project{
 		BaseModel:        storage.BaseModel{ID: projectID.String()},
 		UserID:           userID,
+		OrganizationID:   body.OrganizationID,
 		Name:             body.Name,
 		AllowedOrigins:   pq.StringArray(body.AllowedOrigins),
 		LogRetentionDays: body.LogRetentionDays,
@@ -84,6 +95,14 @@ func (h *BaseHandler) updateProject(c fiber.Ctx) error {
 	project, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
 	if err != nil {
 		return err
+	}
+
+	// Verify organization permissions (must be admin or owner)
+	_, err = verifyOrganizationRole(h.db, project.OrganizationID, userID, []models.Role{models.RoleOwner, models.RoleAdmin})
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"message": "You don't have permission to update projects in this organization",
+		})
 	}
 
 	// Parse request body
@@ -128,9 +147,52 @@ func (h *BaseHandler) updateProject(c fiber.Ctx) error {
 
 func (h *BaseHandler) listProjects(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
+	organizationID := c.Query("organization_id")
 
+	// If organization ID is provided, verify access to that organization
+	if organizationID != "" {
+		_, err := verifyOrganizationAccess(h.db, organizationID, userID)
+		if err != nil {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"message": "You don't have access to this organization",
+			})
+		}
+
+		var projects []models.Project
+		if err := h.db.Where("organization_id = ?", organizationID).Preload("APIKeys").Find(&projects).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to fetch projects",
+				"error":   err.Error(),
+			})
+		}
+
+		return c.JSON(projects)
+	}
+
+	// If no organization ID is provided, list all projects the user has access to
+	// Get all organizations the user is a member of
+	var memberships []models.TeamMembership
+	if err := h.db.Where("user_id = ?", userID).Find(&memberships).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch user memberships",
+			"error":   err.Error(),
+		})
+	}
+
+	// Extract organization IDs
+	orgIDs := make([]string, 0, len(memberships))
+	for _, membership := range memberships {
+		orgIDs = append(orgIDs, membership.OrganizationID)
+	}
+
+	// If user is not a member of any organization, return empty list
+	if len(orgIDs) == 0 {
+		return c.JSON([]models.Project{})
+	}
+
+	// Get all projects from these organizations
 	var projects []models.Project
-	if err := h.db.Where("user_id = ?", userID).Preload("APIKeys").Find(&projects).Error; err != nil {
+	if err := h.db.Where("organization_id IN ?", orgIDs).Preload("APIKeys").Find(&projects).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch projects",
 			"error":   err.Error(),
@@ -142,12 +204,20 @@ func (h *BaseHandler) listProjects(c fiber.Ctx) error {
 
 func verifyDashboardProjectAccess(db *gorm.DB, ctx fiber.Ctx, projectID, userID string) (*models.Project, error) {
 	var project models.Project
-	if err := db.Where("id = ? AND user_id = ?", projectID, userID).First(&project).Error; err != nil {
+	if err := db.Where("id = ?", projectID).First(&project).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fiber.NewError(fiber.StatusNotFound, "Project not found or access denied")
+			return nil, fiber.NewError(fiber.StatusNotFound, "Project not found")
 		}
 		return nil, fiber.NewError(fiber.StatusInternalServerError, "Failed to verify project access")
 	}
+
+	// Check if user has access to the organization that owns this project
+	var membership models.TeamMembership
+	result := db.Where("organization_id = ? AND user_id = ?", project.OrganizationID, userID).First(&membership)
+	if result.Error != nil {
+		return nil, fiber.NewError(fiber.StatusForbidden, "You don't have access to this project")
+	}
+
 	return &project, nil
 }
 
@@ -216,6 +286,20 @@ func (h *BaseHandler) deleteProject(c fiber.Ctx) error {
 	userID := c.Locals("user-id").(string)
 	projectID := c.Params("id")
 
+	// Verify project access
+	project, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	if err != nil {
+		return err
+	}
+
+	// Verify organization permissions (must be admin or owner)
+	_, err = verifyOrganizationRole(h.db, project.OrganizationID, userID, []models.Role{models.RoleOwner, models.RoleAdmin})
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"message": "You don't have permission to delete projects in this organization",
+		})
+	}
+
 	// Begin transaction
 	tx := h.db.Begin()
 	if tx.Error != nil {
@@ -225,20 +309,12 @@ func (h *BaseHandler) deleteProject(c fiber.Ctx) error {
 		})
 	}
 
-	// Verify project ownership and delete
-	result := tx.Where("id = ? AND user_id = ?", projectID, userID).Delete(&models.Project{})
-	if result.Error != nil {
+	// Delete project
+	if err := tx.Delete(&project).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to delete project",
-			"error":   result.Error.Error(),
-		})
-	}
-
-	if result.RowsAffected == 0 {
-		tx.Rollback()
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Project not found",
+			"error":   err.Error(),
 		})
 	}
 
@@ -290,9 +366,17 @@ func (h *BaseHandler) createAPIKey(c fiber.Ctx) error {
 	projectID := c.Params("id")
 
 	// Verify project access
-	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	project, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
 	if err != nil {
 		return err
+	}
+
+	// Verify organization permissions (must be admin or owner)
+	_, err = verifyOrganizationRole(h.db, project.OrganizationID, userID, []models.Role{models.RoleOwner, models.RoleAdmin})
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"message": "You don't have permission to create API keys in this organization",
+		})
 	}
 
 	input := new(createAPIKeyRequest)
@@ -357,9 +441,17 @@ func (h *BaseHandler) listAPIKeys(c fiber.Ctx) error {
 	projectID := c.Params("id")
 
 	// Verify project access
-	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	project, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
 	if err != nil {
 		return err
+	}
+
+	// Verify organization access
+	_, err = verifyOrganizationAccess(h.db, project.OrganizationID, userID)
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"message": "You don't have access to this organization",
+		})
 	}
 
 	var apiKeys []models.ApiKey
@@ -379,9 +471,17 @@ func (h *BaseHandler) deleteAPIKey(c fiber.Ctx) error {
 	keyID := c.Params("keyId")
 
 	// Verify project access
-	_, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
+	project, err := verifyDashboardProjectAccess(h.db, c, projectID, userID)
 	if err != nil {
 		return err
+	}
+
+	// Verify organization permissions (must be admin or owner)
+	_, err = verifyOrganizationRole(h.db, project.OrganizationID, userID, []models.Role{models.RoleOwner, models.RoleAdmin})
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"message": "You don't have permission to delete API keys in this organization",
+		})
 	}
 
 	// Delete the API key

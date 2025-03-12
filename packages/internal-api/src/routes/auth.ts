@@ -11,6 +11,7 @@ export interface User {
   name: string;
   last_login_at: string;
   projects: any;
+  avatar_url: string | null;
 }
 
 export async function getUser({

@@ -3,8 +3,10 @@ package models
 import (
 	"crypto/rand"
 	"crypto/subtle"
+	"database/sql"
 	"encoding/base32"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -26,12 +28,42 @@ type UserID = typeid.Sortable[UserPrefix]
 
 type User struct {
 	storage.BaseModel
-	ExternalOauthID string    `gorm:"uniqueIndex;not null" json:"-"`
-	Email           string    `gorm:"uniqueIndex" json:"email"`
-	Name            string    `json:"name"`
-	HasOnboarded    bool      `gorm:"default:false" json:"has_onboarded"`
-	LastLoginAt     time.Time `json:"last_login_at"`
-	Projects        []Project `json:"projects"`
+	ExternalOauthID string         `gorm:"uniqueIndex;not null" json:"-"`
+	Email           string         `gorm:"uniqueIndex" json:"email"`
+	Name            string         `json:"name"`
+	AvatarURL       sql.NullString `json:"-"`
+	HasOnboarded    bool           `gorm:"default:false" json:"has_onboarded"`
+	LastLoginAt     time.Time      `json:"last_login_at"`
+	Projects        []Project      `json:"projects"`
+}
+
+func (u User) MarshalJSON() ([]byte, error) {
+	// Get the base model fields
+	baseJSON, err := json.Marshal(u.BaseModel)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal into a map to combine with other fields
+	var result map[string]interface{}
+	if err := json.Unmarshal(baseJSON, &result); err != nil {
+		return nil, err
+	}
+
+	// Add the fields
+	result["email"] = u.Email
+	result["name"] = u.Name
+	result["has_onboarded"] = u.HasOnboarded
+	result["last_login_at"] = u.LastLoginAt
+	result["projects"] = u.Projects
+
+	// Handle AvatarURL
+	result["avatar_url"] = nil
+	if u.AvatarURL.Valid {
+		result["avatar_url"] = u.AvatarURL.String
+	}
+
+	return json.Marshal(result)
 }
 
 type ProjectPrefix struct{}
@@ -45,6 +77,7 @@ type ProjectID = typeid.Sortable[ProjectPrefix]
 type Project struct {
 	storage.BaseModel
 	UserID           string         `gorm:"index;not null" json:"user_id"`
+	OrganizationID   string         `gorm:"index;not null" json:"organization_id"`
 	Name             string         `gorm:"not null" json:"name"`
 	AllowedOrigins   pq.StringArray `gorm:"type:text[]" json:"allowed_origins"`
 	LogRetentionDays int            `gorm:"default:30" json:"log_retention_days"`

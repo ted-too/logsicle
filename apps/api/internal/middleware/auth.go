@@ -1,12 +1,13 @@
 package middleware
 
 import (
-	"fmt"
+	"log"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/ted-too/logsicle/internal/config"
-	"github.com/ted-too/logsicle/internal/integrations/logto"
+	"github.com/ted-too/logsicle/internal/integrations/oidc"
 	"github.com/ted-too/logsicle/internal/storage/models"
 	"gorm.io/gorm"
 )
@@ -15,23 +16,41 @@ func AuthMiddleware(cfg *config.Config, db *gorm.DB) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		session := session.FromContext(c)
 		if session == nil {
+			log.Printf("Session is nil in auth middleware")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Failed to get session",
 			})
 		}
 
-		logto := logto.NewClient(cfg, session)
-		isAuthenticated := logto.IsAuthenticated()
+		oidcClient, err := oidc.NewClient(c.Context(), cfg, session)
+		if err != nil {
+			log.Printf("Failed to initialize OIDC client: %v", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to initialize OIDC client",
+				"error":   err.Error(),
+			})
+		}
+
+		isAuthenticated := oidcClient.IsAuthenticated()
 
 		if !isAuthenticated {
-			fmt.Printf("Unauthorized access attempt to path: %s\n", c.Path())
+			log.Printf("Unauthorized access attempt to path: %s", c.Path())
+			// Redirect to sign-in for browser requests
+			if strings.Contains(c.Get("Accept"), "text/html") {
+				return c.Redirect().Status(fiber.StatusTemporaryRedirect).To("/v1/auth/sign-in")
+			}
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"message": "Unauthorized",
 			})
 		}
 
-		idTokenClaims, err := logto.GetIdTokenClaims()
+		idTokenClaims, err := oidcClient.GetIDTokenClaims(c.Context())
 		if err != nil {
+			log.Printf("Failed to get token claims: %v", err)
+			// If token refresh failed, redirect to sign-in for browser requests
+			if strings.Contains(err.Error(), "failed to refresh token") && strings.Contains(c.Get("Accept"), "text/html") {
+				return c.Redirect().Status(fiber.StatusTemporaryRedirect).To("/v1/auth/sign-in")
+			}
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Failed to get token claims",
 				"error":   err.Error(),

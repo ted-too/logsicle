@@ -148,6 +148,10 @@ func (c *Config) SetDefaultValues() {
 	if c.WebBaseURL != "" && c.Auth.FrontendURL == "" {
 		c.Auth.FrontendURL = c.WebBaseURL
 	}
+
+	if c.Auth.Resources == nil || len(c.Auth.Resources) == 0 {
+		c.Auth.Resources = []string{"*"}
+	}
 }
 
 func LoadConfig(path string) (*Config, error) {

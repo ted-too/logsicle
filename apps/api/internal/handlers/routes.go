@@ -61,6 +61,19 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 		v1Authd.Get("/me", baseHandler.getUserHandler)
 		v1Authd.Patch("/me", baseHandler.updateUserHandler)
 
+		// Organization routes
+		v1Authd.Post("/organizations", baseHandler.createOrganization)
+		v1Authd.Get("/organizations", baseHandler.listOrganizations)
+		v1Authd.Get("/organizations/:id", baseHandler.getOrganization)
+		v1Authd.Patch("/organizations/:id", baseHandler.updateOrganization)
+		v1Authd.Delete("/organizations/:id", baseHandler.deleteOrganization)
+
+		// Organization members routes
+		v1Authd.Get("/organizations/:id/members", baseHandler.listOrganizationMembers)
+		v1Authd.Post("/organizations/:id/members", baseHandler.addOrganizationMember)
+		v1Authd.Patch("/organizations/:id/members/:memberId", baseHandler.updateOrganizationMember)
+		v1Authd.Delete("/organizations/:id/members/:memberId", baseHandler.removeOrganizationMember)
+
 		// Project routes
 		v1Authd.Post("/projects", baseHandler.createProject)
 		v1Authd.Get("/projects", baseHandler.listProjects)

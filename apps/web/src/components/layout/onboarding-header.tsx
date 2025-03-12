@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -31,6 +31,7 @@ export function OnboardingHeader({ user }: { user: User }) {
               className="w-[4.375rem] gap-2"
             >
               <Avatar className="size-7">
+                <AvatarImage src={user.avatar_url ?? undefined} />
                 <AvatarFallback className="uppercase">
                   {avatarFallback}
                 </AvatarFallback>
