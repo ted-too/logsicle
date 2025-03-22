@@ -27,7 +27,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   Link,
@@ -39,8 +38,14 @@ import {
 import { Brodcast, Category2, Setting2, Warning2 } from "iconsax-react";
 import { ChevronsUpDown, LogOut, PlusIcon } from "lucide-react";
 import { AppHeader } from "./app-header";
-import { organizationsQueries } from "@/qc/queries/organizations";
 import { useQuery } from "@tanstack/react-query";
+import { getUserOrganizationsQueryOptions } from "@/qc/queries/organizations";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface MenuItem {
   title: string;
@@ -90,24 +95,35 @@ function MenuItems({ items }: MenuItemsProps) {
     select: (location) => location.pathname,
   });
 
+  const { open: sidebarOpen } = useSidebar();
+
   return items.map((item) => (
-    <SidebarMenuItem key={item.title} className="w-full">
-      <SidebarMenuButton className="rounded-lg" asChild>
-        <Link
-          data-active={
-            item.isBase ? pathname === item.url : pathname.startsWith(item.url)
-          }
-          to={item.url}
-        >
-          <item.icon
-            className="shrink-0 [&>path]:stroke-2"
-            size={18}
-            color="currentColor"
-          />
-          <span>{item.title}</span>
-        </Link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
+    <Tooltip key={item.title}>
+      <TooltipTrigger asChild>
+        <SidebarMenuItem className="w-full">
+          <SidebarMenuButton className="rounded-lg" asChild>
+            <Link
+              data-active={
+                item.isBase
+                  ? pathname === item.url
+                  : pathname.startsWith(item.url)
+              }
+              to={item.url}
+            >
+              <item.icon
+                className="shrink-0 [&>path]:stroke-2"
+                size={18}
+                color="currentColor"
+              />
+              <span>{item.title}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </TooltipTrigger>
+      <TooltipContent side="right" className={cn(sidebarOpen && "hidden")}>
+        <p>{item.title}</p>
+      </TooltipContent>
+    </Tooltip>
   ));
 }
 
@@ -127,7 +143,7 @@ export function AppSidebar() {
   });
 
   const { data: userOrgs } = useQuery({
-    ...organizationsQueries.listQueryOptions(),
+    ...getUserOrganizationsQueryOptions(),
     initialData: initialUserOrgs,
   });
 

@@ -1,5 +1,6 @@
-import type { ErrorResponse, FnResponse, Opts } from "@/types";
+import type { ErrorResponse, Opts } from "@/types";
 import { z } from "zod";
+import { createClient } from "..";
 import { Project } from "./projects";
 
 // Schemas
@@ -76,249 +77,113 @@ export type UserOrganization = Omit<TeamMembership, "user">;
 // Create a new organization
 export async function createOrganization(
   data: CreateOrganizationRequest,
-  { baseURL, ...opts }: Opts
-): Promise<FnResponse<Organization>> {
-  const res = await fetch(`${baseURL}/v1/organizations`, {
+  { $fetch, ...opts }: Opts
+) {
+  const client = $fetch ?? createClient();
+
+  return await client<Organization, ErrorResponse>("/v1/organizations", {
     method: "POST",
-    body: JSON.stringify(data),
-    headers: {
-      "Content-Type": "application/json",
-    },
+    body: data,
     credentials: "include",
     ...opts,
   });
-
-  let resJSON: unknown | undefined = undefined;
-  try {
-    resJSON = await res.json();
-  } catch (error) {
-    return {
-      data: null,
-      error: {
-        message: "Failed to create organization",
-        error: "Failed to parse JSON response",
-      },
-    };
-  }
-
-  if (!res.ok) {
-    return { data: null, error: resJSON as ErrorResponse };
-  }
-
-  return { data: resJSON as Organization, error: null };
 }
 
 // List all organizations the user is a member of
-export async function listUserOrganizations({
-  baseURL,
-  ...opts
-}: Opts): Promise<FnResponse<UserOrganization[]>> {
-  const res = await fetch(`${baseURL}/v1/organizations`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
+export async function listUserOrganizations({ $fetch, ...opts }: Opts) {
+  const client = $fetch ?? createClient();
+
+  return await client<UserOrganization[], ErrorResponse>("/v1/organizations", {
     credentials: "include",
     ...opts,
   });
-
-  let resJSON: unknown | undefined = undefined;
-  try {
-    resJSON = await res.json();
-  } catch (error) {
-    return {
-      data: null,
-      error: {
-        message: "Failed to list organizations",
-        error: "Failed to parse JSON response",
-      },
-    };
-  }
-
-  if (!res.ok) {
-    return { data: null, error: resJSON as ErrorResponse };
-  }
-
-  return { data: resJSON as UserOrganization[], error: null };
 }
 
 // Get a single organization by ID
 export async function getOrganization(
   organizationId: string,
-  { baseURL, ...opts }: Opts
-): Promise<FnResponse<Organization>> {
-  const res = await fetch(`${baseURL}/v1/organizations/${organizationId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    ...opts,
-  });
+  { $fetch, ...opts }: Opts
+) {
+  const client = $fetch ?? createClient();
 
-  let resJSON: unknown | undefined = undefined;
-  try {
-    resJSON = await res.json();
-  } catch (error) {
-    return {
-      data: null,
-      error: {
-        message: "Failed to get organization",
-        error: "Failed to parse JSON response",
-      },
-    };
-  }
-
-  if (!res.ok) {
-    return { data: null, error: resJSON as ErrorResponse };
-  }
-
-  return { data: resJSON as Organization, error: null };
+  return await client<Organization, ErrorResponse>(
+    `/v1/organizations/${organizationId}`,
+    {
+      credentials: "include",
+      ...opts,
+    }
+  );
 }
 
 // Update an organization
 export async function updateOrganization(
   organizationId: string,
   data: UpdateOrganizationRequest,
-  { baseURL, ...opts }: Opts
-): Promise<FnResponse<Organization>> {
-  const res = await fetch(`${baseURL}/v1/organizations/${organizationId}`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    ...opts,
-  });
+  { $fetch, ...opts }: Opts
+) {
+  const client = $fetch ?? createClient();
 
-  let resJSON: unknown | undefined = undefined;
-  try {
-    resJSON = await res.json();
-  } catch (error) {
-    return {
-      data: null,
-      error: {
-        message: "Failed to update organization",
-        error: "Failed to parse JSON response",
-      },
-    };
-  }
-
-  if (!res.ok) {
-    return { data: null, error: resJSON as ErrorResponse };
-  }
-
-  return { data: resJSON as Organization, error: null };
+  return await client<Organization, ErrorResponse>(
+    `/v1/organizations/${organizationId}`,
+    {
+      method: "PATCH",
+      body: data,
+      credentials: "include",
+      ...opts,
+    }
+  );
 }
 
 // Delete an organization
 export async function deleteOrganization(
   organizationId: string,
-  { baseURL, ...opts }: Opts
-): Promise<FnResponse<null>> {
-  const res = await fetch(`${baseURL}/v1/organizations/${organizationId}`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    ...opts,
-  });
+  { $fetch, ...opts }: Opts
+) {
+  const client = $fetch ?? createClient();
 
-  if (!res.ok) {
-    let resJSON: unknown | undefined = undefined;
-    try {
-      resJSON = await res.json();
-    } catch (error) {
-      return {
-        data: null,
-        error: {
-          message: "Failed to delete organization",
-          error: "Failed to parse JSON response",
-        },
-      };
+  return await client<null, ErrorResponse>(
+    `/v1/organizations/${organizationId}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+      ...opts,
     }
-    return { data: null, error: resJSON as ErrorResponse };
-  }
-
-  return { data: null, error: null };
+  );
 }
 
 // List all members of an organization
 export async function listOrganizationMembers(
   organizationId: string,
-  { baseURL, ...opts }: Opts
-): Promise<FnResponse<TeamMembership[]>> {
-  const res = await fetch(
-    `${baseURL}/v1/organizations/${organizationId}/members`,
+  { $fetch, ...opts }: Opts
+) {
+  const client = $fetch ?? createClient();
+
+  return await client<TeamMembership[], ErrorResponse>(
+    `/v1/organizations/${organizationId}/members`,
     {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
       credentials: "include",
       ...opts,
     }
   );
-
-  let resJSON: unknown | undefined = undefined;
-  try {
-    resJSON = await res.json();
-  } catch (error) {
-    return {
-      data: null,
-      error: {
-        message: "Failed to list organization members",
-        error: "Failed to parse JSON response",
-      },
-    };
-  }
-
-  if (!res.ok) {
-    return { data: null, error: resJSON as ErrorResponse };
-  }
-
-  return { data: resJSON as TeamMembership[], error: null };
 }
 
 // Add a new member to an organization
 export async function addOrganizationMember(
   organizationId: string,
   data: AddMemberRequest,
-  { baseURL, ...opts }: Opts
-): Promise<FnResponse<TeamMembership>> {
-  const res = await fetch(
-    `${baseURL}/v1/organizations/${organizationId}/members`,
+  { $fetch, ...opts }: Opts
+) {
+  const client = $fetch ?? createClient();
+
+  return await client<TeamMembership, ErrorResponse>(
+    `/v1/organizations/${organizationId}/members`,
     {
       method: "POST",
-      body: JSON.stringify(data),
-      headers: {
-        "Content-Type": "application/json",
-      },
+      body: data,
       credentials: "include",
       ...opts,
     }
   );
-
-  let resJSON: unknown | undefined = undefined;
-  try {
-    resJSON = await res.json();
-  } catch (error) {
-    return {
-      data: null,
-      error: {
-        message: "Failed to add member to organization",
-        error: "Failed to parse JSON response",
-      },
-    };
-  }
-
-  if (!res.ok) {
-    return { data: null, error: resJSON as ErrorResponse };
-  }
-
-  return { data: resJSON as TeamMembership, error: null };
 }
 
 // Update a member's role in an organization
@@ -326,74 +191,35 @@ export async function updateOrganizationMember(
   organizationId: string,
   memberId: string,
   data: UpdateMemberRoleRequest,
-  { baseURL, ...opts }: Opts
-): Promise<FnResponse<TeamMembership>> {
-  const res = await fetch(
-    `${baseURL}/v1/organizations/${organizationId}/members/${memberId}`,
+  { $fetch, ...opts }: Opts
+) {
+  const client = $fetch ?? createClient();
+
+  return await client<TeamMembership, ErrorResponse>(
+    `/v1/organizations/${organizationId}/members/${memberId}`,
     {
       method: "PATCH",
-      body: JSON.stringify(data),
-      headers: {
-        "Content-Type": "application/json",
-      },
+      body: data,
       credentials: "include",
       ...opts,
     }
   );
-
-  let resJSON: unknown | undefined = undefined;
-  try {
-    resJSON = await res.json();
-  } catch (error) {
-    return {
-      data: null,
-      error: {
-        message: "Failed to update member role",
-        error: "Failed to parse JSON response",
-      },
-    };
-  }
-
-  if (!res.ok) {
-    return { data: null, error: resJSON as ErrorResponse };
-  }
-
-  return { data: resJSON as TeamMembership, error: null };
 }
 
 // Remove a member from an organization
 export async function removeOrganizationMember(
   organizationId: string,
   memberId: string,
-  { baseURL, ...opts }: Opts
-): Promise<FnResponse<null>> {
-  const res = await fetch(
-    `${baseURL}/v1/organizations/${organizationId}/members/${memberId}`,
+  { $fetch, ...opts }: Opts
+) {
+  const client = $fetch ?? createClient();
+
+  return await client<null, ErrorResponse>(
+    `/v1/organizations/${organizationId}/members/${memberId}`,
     {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
       credentials: "include",
       ...opts,
     }
   );
-
-  if (!res.ok) {
-    let resJSON: unknown | undefined = undefined;
-    try {
-      resJSON = await res.json();
-    } catch (error) {
-      return {
-        data: null,
-        error: {
-          message: "Failed to remove member from organization",
-          error: "Failed to parse JSON response",
-        },
-      };
-    }
-    return { data: null, error: resJSON as ErrorResponse };
-  }
-
-  return { data: null, error: null };
 }

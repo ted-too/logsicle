@@ -14,6 +14,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as AuthdImport } from './routes/_authd'
+import { Route as IndexImport } from './routes/index'
 import { Route as AuthdOrgSlugOnboardingImport } from './routes/_authd/$orgSlug/_onboarding'
 import { Route as AuthdOrgSlugOnboardingIndexImport } from './routes/_authd/$orgSlug/_onboarding/index'
 import { Route as AuthdOrgSlugOnboardingOnboardingImport } from './routes/_authd/$orgSlug/_onboarding/onboarding'
@@ -33,6 +34,12 @@ const AuthdOrgSlugProjSlugImport = createFileRoute(
 
 const AuthdRoute = AuthdImport.update({
   id: '/_authd',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const IndexRoute = IndexImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -98,6 +105,13 @@ const AuthdOrgSlugProjSlugDashboardSettingsRoute =
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexImport
+      parentRoute: typeof rootRoute
+    }
     '/_authd': {
       id: '/_authd'
       path: ''
@@ -248,6 +262,7 @@ const AuthdRouteChildren: AuthdRouteChildren = {
 const AuthdRouteWithChildren = AuthdRoute._addFileChildren(AuthdRouteChildren)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
   '': typeof AuthdRouteWithChildren
   '/$orgSlug': typeof AuthdOrgSlugOnboardingRouteWithChildren
   '/$orgSlug/$projSlug': typeof AuthdOrgSlugProjSlugDashboardRouteWithChildren
@@ -259,6 +274,7 @@ export interface FileRoutesByFullPath {
 }
 
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '': typeof AuthdRouteWithChildren
   '/$orgSlug': typeof AuthdOrgSlugOnboardingIndexRoute
   '/$orgSlug/$projSlug': typeof AuthdOrgSlugProjSlugDashboardIndexRoute
@@ -269,6 +285,7 @@ export interface FileRoutesByTo {
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
+  '/': typeof IndexRoute
   '/_authd': typeof AuthdRouteWithChildren
   '/_authd/$orgSlug': typeof AuthdOrgSlugRouteWithChildren
   '/_authd/$orgSlug/_onboarding': typeof AuthdOrgSlugOnboardingRouteWithChildren
@@ -284,6 +301,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
     | ''
     | '/$orgSlug'
     | '/$orgSlug/$projSlug'
@@ -294,6 +312,7 @@ export interface FileRouteTypes {
     | '/$orgSlug/$projSlug/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | ''
     | '/$orgSlug'
     | '/$orgSlug/$projSlug'
@@ -302,6 +321,7 @@ export interface FileRouteTypes {
     | '/$orgSlug/$projSlug/test'
   id:
     | '__root__'
+    | '/'
     | '/_authd'
     | '/_authd/$orgSlug'
     | '/_authd/$orgSlug/_onboarding'
@@ -316,10 +336,12 @@ export interface FileRouteTypes {
 }
 
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AuthdRoute: typeof AuthdRouteWithChildren
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AuthdRoute: AuthdRouteWithChildren,
 }
 
@@ -333,8 +355,12 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
+        "/",
         "/_authd"
       ]
+    },
+    "/": {
+      "filePath": "index.tsx"
     },
     "/_authd": {
       "filePath": "_authd.tsx",

@@ -1,5 +1,3 @@
-"use client";
-
 import { ActionButton, Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,40 +18,54 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner-wrapper";
 import { cn } from "@/lib/utils";
-import { projectsQueries } from "@/qc/queries/projects";
+import {
+  createProject as serverCreateProject,
+  updateProject as serverUpdateProject,
+} from "@/server/projects";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   allowedOriginSchema,
+  CreateProjectRequest,
   createProjectSchema,
-  LOG_RETENTION_DAYS,
-  Organization,
-  Project,
-  UserOrganization,
+  LOG_RETENTION_DAYS
 } from "@repo/api";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { XIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 export function SetupProject({
   steps,
-  project,
-  organizations,
 }: {
   steps: { next: () => void; prev: () => void };
-  project: Project | undefined;
-  organizations: UserOrganization[];
 }) {
+  const { currentUserOrg } = useRouteContext({
+    from: "/_authd/$orgSlug/_onboarding/onboarding",
+  });
   const queryClient = useQueryClient();
   const [parent] = useAutoAnimate();
-  const { mutateAsync: createProject } = projectsQueries.create();
-  const { mutateAsync: updateProject } = projectsQueries.update();
+  const { mutateAsync: createProject } = useMutation({
+    mutationFn: async (input: CreateProjectRequest) => {
+      const { data, error } = await serverCreateProject({ data: input });
+      if (error) return Promise.reject(error);
+      return data;
+    },
+  });
+  const { mutateAsync: updateProject } = useMutation({
+    mutationFn: async (
+      input: Partial<CreateProjectRequest> & { projectId: string }
+    ) => {
+      const { data, error } = await serverUpdateProject({ data: input });
+      if (error) return Promise.reject(error);
+      return data;
+    },
+  });
 
-  // Get the first organization (which should be the default one)
-  const defaultOrganization = organizations[0];
+  const project = currentUserOrg.organization.projects?.[0];
 
-  const form = useForm<z.infer<typeof createProjectSchema>>({
+  const form = useForm<CreateProjectRequest>({
     resolver: zodResolver(createProjectSchema),
     defaultValues:
       project !== undefined
@@ -67,31 +79,23 @@ export function SetupProject({
             name: "",
             log_retention_days: LOG_RETENTION_DAYS[0],
             allowed_origins: [],
-            organization_id: defaultOrganization?.organization_id || "",
+            organization_id: currentUserOrg.organization.id,
           },
   });
-
-  // If no default organization is found, show an error
-  if (!defaultOrganization) {
-    return (
-      <div className="text-destructive">
-        Error: No organization found. Please contact support.
-      </div>
-    );
-  }
 
   async function onSubmit(input: z.infer<typeof createProjectSchema>) {
     try {
       if (project) {
-        await updateProject({ projectId: project.id, input });
+        await updateProject({ projectId: project.id, ...input });
         toast.success("Project updated successfully");
       } else {
         await createProject(input);
         toast.success("Project created successfully");
       }
-      await queryClient.refetchQueries({
-        queryKey: projectsQueries.listQueryOptions().queryKey,
-      });
+      // Do this in the useMutation onSuccess
+      // await queryClient.refetchQueries({
+      //   queryKey: projectsQueries.listQueryOptions().queryKey,
+      // });
       steps.next();
     } catch (error) {
       toast.APIError(error);

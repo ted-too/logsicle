@@ -4,7 +4,7 @@ import { getUser } from "@/server/auth";
 import { listUserOrganizations } from "@/server/organizations";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authd")({
+export const Route = createFileRoute("/")({
   beforeLoad: async ({ location, context }) => {
     const { data: user, error } = await getUser();
 
@@ -38,9 +38,9 @@ export const Route = createFileRoute("/_authd")({
       userOrgs,
     };
   },
-  component: AuthedLayout,
+  component: BaseLayout,
 });
 
-function AuthedLayout() {
+function BaseLayout() {
   return <Outlet />;
 }

@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { $fetch, type ErrorResponse, type FnResponse, type Opts } from "..";
-import { betterFetch } from "@better-fetch/fetch";
+import { createClient, type ErrorResponse, type Opts } from "..";
 
 export interface User {
   id: string;
@@ -15,24 +14,13 @@ export interface User {
   avatar_url: string | null;
 }
 
-export async function getUser({
-  baseURL,
-  ...opts
-}: Opts): Promise<User | null> {
-  try {
-    const res = await fetch(`${baseURL}/v1/me`, {
-      credentials: "include",
-      ...opts,
-    });
+export async function getUser({ $fetch, ...opts }: Opts) {
+  const client = $fetch ?? createClient();
 
-    if (!res.ok) return null;
-
-    const resJSON = await res.json();
-
-    return resJSON;
-  } catch (error) {
-    return null;
-  }
+  return await client<User, ErrorResponse>("/v1/me", {
+    credentials: "include",
+    ...opts,
+  });
 }
 
 export const updateUserSchema = z.object({
@@ -43,35 +31,14 @@ export const updateUserSchema = z.object({
 export type UpdateUserRequest = z.infer<typeof updateUserSchema>;
 
 export async function updateUser(
-  input: UpdateUserRequest,
-  { baseURL, ...opts }: Opts
-): Promise<FnResponse<User>> {
-  const res = await fetch(`${baseURL}/v1/me`, {
+  body: UpdateUserRequest,
+  { $fetch, ...opts }: Opts
+) {
+  const client = $fetch ?? createClient();
+
+  return await client<User, ErrorResponse>("/v1/me", {
     method: "PATCH",
-    body: JSON.stringify(input),
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
+    body,
     ...opts,
   });
-
-  let resJSON: unknown | undefined = undefined;
-  try {
-    resJSON = await res.json();
-  } catch (error) {
-    return {
-      data: null,
-      error: {
-        message: "Failed to update user",
-        error: "Failed to parse JSON response",
-      },
-    };
-  }
-
-  if (!res.ok) {
-    return { data: null, error: resJSON as ErrorResponse };
-  }
-
-  return { data: resJSON as User, error: null };
 }

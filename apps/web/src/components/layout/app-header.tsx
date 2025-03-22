@@ -13,9 +13,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { projectsQueries } from "@/qc/queries/projects";
+import { getProjectsQueryOptions } from "@/qc/queries/projects";
 import { useQuery } from "@tanstack/react-query";
 import {
   Link,
@@ -41,9 +41,7 @@ export function AppHeader() {
   });
 
   const { data: projects } = useQuery({
-    ...projectsQueries.listQueryOptions({
-      organizationId: currentUserOrg.organization.id,
-    }),
+    ...getProjectsQueryOptions(currentUserOrg.organization.id),
     initialData: currentUserOrg.organization.projects,
   });
 

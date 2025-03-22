@@ -1,3 +1,5 @@
+// import { GenAPIKey } from "@/components/onboarding/gen-api-key";
+import { SetupProject } from "@/components/onboarding/setup-project";
 import {
   Accordion,
   AccordionContent,
@@ -5,14 +7,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import { projectsQueries } from "@/qc/queries/projects";
 import { ZapIcon } from "lucide-react";
 import { useState } from "react";
-import { GenAPIKey } from "@/components/onboarding/gen-api-key";
-import { SetupProject } from "@/components/onboarding/setup-project";
 // import { TestAPIKey } from "@/components/onboarding/test-api-key";
-import { organizationsQueries } from "@/qc/queries/organizations";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authd/$orgSlug/_onboarding/onboarding")(
   {
@@ -26,12 +24,12 @@ const STEPS = [
     description: "Don't worry you can create more later",
     Component: SetupProject,
   },
-  {
-    label: "Generate API Key",
-    description:
-      "Setup your credentials for your project. You can create more or edit this one later",
-    Component: GenAPIKey,
-  },
+  // {
+  //   label: "Generate API Key",
+  //   description:
+  //     "Setup your credentials for your project. You can create more or edit this one later",
+  //   Component: GenAPIKey,
+  // },
   // {
   //   label: "Send your first event",
   //   description:
@@ -41,12 +39,17 @@ const STEPS = [
 ];
 
 export function MainOnboardingForm() {
-  const { data: organizations } = organizationsQueries.list.useSuspenseQuery();
-  const { data: initialData } = projectsQueries.list.useSuspenseQuery();
+  const { currentUserOrg } = useRouteContext({
+    from: "/_authd/$orgSlug/_onboarding/onboarding",
+  });
+
   let initialStep = 0;
-  if (initialData.length > 0) {
+  if (currentUserOrg.organization.projects.length > 0) {
     initialStep += 1;
-    if (initialData[0].api_keys && initialData[0].api_keys.length > 0)
+    if (
+      currentUserOrg.organization.projects?.[0].api_keys &&
+      currentUserOrg.organization.projects[0].api_keys.length > 0
+    )
       initialStep += 1;
   }
 
@@ -95,11 +98,7 @@ export function MainOnboardingForm() {
               <p className="mb-4 mt-1 text-sm text-muted-foreground">
                 {description}
               </p>
-              <Component
-                steps={{ next: nextStep, prev: prevStep }}
-                project={initialData[0]}
-                organizations={organizations}
-              />
+              <Component steps={{ next: nextStep, prev: prevStep }} />
             </AccordionContent>
           </AccordionItem>
         ))}

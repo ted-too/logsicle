@@ -1,5 +1,8 @@
-export interface Opts extends RequestInit {
-  baseURL?: string;
+import { BetterFetch } from "@better-fetch/fetch";
+
+export interface Opts {
+  $fetch?: BetterFetch;
+  headers?: HeadersInit;
 }
 
 export interface ErrorResponse {
