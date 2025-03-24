@@ -1,14 +1,15 @@
-import type { AppLog } from "@repo/api"
-import type { CellContext } from "@tanstack/react-table"
-import { AppLogSheet } from "./app-log-sheet"
+import type { AppLog } from "@repo/api";
+import type { CellContext } from "@tanstack/react-table";
+import { AppLogSheet } from "./app-log-sheet";
 
 export function FieldsCell({ row }: CellContext<AppLog, unknown>) {
-  const log = row.original
+	const log = row.original;
 
-  return (
-    <AppLogSheet log={log}>
-      <div className="truncate cursor-pointer hover:underline">{JSON.stringify(log.fields)}</div>
-    </AppLogSheet>
-  )
+	return (
+		<AppLogSheet log={log}>
+			<div className="truncate cursor-pointer hover:underline">
+				{JSON.stringify(log.fields)}
+			</div>
+		</AppLogSheet>
+	);
 }
-

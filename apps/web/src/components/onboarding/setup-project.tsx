@@ -7,7 +7,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "@/components/ui/react-hook-form";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,20 +21,21 @@ import { cn } from "@/lib/utils";
 import {
   createProject as serverCreateProject,
   updateProject as serverUpdateProject,
-} from "@/server/projects";
+} from "@/server/teams/projects";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  type CreateProjectRequest,
+  LOG_RETENTION_DAYS,
   allowedOriginSchema,
-  CreateProjectRequest,
   createProjectSchema,
-  LOG_RETENTION_DAYS
 } from "@repo/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouteContext } from "@tanstack/react-router";
 import { XIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import type { z } from "zod";
+import { getProjectsQueryOptions, projectsQueryKey } from "@/qc/teams/projects";
 
 export function SetupProject({
   steps,
@@ -44,6 +45,11 @@ export function SetupProject({
   const { currentUserOrg } = useRouteContext({
     from: "/_authd/$orgSlug/_onboarding/onboarding",
   });
+  const { data: projects } = useQuery({
+    ...getProjectsQueryOptions(),
+    initialData: currentUserOrg.organization.projects,
+  });
+  const project = projects?.[0];
   const queryClient = useQueryClient();
   const [parent] = useAutoAnimate();
   const { mutateAsync: createProject } = useMutation({
@@ -53,34 +59,34 @@ export function SetupProject({
       return data;
     },
   });
+
   const { mutateAsync: updateProject } = useMutation({
     mutationFn: async (
       input: Partial<CreateProjectRequest> & { projectId: string }
     ) => {
-      const { data, error } = await serverUpdateProject({ data: input });
+      const { data, error } = await serverUpdateProject({
+        data: {
+          projectId: input.projectId,
+          body: input,
+        },
+      });
       if (error) return Promise.reject(error);
       return data;
     },
+    onSuccess: () => {
+      queryClient.refetchQueries({
+        queryKey: projectsQueryKey,
+      });
+    },
   });
-
-  const project = currentUserOrg.organization.projects?.[0];
 
   const form = useForm<CreateProjectRequest>({
     resolver: zodResolver(createProjectSchema),
-    defaultValues:
-      project !== undefined
-        ? {
-            name: project.name,
-            log_retention_days: project.log_retention_days,
-            allowed_origins: project.allowed_origins,
-            organization_id: project.organization_id,
-          }
-        : {
-            name: "",
-            log_retention_days: LOG_RETENTION_DAYS[0],
-            allowed_origins: [],
-            organization_id: currentUserOrg.organization.id,
-          },
+    defaultValues: project ?? {
+      name: "",
+      log_retention_days: LOG_RETENTION_DAYS[0],
+      allowed_origins: [],
+    },
   });
 
   async function onSubmit(input: z.infer<typeof createProjectSchema>) {
@@ -92,10 +98,6 @@ export function SetupProject({
         await createProject(input);
         toast.success("Project created successfully");
       }
-      // Do this in the useMutation onSuccess
-      // await queryClient.refetchQueries({
-      //   queryKey: projectsQueries.listQueryOptions().queryKey,
-      // });
       steps.next();
     } catch (error) {
       toast.APIError(error);
@@ -132,7 +134,7 @@ export function SetupProject({
               <FormLabel>Log Retention</FormLabel>
               <Select
                 onValueChange={field.onChange}
-                defaultValue={field.value.toString()}
+                defaultValue={field.value?.toString()}
                 required
               >
                 <FormControl>
@@ -171,7 +173,7 @@ export function SetupProject({
                         e.preventDefault();
 
                         // If value already contains "*", prevent adding other origins
-                        if (value.includes("*")) {
+                        if (value?.includes("*")) {
                           toast.warning(
                             "Cannot add specific origins when all origins (*) is selected"
                           );
@@ -197,8 +199,8 @@ export function SetupProject({
                             .toString()
                             .replace(/\/$/, "");
                           // Add to array if it's not already included
-                          if (!value.includes(parsedURLString)) {
-                            onChange([...value, parsedURLString]);
+                          if (!value?.includes(parsedURLString)) {
+                            onChange([...(value || []), parsedURLString]);
                           }
                           // Clear the input
                           e.currentTarget.value = "";
@@ -229,10 +231,10 @@ export function SetupProject({
                 ref={parent}
                 className={cn(
                   "flex flex-wrap gap-3",
-                  value.length == 0 && "hidden"
+                  value?.length === 0 && "hidden"
                 )}
               >
-                {value.map((origin, i) => (
+                {(value ?? []).map((origin, i) => (
                   <div
                     key={`allowed-origin-${i}`}
                     className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs font-mono tracking-tight"
@@ -243,7 +245,9 @@ export function SetupProject({
                     <Button
                       variant="link"
                       onClick={() => {
-                        onChange(value.filter((_, index) => index !== i));
+                        onChange(
+                          value?.filter((_, index) => index !== i) || []
+                        );
                       }}
                       className="size-max p-0 [&_svg]:size-3"
                       size="icon"
@@ -262,9 +266,9 @@ export function SetupProject({
           variant="caribbean"
           className="mt-4 w-20"
           isLoading={form.formState.isSubmitting}
-          disabled={!form.formState.isDirty}
+          disabled={!form.formState.isDirty && !project}
         >
-          {project ? "Update" : "Next"}
+          {project && form.formState.isDirty ? "Update" : "Next"}
         </ActionButton>
       </form>
     </Form>

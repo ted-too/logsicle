@@ -1,6 +1,8 @@
 package models
 
 import (
+	"database/sql"
+	"encoding/json"
 	"strconv"
 	"time"
 
@@ -9,15 +11,6 @@ import (
 	"github.com/ted-too/logsicle/internal/storage"
 	"gorm.io/gorm"
 )
-
-// Organization prefix for TypeID
-type OrganizationPrefix struct{}
-
-func (OrganizationPrefix) Prefix() string {
-	return "org"
-}
-
-type OrganizationID = typeid.Sortable[OrganizationPrefix]
 
 // Organization represents a team or organization that owns projects
 type Organization struct {
@@ -31,6 +24,14 @@ type Organization struct {
 }
 
 func (o *Organization) BeforeCreate(tx *gorm.DB) (err error) {
+	if o.BaseModel.ID == "" {
+		id, err := typeid.New[OrganizationID]()
+		if err != nil {
+			return err
+		}
+		o.BaseModel.ID = id.String()
+	}
+
 	// Generate initial slug from name
 	o.Slug = slug.Make(o.Name)
 
@@ -55,86 +56,75 @@ const (
 	RoleMember Role = "member" // Can view and use projects, but not modify organization settings
 )
 
-// TeamMembershipPrefix for TypeID
-type TeamMembershipPrefix struct{}
-
-func (TeamMembershipPrefix) Prefix() string {
-	return "mem"
-}
-
-type TeamMembershipID = typeid.Sortable[TeamMembershipPrefix]
-
 // TeamMembership represents a user's membership in an organization
 type TeamMembership struct {
 	storage.BaseModel
-	OrganizationID string        `gorm:"index;not null" json:"organization_id"`
-	UserID         string        `gorm:"index;not null" json:"user_id"`
-	Role           Role          `gorm:"not null;default:'member'" json:"role"`
-	JoinedAt       time.Time     `gorm:"not null" json:"joined_at"`
-	InvitedBy      string        `json:"invited_by"` // User ID who invited this member
-	User           *User         `json:"user" gorm:"foreignKey:UserID"`
-	Organization   *Organization `json:"organization" gorm:"foreignKey:OrganizationID"`
+	OrganizationID string         `gorm:"index;not null" json:"organization_id"`
+	UserID         string         `gorm:"index;not null" json:"user_id"`
+	Role           Role           `gorm:"not null;default:'member'" json:"role"`
+	JoinedAt       time.Time      `gorm:"not null" json:"joined_at"`
+	InvitedByID    sql.NullString `json:"invited_by"` // User ID who invited this member
+	InvitedBy      User           `json:"invited_by" gorm:"foreignKey:InvitedByID"`
+	User           User           `json:"user" gorm:"foreignKey:UserID"`
+	Organization   Organization   `json:"organization" gorm:"foreignKey:OrganizationID"`
 }
 
-// // Custom JSON marshaling for Organization
-// func (o Organization) MarshalJSON() ([]byte, error) {
-// 	// Get the base model fields
-// 	baseJSON, err := json.Marshal(o.BaseModel)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+func (t *TeamMembership) BeforeCreate(tx *gorm.DB) error {
+	if t.BaseModel.ID == "" {
+		id, err := typeid.New[TeamMembershipID]()
+		if err != nil {
+			return err
+		}
+		t.BaseModel.ID = id.String()
+	}
 
-// 	// Unmarshal into a map to combine with other fields
-// 	var result map[string]interface{}
-// 	if err := json.Unmarshal(baseJSON, &result); err != nil {
-// 		return nil, err
-// 	}
+	if t.JoinedAt.IsZero() {
+		t.JoinedAt = time.Now()
+	}
 
-// 	// Add the fields
-// 	result["name"] = o.Name
-// 	result["slug"] = o.Slug
-// 	result["description"] = o.Description
-// 	result["created_by"] = o.CreatedBy
+	return nil
+}
 
-// 	if o.Projects != nil {
-// 		result["projects"] = o.Projects
-// 	}
+// TODO: There's probably a better way to do this
+func (t TeamMembership) MarshalJSON() ([]byte, error) {
+	baseJSON, err := json.Marshal(t.BaseModel)
+	if err != nil {
+		return nil, err
+	}
 
-// 	if o.Members != nil {
-// 		result["members"] = o.Members
-// 	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(baseJSON, &result); err != nil {
+		return nil, err
+	}
 
-// 	return json.Marshal(result)
-// }
+	result["organization_id"] = t.OrganizationID
+	result["user_id"] = t.UserID
+	result["role"] = t.Role
+	result["joined_at"] = t.JoinedAt
 
-// // Custom JSON marshaling for TeamMembership
-// func (tm TeamMembership) MarshalJSON() ([]byte, error) {
-// 	// Get the base model fields
-// 	baseJSON, err := json.Marshal(tm.BaseModel)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	// Convert User to OtherUser
+	result["user"] = OtherUser{
+		BaseModel: t.User.BaseModel,
+		Name:      t.User.Name,
+		Email:     t.User.Email,
+		Image:     t.User.Image,
+	}
 
-// 	// Unmarshal into a map to combine with other fields
-// 	var result map[string]interface{}
-// 	if err := json.Unmarshal(baseJSON, &result); err != nil {
-// 		return nil, err
-// 	}
+	// Convert InvitedBy to OtherUser if present
+	result["invited_by"] = nil
+	if t.InvitedByID.Valid {
+		result["invited_by"] = OtherUser{
+			BaseModel: t.InvitedBy.BaseModel,
+			Name:      t.InvitedBy.Name,
+			Email:     t.InvitedBy.Email,
+			Image:     t.InvitedBy.Image,
+		}
+	}
 
-// 	// Add the fields
-// 	result["organization_id"] = tm.OrganizationID
-// 	result["user_id"] = tm.UserID
-// 	result["role"] = tm.Role
-// 	result["joined_at"] = tm.JoinedAt
-// 	result["invited_by"] = tm.InvitedBy
+	// Add organization without members
+	org := t.Organization
+	org.Members = nil
+	result["organization"] = org
 
-// 	if tm.User != nil {
-// 		result["user"] = tm.User
-// 	}
-
-// 	if tm.Organization != nil {
-// 		result["organization"] = tm.Organization
-// 	}
-
-// 	return json.Marshal(result)
-// }
+	return json.Marshal(result)
+}

@@ -14,7 +14,9 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as AuthdImport } from './routes/_authd'
-import { Route as IndexImport } from './routes/index'
+import { Route as AuthImport } from './routes/_auth'
+import { Route as AuthIndexImport } from './routes/_auth/index'
+import { Route as AuthSignUpImport } from './routes/_auth/sign-up'
 import { Route as AuthdOrgSlugOnboardingImport } from './routes/_authd/$orgSlug/_onboarding'
 import { Route as AuthdOrgSlugOnboardingIndexImport } from './routes/_authd/$orgSlug/_onboarding/index'
 import { Route as AuthdOrgSlugOnboardingOnboardingImport } from './routes/_authd/$orgSlug/_onboarding/onboarding'
@@ -37,9 +39,8 @@ const AuthdRoute = AuthdImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const IndexRoute = IndexImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthImport.update({
+  id: '/_auth',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -47,6 +48,18 @@ const AuthdOrgSlugRoute = AuthdOrgSlugImport.update({
   id: '/$orgSlug',
   path: '/$orgSlug',
   getParentRoute: () => AuthdRoute,
+} as any)
+
+const AuthIndexRoute = AuthIndexImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthRoute,
+} as any)
+
+const AuthSignUpRoute = AuthSignUpImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => AuthRoute,
 } as any)
 
 const AuthdOrgSlugProjSlugRoute = AuthdOrgSlugProjSlugImport.update({
@@ -105,11 +118,11 @@ const AuthdOrgSlugProjSlugDashboardSettingsRoute =
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
+    '/_auth': {
+      id: '/_auth'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AuthImport
       parentRoute: typeof rootRoute
     }
     '/_authd': {
@@ -118,6 +131,20 @@ declare module '@tanstack/react-router' {
       fullPath: ''
       preLoaderRoute: typeof AuthdImport
       parentRoute: typeof rootRoute
+    }
+    '/_auth/sign-up': {
+      id: '/_auth/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof AuthSignUpImport
+      parentRoute: typeof AuthImport
+    }
+    '/_auth/': {
+      id: '/_auth/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AuthIndexImport
+      parentRoute: typeof AuthImport
     }
     '/_authd/$orgSlug': {
       id: '/_authd/$orgSlug'
@@ -186,6 +213,18 @@ declare module '@tanstack/react-router' {
 }
 
 // Create and export the route tree
+
+interface AuthRouteChildren {
+  AuthSignUpRoute: typeof AuthSignUpRoute
+  AuthIndexRoute: typeof AuthIndexRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthSignUpRoute: AuthSignUpRoute,
+  AuthIndexRoute: AuthIndexRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface AuthdOrgSlugOnboardingRouteChildren {
   AuthdOrgSlugOnboardingOnboardingRoute: typeof AuthdOrgSlugOnboardingOnboardingRoute
@@ -262,8 +301,9 @@ const AuthdRouteChildren: AuthdRouteChildren = {
 const AuthdRouteWithChildren = AuthdRoute._addFileChildren(AuthdRouteChildren)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
   '': typeof AuthdRouteWithChildren
+  '/sign-up': typeof AuthSignUpRoute
+  '/': typeof AuthIndexRoute
   '/$orgSlug': typeof AuthdOrgSlugOnboardingRouteWithChildren
   '/$orgSlug/$projSlug': typeof AuthdOrgSlugProjSlugDashboardRouteWithChildren
   '/$orgSlug/onboarding': typeof AuthdOrgSlugOnboardingOnboardingRoute
@@ -274,8 +314,9 @@ export interface FileRoutesByFullPath {
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '': typeof AuthdRouteWithChildren
+  '/sign-up': typeof AuthSignUpRoute
+  '/': typeof AuthIndexRoute
   '/$orgSlug': typeof AuthdOrgSlugOnboardingIndexRoute
   '/$orgSlug/$projSlug': typeof AuthdOrgSlugProjSlugDashboardIndexRoute
   '/$orgSlug/onboarding': typeof AuthdOrgSlugOnboardingOnboardingRoute
@@ -285,8 +326,10 @@ export interface FileRoutesByTo {
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
-  '/': typeof IndexRoute
+  '/_auth': typeof AuthRouteWithChildren
   '/_authd': typeof AuthdRouteWithChildren
+  '/_auth/sign-up': typeof AuthSignUpRoute
+  '/_auth/': typeof AuthIndexRoute
   '/_authd/$orgSlug': typeof AuthdOrgSlugRouteWithChildren
   '/_authd/$orgSlug/_onboarding': typeof AuthdOrgSlugOnboardingRouteWithChildren
   '/_authd/$orgSlug/$projSlug': typeof AuthdOrgSlugProjSlugRouteWithChildren
@@ -301,8 +344,9 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | ''
+    | '/sign-up'
+    | '/'
     | '/$orgSlug'
     | '/$orgSlug/$projSlug'
     | '/$orgSlug/onboarding'
@@ -312,8 +356,9 @@ export interface FileRouteTypes {
     | '/$orgSlug/$projSlug/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | ''
+    | '/sign-up'
+    | '/'
     | '/$orgSlug'
     | '/$orgSlug/$projSlug'
     | '/$orgSlug/onboarding'
@@ -321,8 +366,10 @@ export interface FileRouteTypes {
     | '/$orgSlug/$projSlug/test'
   id:
     | '__root__'
-    | '/'
+    | '/_auth'
     | '/_authd'
+    | '/_auth/sign-up'
+    | '/_auth/'
     | '/_authd/$orgSlug'
     | '/_authd/$orgSlug/_onboarding'
     | '/_authd/$orgSlug/$projSlug'
@@ -336,12 +383,12 @@ export interface FileRouteTypes {
 }
 
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRouteWithChildren
   AuthdRoute: typeof AuthdRouteWithChildren
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthRoute: AuthRouteWithChildren,
   AuthdRoute: AuthdRouteWithChildren,
 }
 
@@ -355,18 +402,30 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
-        "/",
+        "/_auth",
         "/_authd"
       ]
     },
-    "/": {
-      "filePath": "index.tsx"
+    "/_auth": {
+      "filePath": "_auth.tsx",
+      "children": [
+        "/_auth/sign-up",
+        "/_auth/"
+      ]
     },
     "/_authd": {
       "filePath": "_authd.tsx",
       "children": [
         "/_authd/$orgSlug"
       ]
+    },
+    "/_auth/sign-up": {
+      "filePath": "_auth/sign-up.tsx",
+      "parent": "/_auth"
+    },
+    "/_auth/": {
+      "filePath": "_auth/index.tsx",
+      "parent": "/_auth"
     },
     "/_authd/$orgSlug": {
       "filePath": "_authd/$orgSlug",

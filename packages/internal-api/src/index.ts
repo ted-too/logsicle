@@ -1,49 +1,69 @@
 import { createFetch, createSchema } from "@better-fetch/fetch";
 import {
-  addMemberSchema,
-  createOrganizationSchema,
-  createProjectSchema,
-  updateMemberRoleSchema,
-  updateOrganizationSchema,
   updateUserSchema,
-} from "./routes";
+  createAPIKeySchema,
+  createChannelSchema,
+  updateChannelSchema,
+  listEventsSchema,
+  getEventMetricsSchema,
+  listAppLogsSchema,
+  getAppMetricsSchema,
+} from "@/routes";
 
 export * from "./types";
 export * from "./routes";
-export * from "./validations";
+// export * from "./validations";
 
 export const BASE_URL = import.meta.env.VITE_API_URL;
 export const createClient = () =>
-  createFetch({ baseURL: BASE_URL, credentials: "include" });
+  createFetch({
+    baseURL: BASE_URL,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 
 export const betterFetchSchema = createSchema({
+  // User routes
   "@get/v1/me": {},
   "@patch/v1/me": {
     input: updateUserSchema,
   },
-  "@post/v1/organizations": {
-    input: createOrganizationSchema,
+
+  // Project API Keys
+  "@post/v1/projects/:id/api-keys": {
+    input: createAPIKeySchema,
   },
-  "@patch/v1/organizations/:id": {
-    input: updateOrganizationSchema,
+  "@get/v1/projects/:id/api-keys": {},
+  "@delete/v1/projects/:id/api-keys/:keyId": {},
+
+  // Event Logs
+  "@get/v1/projects/:id/events": {
+    input: listEventsSchema,
   },
-  "@get/v1/organizations": {},
-  "@get/v1/organizations/:id": {},
-  "@delete/v1/organizations/:id": {},
-  "@get/v1/organizations/:id/members": {},
-  "@post/v1/organizations/:id/members": {
-    input: addMemberSchema,
+  "@delete/v1/projects/:id/events/:eventId": {},
+  "@get/v1/projects/:id/events/metrics": {
+    input: getEventMetricsSchema,
   },
-  "@patch/v1/organizations/:id/members/:memberId": {
-    input: updateMemberRoleSchema,
+
+  // Event Channels
+  "@post/v1/projects/:id/events/channels": {
+    input: createChannelSchema,
   },
-  "@delete/v1/organizations/:id/members/:memberId": {},
-  "@post/v1/projects": {
-    input: createProjectSchema,
+  "@get/v1/projects/:id/events/channels": {},
+  "@get/v1/projects/:id/events/channels/:channelId": {},
+  "@patch/v1/projects/:id/events/channels/:channelId": {
+    input: updateChannelSchema,
   },
-  "@patch/v1/projects/:id": {
-    input: createProjectSchema.partial(),
+  "@delete/v1/projects/:id/events/channels/:channelId": {},
+
+  // App Logs
+  "@get/v1/projects/:id/app": {
+    input: listAppLogsSchema,
   },
-  "@get/v1/projects": {},
-  "@get/v1/projects/:id": {},
+  "@delete/v1/projects/:id/app/:logId": {},
+  "@get/v1/projects/:id/app/metrics": {
+    input: getAppMetricsSchema,
+  },
 });

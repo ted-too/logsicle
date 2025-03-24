@@ -1,5 +1,5 @@
 export interface IconProps extends React.SVGProps<SVGSVGElement> {
-  variant?: string;
+	variant?: string;
 }
 
 export * from "./traces";

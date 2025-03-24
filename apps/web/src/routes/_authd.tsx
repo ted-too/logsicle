@@ -1,24 +1,23 @@
-import { getUserQueryKey } from "@/qc/queries/auth";
-import { userOrganizationsQueryKey } from "@/qc/queries/organizations";
-import { getUser } from "@/server/auth";
-import { listUserOrganizations } from "@/server/organizations";
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { userQueryKey } from "@/qc/auth/basic";
+import { userOrganizationsQueryKey } from "@/qc/teams/organizations";
+import { getUser } from "@/server/auth/basic";
+import { listUserOrganizationMemberships } from "@/server/teams/organizations";
+import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authd")({
   beforeLoad: async ({ location, context }) => {
     const { data: user, error } = await getUser();
 
-    // This is a redundant check, but it's here to be safe
     if (error) {
       throw redirect({
-        href: `${import.meta.env.VITE_API_URL}/v1/auth/sign-in${location.pathname === "/" ? "" : `?redirect=${encodeURIComponent(location.pathname)}`}`,
+        to: "/",
       });
     }
 
-    void context.queryClient.setQueryData(getUserQueryKey, user);
+    void context.queryClient.setQueryData(userQueryKey, user);
 
     const { data: userOrgs, error: userOrgsError } =
-      await listUserOrganizations();
+      await listUserOrganizationMemberships();
 
     if (userOrgsError) return Promise.reject(userOrgsError);
 

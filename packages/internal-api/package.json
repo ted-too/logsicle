@@ -14,9 +14,8 @@
   },
   "peerDependencies": {
     "date-fns": "^4.1.0",
-    "zod": "^3.24.2"
-  },
-  "dependencies": {
-    "@better-fetch/fetch": "^1.1.15"
+    "@tanstack/react-query": "^5.67.3",
+    "@better-fetch/fetch": "^1.1.15",
+		"zod": "^3.24.2"
   }
 }

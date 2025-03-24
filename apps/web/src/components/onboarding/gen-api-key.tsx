@@ -10,28 +10,30 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "@/components/ui/react-hook-form";
 import { Input } from "@/components/ui/input";
-import { apiKeysQueries } from "@/qc/queries/projects";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  API_KEY_WRITE_SCOPE_INFO,
-  APIKey,
-  createAPIKeySchema,
-  Project,
-} from "@repo/api";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Check, CircleCheckIcon, CircleXIcon, Copy } from "lucide-react";
-import { z } from "zod";
 import { cn, tempApiKeyStorage } from "@/lib/utils";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  type APIKey,
+  API_KEY_WRITE_SCOPE_INFO,
+  createAPIKeySchema,
+} from "@repo/api";
+import { Check, CircleCheckIcon, CircleXIcon, Copy } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import type { z } from "zod";
 import { toast } from "../ui/sonner-wrapper";
+import { useRouteContext } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createAPIKey as serverCreateAPIKey } from "@/server/auth/api-keys";
+import { getProjectsQueryOptions, projectsQueryKey } from "@/qc/teams/projects";
 
 function CreatedAPIKey({
   apiKey,
@@ -48,10 +50,6 @@ function CreatedAPIKey({
     setTimeout(() => setCopied(false), 1500);
   };
 
-  // Store API key when component mounts
-  useEffect(() => {
-    tempApiKeyStorage.set(apiKey.key);
-  }, [apiKey.key]);
   return (
     <div className="grid w-full grid-flow-row grid-cols-2 gap-4">
       <div className="flex items-start gap-4 w-full col-span-2">
@@ -72,7 +70,7 @@ function CreatedAPIKey({
                 <TooltipTrigger asChild>
                   <button
                     onClick={handleCopy}
-                    className="flex h-full w-9 items-center justify-center rounded-e-lg border border-transparent text-muted-foreground/80 outline-offset-2 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none disabled:cursor-not-allowed"
+                    className="flex h-full w-9 items-center justify-center rounded-e-lg border border-transparent text-muted-foreground/80 outline-offset-2 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none disabled:cursor-not-allowed"
                     aria-label={copied ? "Copied" : "Copy to clipboard"}
                     disabled={copied}
                   >
@@ -148,42 +146,68 @@ function CreatedAPIKey({
 
 export function GenAPIKey({
   steps,
-  project,
 }: {
   steps: { next: () => void; prev: () => void };
-  project: Project | undefined;
 }) {
-  const apiKeys: APIKey[] =
-    project?.api_keys !== null ? (project?.api_keys ?? []) : [];
-  const { mutateAsync: createAPIKey, data } = apiKeysQueries.create();
-  const createdAPIKey =
-    data ?? (apiKeys[0] !== undefined ? apiKeys[0] : undefined);
+  const queryClient = useQueryClient();
+  const { currentUserOrg } = useRouteContext({
+    from: "/_authd/$orgSlug/_onboarding/onboarding",
+  });
+  const { data: projects } = useQuery({
+    ...getProjectsQueryOptions(),
+    initialData: currentUserOrg.organization.projects,
+  });
+  const project = projects?.[0];
+
+  const { mutateAsync: createAPIKey } = useMutation({
+    mutationFn: async (input: {
+      projectId: string;
+      input: z.infer<typeof createAPIKeySchema>;
+    }) => {
+      const { data, error } = await serverCreateAPIKey({
+        data: {
+          projectId: input.projectId,
+          body: input.input,
+        },
+      });
+      if (error) return Promise.reject(error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.refetchQueries({
+        queryKey: projectsQueryKey,
+      });
+    },
+  });
+
+  const apiKey = project?.api_keys?.[0];
+
   const form = useForm<z.infer<typeof createAPIKeySchema>>({
     resolver: zodResolver(createAPIKeySchema),
-    defaultValues:
-      apiKeys[0] !== undefined
-        ? {
-            name: apiKeys[0].name,
-            scopes: apiKeys[0].scopes,
-          }
-        : {
-            name: "",
-            scopes: [],
-          },
+    defaultValues: apiKey ?? {
+      name: "",
+      scopes: [],
+    },
   });
 
   async function onSubmit(input: z.infer<typeof createAPIKeySchema>) {
-    if (!project) return toast.warning("Please create a project first");
+    if (!project) {
+      toast.warning("Please create a project first");
+      return;
+    }
+
     try {
-      await createAPIKey({ projectId: project.id, input });
+      const apiKey = await createAPIKey({ projectId: project.id, input });
+      tempApiKeyStorage.set(apiKey.key);
       toast.success("API key created successfully");
+      steps.next();
     } catch (error) {
       toast.APIError(error);
     }
   }
 
-  if (createdAPIKey !== undefined)
-    return <CreatedAPIKey apiKey={createdAPIKey} steps={steps} />;
+  if (apiKey !== undefined)
+    return <CreatedAPIKey apiKey={apiKey} steps={steps} />;
 
   return (
     <Form {...form}>

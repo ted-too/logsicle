@@ -1,28 +1,29 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "vcs": {
-    "enabled": false,
-    "clientKind": "git",
-    "useIgnoreFile": false
-  },
-  "files": {
-    "ignoreUnknown": false,
-    "ignore": [
-      ".next",
-      "legacy",
-      ".git",
-      "node_modules",
-      "typescript-config",
-      ".turbo"
-    ]
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "tab"
-  },
-  "organizeImports": {
-    "enabled": true
-  },
+	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+	"vcs": {
+		"enabled": false,
+		"clientKind": "git",
+		"useIgnoreFile": false
+	},
+	"files": {
+		"ignoreUnknown": false,
+		"ignore": [
+			"api",
+			"legacy",
+			".git",
+			"node_modules",
+			"typescript-config",
+			"routeTree.gen.ts",
+			".turbo"
+		]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
+	"organizeImports": {
+		"enabled": true
+	},
   "linter": {
     "enabled": true,
     "rules": {
@@ -33,16 +34,17 @@
         "useButtonType": "off"
       },
       "correctness": {
-        "noUnusedImports": "error"
+        "noUnusedImports": "error",
+        "noChildrenProp": "off"
       },
       "suspicious": {
         "noArrayIndexKey": "off"
       }
     }
   },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "double"
-    }
-  }
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		}
+	}
 }
