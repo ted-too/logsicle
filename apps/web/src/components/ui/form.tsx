@@ -1,6 +1,7 @@
 "use client";
 
-import { ActionButton, type ButtonProps } from "@/components/ui/button";
+import { ActionButton, Button, type ButtonProps } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -12,6 +13,7 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  type SelectPrimitiveProps,
   SelectTrigger,
   type SelectTriggerProps,
   SelectValue,
@@ -25,6 +27,7 @@ export const { fieldContext, formContext, useFieldContext, useFormContext } =
 
 export interface BaseFieldProps {
   label: string;
+  description?: string;
   className?: {
     root?: string;
     label?: string;
@@ -54,8 +57,21 @@ export function FormErrorMessage({
   );
 }
 
-export function TextField(props: BaseFieldProps & { type?: string }) {
-  const { label, className = {}, type = "text" } = props;
+export function TextField(
+  props: BaseFieldProps & {
+    type?: string;
+    placeholder?: string;
+    required?: boolean;
+  }
+) {
+  const {
+    label,
+    className = {},
+    type = "text",
+    placeholder,
+    description,
+    required,
+  } = props;
   const field = useFieldContext<string>();
   return (
     <div className={cn("grid gap-2", className.root)}>
@@ -68,7 +84,12 @@ export function TextField(props: BaseFieldProps & { type?: string }) {
         value={field.state.value}
         onChange={(e) => field.handleChange(e.target.value)}
         className={cn("w-full", className.input)}
+        placeholder={placeholder}
+        required={required}
       />
+      {description && (
+        <p className="text-muted-foreground text-sm">{description}</p>
+      )}
       <FormErrorMessage
         errors={field.state.meta.errors}
         className={className.message}
@@ -77,8 +98,10 @@ export function TextField(props: BaseFieldProps & { type?: string }) {
   );
 }
 
-export function NumberField(props: BaseFieldProps) {
-  const { label, className = {} } = props;
+export function NumberField(
+  props: BaseFieldProps & { placeholder?: string; required?: boolean }
+) {
+  const { label, className = {}, placeholder, required, description } = props;
   const field = useFieldContext<number>();
   return (
     <div className={cn("grid gap-2", className.root)}>
@@ -91,7 +114,12 @@ export function NumberField(props: BaseFieldProps) {
         type="number"
         onChange={(e) => field.handleChange(Number(e.target.value))}
         className={cn("w-full", className.input)}
+        placeholder={placeholder}
+        required={required}
       />
+      {description && (
+        <p className="text-muted-foreground text-sm">{description}</p>
+      )}
       <FormErrorMessage
         errors={field.state.meta.errors}
         className={className.message}
@@ -169,6 +197,7 @@ type SelectFieldProps = BaseFieldProps & {
   options: { label: string; value: string }[];
   placeholder?: string;
   triggerProps?: SelectTriggerProps;
+  primitiveProps?: SelectPrimitiveProps;
   contentProps?: {
     align?: "start" | "center" | "end";
   };
@@ -182,6 +211,8 @@ export function SelectField(props: SelectFieldProps) {
     placeholder,
     triggerProps,
     contentProps,
+    primitiveProps,
+    description,
   } = props;
   const field = useFieldContext<string>();
   return (
@@ -192,6 +223,7 @@ export function SelectField(props: SelectFieldProps) {
       <Select
         value={field.state.value}
         onValueChange={(value) => field.handleChange(value)}
+        {...primitiveProps}
       >
         <SelectTrigger className={className.input} {...triggerProps}>
           <SelectValue placeholder={placeholder} />
@@ -206,6 +238,9 @@ export function SelectField(props: SelectFieldProps) {
           </SelectGroup>
         </SelectContent>
       </Select>
+      {description && (
+        <p className="text-muted-foreground text-sm">{description}</p>
+      )}
       <FormErrorMessage
         errors={field.state.meta.errors}
         className={className.message}
@@ -214,53 +249,85 @@ export function SelectField(props: SelectFieldProps) {
   );
 }
 
-// type DatePickerFieldProps = BaseFieldProps & {
-// 	disabled?: (date: Date) => boolean;
-// };
+interface MultipleCheckboxFieldProps extends BaseFieldProps {
+  options: Array<{
+    label: string;
+    value: string;
+    description?: string;
+  }>;
+  selectAllLabel?: string;
+}
 
-// export function DatePickerSingleField(props: DatePickerFieldProps) {
-// 	const { label, className = {}, disabled } = props;
-// 	const field = useFieldContext<Date | undefined>();
-// 	return (
-// 		<div className={cn("grid gap-2", className.root)}>
-// 			<Label htmlFor={field.name} className={className.label}>
-// 				{label}
-// 			</Label>
-// 			<DatePickerSingle
-// 				date={field.state.value}
-// 				onDateChange={(date) => field.handleChange(date)}
-// 				disabled={disabled}
-// 				className={className.input}
-// 			/>
-// 			<FormErrorMessage
-// 				errors={field.state.meta.errors}
-// 				className={className.message}
-// 			/>
-// 		</div>
-// 	);
-// }
+export function MultipleCheckboxField(props: MultipleCheckboxFieldProps) {
+  const { label, className = {}, options, selectAllLabel, description } = props;
+  const field = useFieldContext<string[]>();
 
-// export function DatePickerRangeField(props: DatePickerFieldProps) {
-// 	const { label, className = {}, disabled } = props;
-// 	const field = useFieldContext<DateRange | undefined>();
-// 	return (
-// 		<div className={cn("grid gap-2", className.root)}>
-// 			<Label htmlFor={field.name} className={className.label}>
-// 				{label}
-// 			</Label>
-// 			<DatePickerWithRange
-// 				date={field.state.value}
-// 				onDateChange={(date) => field.handleChange(date)}
-// 				disabled={disabled}
-// 				className={className.input}
-// 			/>
-// 			<FormErrorMessage
-// 				errors={field.state.meta.errors}
-// 				className={className.message}
-// 			/>
-// 		</div>
-// 	);
-// }
+  return (
+    <div className={cn("grid gap-2", className.root)}>
+      <div className="flex items-center gap-4">
+        <Label htmlFor={field.name} className={className.label}>
+          {label}
+        </Label>
+        {selectAllLabel && (
+          <Button
+            type="button"
+            variant="link"
+            className="h-max p-0 text-xs"
+            onClick={() => field.handleChange(options.map((opt) => opt.value))}
+          >
+            {selectAllLabel}
+          </Button>
+        )}
+      </div>
+      {description && (
+        <p className="text-muted-foreground text-sm">{description}</p>
+      )}
+      <div className="flex flex-col gap-4">
+        {options.map((option) => (
+          <div
+            key={option.value}
+            className="flex flex-row items-center space-x-3 space-y-0"
+          >
+            <Checkbox
+              id={`${field.name}-${option.value}`}
+              checked={field.state.value?.includes(option.value)}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  field.handleChange([
+                    ...(field.state.value || []),
+                    option.value,
+                  ]);
+                } else {
+                  field.handleChange(
+                    field.state.value?.filter(
+                      (value) => value !== option.value
+                    ) || []
+                  );
+                }
+              }}
+              className={cn("mt-1 rounded-lg", className.input)}
+            />
+            <Label
+              htmlFor={`${field.name}-${option.value}`}
+              className={cn("text-sm font-normal", className.label)}
+            >
+              {option.label}
+            </Label>
+            {option.description && (
+              <p className="text-sm text-muted-foreground">
+                {option.description}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+      <FormErrorMessage
+        errors={field.state.meta.errors}
+        className={className.message}
+      />
+    </div>
+  );
+}
 
 export function SubmitButton(props?: ButtonProps) {
   const form = useFormContext();
@@ -287,8 +354,7 @@ export const { useAppForm } = createFormHook({
     NumberField,
     RadioGroup,
     SelectField,
-    // DatePickerSingleField,
-    // DatePickerRangeField,
+    MultipleCheckboxField,
   },
   formComponents: {
     SubmitButton,

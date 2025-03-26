@@ -10,6 +10,8 @@ export const Route = createFileRoute("/_authd/$orgSlug/$projSlug/_dashboard")({
 			(org) => org.organization.slug === orgSlug,
 		);
 
+		console.log(currentUserOrg);
+
 		const currentProject = currentUserOrg?.organization.projects.find(
 			(proj) => proj.slug === projSlug,
 		);

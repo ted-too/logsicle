@@ -66,7 +66,7 @@ export function MainOnboardingForm() {
 	};
 
 	return (
-		<div className="mt-16 flex flex-col gap-8">
+		<div className="mt-8 mb-16 flex flex-col gap-8">
 			<div className="relative mx-3.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-[#E1FF80]/40 text-pink/40 after:absolute after:top-[calc(100%+1px)] after:h-8 after:w-px after:bg-[hsl(74,100%,40%)]">
 				<ZapIcon className="size-5 fill-current stroke-none" />
 			</div>

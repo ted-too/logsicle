@@ -34,7 +34,10 @@ func (h *TeamsHandler) ListUserOrganizationMemberships(c fiber.Ctx) error {
 
 	var memberships []models.TeamMembership
 	if err := h.db.
-		Preload("Organization").
+		Preload("User").
+		Preload("InvitedBy").
+		Preload("Organization.CreatedBy").
+		Preload("Organization.Projects.CreatedBy").
 		Where("user_id = ?", userSession.UserID).
 		Find(&memberships).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -82,7 +85,7 @@ func (h *TeamsHandler) CreateOrganization(c fiber.Ctx) error {
 		Name:        input.Name,
 		Slug:        slug.Make(input.Name),
 		Description: input.Description,
-		CreatedBy:   session.UserID,
+		CreatedByID: session.UserID,
 	}
 
 	// Start a transaction

@@ -9,14 +9,18 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { projectsQueries } from "@/qc/legacy-queries/projects";
 import {
 	type ZonedDateTime,
 	fromDate,
 	getLocalTimeZone,
 } from "@internationalized/date";
 import { suggestInterval } from "@repo/api";
-import { useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+import {
+	useNavigate,
+	useParams,
+	useRouteContext,
+	useSearch,
+} from "@tanstack/react-router";
 import { debounce } from "@tanstack/react-virtual";
 import { add, format, sub } from "date-fns";
 import { CalendarIcon } from "lucide-react";
@@ -42,15 +46,17 @@ const HR_MM_TIMES = Array.from({ length: 96 }).map((_, i) => {
 });
 
 export default function TimeRangePicker() {
-	const params = useParams({ from: "/_authd/_app/dashboard/$projId/logs" });
-	const { data: project } = projectsQueries.getById.useSuspenseQuery(
-		params.projId,
-	);
+	const { currentProject: project } = useRouteContext({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+	});
+	const params = useParams({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+	});
 	const navigate = useNavigate();
 	const [isPending, startTransition] = useTransition();
 	const timezone = getLocalTimeZone();
-	const prevSearch = useRouterState({
-		select: (state) => state.location.search,
+	const searchParams = useSearch({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
 	});
 
 	// Local state for immediate updates
@@ -58,17 +64,17 @@ export default function TimeRangePicker() {
 		start: ZonedDateTime;
 		end: ZonedDateTime;
 	}>({
-		start: fromDate(new Date(prevSearch.start!), timezone),
-		end: fromDate(new Date(prevSearch.end!), timezone),
+		start: fromDate(new Date(searchParams.start), timezone),
+		end: fromDate(new Date(searchParams.end), timezone),
 	});
 
 	// Update local state when URL changes
 	useEffect(() => {
 		setLocalRange({
-			start: fromDate(new Date(prevSearch.start!), timezone),
-			end: fromDate(new Date(prevSearch.end!), timezone),
+			start: fromDate(new Date(searchParams.start), timezone),
+			end: fromDate(new Date(searchParams.end), timezone),
 		});
-	}, [prevSearch.start, prevSearch.end, timezone]);
+	}, [searchParams.start, searchParams.end, timezone]);
 
 	// Debounced navigation
 	const debouncedNavigate = useMemo(
@@ -82,20 +88,20 @@ export default function TimeRangePicker() {
 							value.end.toDate(),
 						);
 						navigate({
-							to: "/dashboard/$projId/logs",
+							to: "/$orgSlug/$projSlug/logs",
 							params,
 							search: {
-								...prevSearch,
+								...searchParams,
 								interval,
-								start: value.start.toDate(),
-								end: value.end.toDate(),
+								start: value.start.toDate().toISOString(),
+								end: value.end.toDate().toISOString(),
 							},
 						});
 					});
 				},
 				300,
 			),
-		[navigate, params, prevSearch],
+		[navigate, params, searchParams],
 	);
 
 	useEffect(() => {

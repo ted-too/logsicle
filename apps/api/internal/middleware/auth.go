@@ -23,6 +23,7 @@ func AuthMiddleware(db *gorm.DB) fiber.Handler {
 		// Get user
 		var user models.User
 		if err := db.Preload("Organizations").Where("id = ?", userSession.UserID).First(&user).Error; err != nil {
+			session.Delete(storage.SessionDataKey)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "User not found",
 			})

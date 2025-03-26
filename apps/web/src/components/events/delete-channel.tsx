@@ -14,42 +14,53 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { updateChannelsMutations } from "@/qc/legacy-queries/update-channels";
 import type { EventChannel } from "@repo/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch, useParams } from "@tanstack/react-router";
 import { Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { toast } from "../ui/sonner-wrapper";
+import { deleteChannel } from "@/server/resources/events";
+import { channelsQueryKey } from "@/qc/resources/events";
 
 export function DeleteChannel({ channel }: { channel: EventChannel }) {
 	const navigate = useNavigate();
 	const [open, setOpen] = useState(false);
 	const [confirmInput, setConfirmInput] = useState("");
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const { channelId: _, ...search } = useSearch({
-		from: "/_authd/_app/dashboard/$projId/events",
+	const params = useParams({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/events",
+	});
+	const searchParams = useSearch({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/events",
 	});
 	const queryClient = useQueryClient();
-	const { mutateAsync } = updateChannelsMutations.event.delete();
 
 	async function handleDelete() {
 		try {
-			await mutateAsync({
-				projectId: channel.project_id,
-				channelId: channel.id,
+			const { error } = await deleteChannel({
+				data: {
+					projectId: channel.project_id,
+					channelId: channel.id,
+				},
 			});
+			if (error) {
+				toast.APIError(error);
+				return;
+			}
 			await queryClient.refetchQueries({
-				queryKey: ["projects", channel.project_id, "channels", "event"],
+				queryKey: channelsQueryKey(channel.project_id),
 			});
 			setOpen(false);
 			navigate({
-				to: "/dashboard/$projId/events",
-				params: { projId: channel.project_id },
-				search,
+				to: "/$orgSlug/$projSlug/events",
+				params: {
+					orgSlug: params.orgSlug,
+					projSlug: params.projSlug,
+				},
+				search: { ...searchParams, channel_slug: undefined },
 			});
 			toast.success(`Channel "${channel.name}" deleted successfully`);
 		} catch (error) {

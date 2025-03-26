@@ -1,28 +1,38 @@
 package events
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/gofiber/fiber/v3"
+	"github.com/ted-too/logsicle/internal/storage/timescale"
 	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
 
 type GetEventLogsQuery struct {
-	ChannelID *string   `query:"channelId"`
-	Before    time.Time `query:"before"`
-	Limit     int       `query:"limit"`
-	Name      *string   `query:"name"`
-	Tags      []string  `query:"tags"`
+	timescale.CommonLogQueryOptions
+	ChannelSlug *string  `json:"channel_slug,omitempty" query:"channelSlug"`
+	Name        *string  `json:"name,omitempty" query:"name"`
+	Tags        []string `json:"tags,omitempty" query:"tags"`
 }
 
-type PaginatedEventLogs struct {
-	Data          []models.EventLog `json:"data"`
-	TotalCount    int64             `json:"totalCount"`
-	FilteredCount int64             `json:"filteredCount"`
-	HasNext       bool              `json:"hasNext"`
-	HasPrev       bool              `json:"hasPrev"`
+// Validate implements validation.Validatable
+func (q GetEventLogsQuery) Validate() error {
+	if err := q.CommonLogQueryOptions.Validate(); err != nil {
+		return err
+	}
+
+	return validation.ValidateStruct(&q,
+		validation.Field(&q.ChannelSlug),
+		validation.Field(&q.Name),
+		validation.Field(&q.Tags),
+	)
+}
+
+type EventLogsResponse struct {
+	Data []models.EventLog        `json:"data"`
+	Meta timescale.PaginationMeta `json:"meta"`
 }
 
 func (h *EventsHandler) GetEventLogs(c fiber.Ctx) error {
@@ -31,103 +41,105 @@ func (h *EventsHandler) GetEventLogs(c fiber.Ctx) error {
 	query := new(GetEventLogsQuery)
 	if err := c.Bind().Query(query); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid query parameters",
+			"error":   "Invalid query parameters",
+			"message": err.Error(),
 		})
 	}
 
-	// Set default limit
+	// Set defaults
 	if query.Limit == 0 {
 		query.Limit = 20
 	} else if query.Limit > 100 {
 		query.Limit = 100
 	}
-
-	// Set default before time
-	if query.Before.IsZero() {
-		query.Before = time.Now()
+	if query.Page == 0 {
+		query.Page = 1
+	}
+	if query.End == 0 {
+		query.End = time.Now().UnixMilli()
+	}
+	if query.Start == 0 {
+		query.Start = query.End - 24*time.Hour.Milliseconds()
 	}
 
-	// First, get total count with channel filter only
-	countSQL := `
-        SELECT COUNT(*)
-        FROM event_logs
-        WHERE project_id = $1
-        AND ($2::text IS NULL OR channel_id = $2)
-    `
-	var totalCount int64
-	err := h.pool.QueryRow(c.Context(), countSQL, projectID, query.ChannelID).Scan(&totalCount)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to get total count",
+	if err := query.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Query parameters validation failed",
+			"message": err.Error(),
 		})
 	}
 
-	// Build the filtered count query with all filters
-	filteredCountSQL := `
-	 SELECT COUNT(*)
-	 FROM event_logs
-	 WHERE project_id = $1
-	 AND ($2::text IS NULL OR channel_id = $2)
-`
-	args := []interface{}{projectID, query.ChannelID}
-	argCount := 3
+	// Calculate offset for pagination
+	offset := (query.Page - 1) * query.Limit
 
-	// Add optional name filter
+	// Base query and parameters
+	baseQuery := `
+		FROM event_logs el
+		LEFT JOIN event_channels ec ON el.channel_id = ec.id
+		WHERE el.project_id = $1
+		  AND el.timestamp >= $2
+		  AND el.timestamp <= $3
+	`
+	baseParams := []interface{}{
+		projectID,
+		timescale.UnixMsToTime(query.Start),
+		timescale.UnixMsToTime(query.End),
+	}
+	paramCount := 4
+
+	// Apply additional filters
+	whereClause := ""
+	if query.ChannelSlug != nil {
+		whereClause += fmt.Sprintf(" AND ec.slug = $%d", paramCount)
+		baseParams = append(baseParams, *query.ChannelSlug)
+		paramCount++
+	}
 	if query.Name != nil {
-		filteredCountSQL += fmt.Sprintf(" AND name ILIKE $%d", argCount)
-		args = append(args, fmt.Sprintf("%%%s%%", *query.Name))
-		argCount++
+		whereClause += fmt.Sprintf(" AND el.name ILIKE $%d", paramCount)
+		baseParams = append(baseParams, fmt.Sprintf("%%%s%%", *query.Name)) // Add wildcards for partial matching
+		paramCount++
 	}
-
-	// Add optional tags filter
 	if len(query.Tags) > 0 {
-		filteredCountSQL += fmt.Sprintf(" AND tags ?| $%d", argCount)
-		args = append(args, query.Tags)
-		argCount++
+		whereClause += fmt.Sprintf(" AND el.tags ?| $%d", paramCount)
+		baseParams = append(baseParams, query.Tags)
+		paramCount++
 	}
 
-	var filteredCount int64
-	err = h.pool.QueryRow(c.Context(), filteredCountSQL, args...).Scan(&filteredCount)
+	// Get total count of all logs for this project in time range
+	totalCountSQL := "SELECT COUNT(*) " + baseQuery
+	var totalCount int
+	err := h.pool.QueryRow(c.Context(), totalCountSQL, baseParams[:3]...).Scan(&totalCount)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to get filtered count",
+			"error":   "Failed to get total count",
+			"message": err.Error(),
 		})
 	}
 
-	// Build the data query
+	// Get filtered count
+	filteredCountSQL := "SELECT COUNT(*) " + baseQuery + whereClause
+	var filteredCount int
+	err = h.pool.QueryRow(c.Context(), filteredCountSQL, baseParams...).Scan(&filteredCount)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to get filtered count",
+			"message": err.Error(),
+		})
+	}
+
+	// Query for the logs with pagination
 	dataSQL := `
-				SELECT 
-						el.id, el.project_id, el.channel_id, el.name, el.description,
-						el.metadata, el.tags, el.timestamp,
-						ec.name as channel_name, ec.color as channel_color
-				FROM event_logs el
-				LEFT JOIN event_channels ec ON el.channel_id = ec.id
-				WHERE el.project_id = $1
-				AND ($2::text IS NULL OR el.channel_id = $2)
-				AND el.timestamp < $3
-    `
-	args = []interface{}{projectID, query.ChannelID, query.Before}
-	argCount = 4
+		SELECT 
+			el.id, el.project_id, el.channel_id, el.name, 
+			el.description, el.metadata, el.tags, el.timestamp,
+			ec.name as channel_name, ec.color as channel_color, ec.slug as channel_slug
+	` + baseQuery + whereClause + `
+		ORDER BY el.timestamp DESC
+		LIMIT $` + fmt.Sprint(paramCount) + ` OFFSET $` + fmt.Sprint(paramCount+1)
 
-	// Add optional name filter (if provided)
-	if query.Name != nil {
-		dataSQL += fmt.Sprintf(" AND el.name ILIKE $%d", argCount)
-		args = append(args, fmt.Sprintf("%%%s%%", *query.Name))
-		argCount++
-	}
+	baseParams = append(baseParams, query.Limit, offset)
 
-	// Add optional tags filter (if provided)
-	if len(query.Tags) > 0 {
-		dataSQL += fmt.Sprintf(" AND tags ?| $%d", argCount)
-		args = append(args, query.Tags)
-		argCount++
-	}
-
-	dataSQL += " ORDER BY timestamp DESC LIMIT $" + fmt.Sprint(argCount)
-	args = append(args, query.Limit)
-
-	// Execute query
-	rows, err := h.pool.Query(c.Context(), dataSQL, args...)
+	rows, err := h.pool.Query(c.Context(), dataSQL, baseParams...)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to fetch event logs",
@@ -136,65 +148,94 @@ func (h *EventsHandler) GetEventLogs(c fiber.Ctx) error {
 	}
 	defer rows.Close()
 
+	// Process results
 	logs := make([]models.EventLog, 0)
 	for rows.Next() {
 		var log models.EventLog
-		var channelName, channelColor sql.NullString
+		var channelName, channelColor, channelSlug *string
+
 		err := rows.Scan(
 			&log.ID, &log.ProjectID, &log.ChannelID, &log.Name,
 			&log.Description, &log.Metadata, &log.Tags, &log.Timestamp,
-			&channelName, &channelColor,
+			&channelName, &channelColor, &channelSlug,
 		)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to scan event logs",
+				"error":   "Failed to scan event logs",
+				"message": err.Error(),
 			})
 		}
 
-		// Only set channel relation if we have channel data
-		if log.ChannelID.Valid {
-			var colorPtr *string
-			if channelColor.Valid {
-				colorPtr = &channelColor.String
-			}
-
+		// Set channel information if available
+		if log.ChannelID.Valid && channelName != nil {
 			log.Channel = &models.ChannelRelation{
-				Name:  channelName.String,
-				Color: colorPtr,
+				Name:  *channelName,
+				Color: channelColor,
+				Slug:  channelSlug,
 			}
 		}
 
 		logs = append(logs, log)
 	}
 
-	// Calculate if there are previous/next pages
-	hasNext := len(logs) == query.Limit
-	hasPrev := query.Before.Before(time.Now()) // If before is not now, there are previous records
+	// Calculate pagination metadata
+	totalPages := (filteredCount + query.Limit - 1) / query.Limit
+	var nextPage *int
+	var prevPage *int
 
-	return c.JSON(PaginatedEventLogs{
-		Data:          logs,
-		TotalCount:    totalCount,
-		FilteredCount: filteredCount,
-		HasNext:       hasNext,
-		HasPrev:       hasPrev,
+	if query.Page < totalPages {
+		next := query.Page + 1
+		nextPage = &next
+	}
+	if query.Page > 1 {
+		prev := query.Page - 1
+		prevPage = &prev
+	}
+
+	return c.JSON(EventLogsResponse{
+		Data: logs,
+		Meta: timescale.PaginationMeta{
+			TotalRowCount:         totalCount,
+			TotalFilteredRowCount: filteredCount,
+			CurrentPage:           query.Page,
+			NextPage:              nextPage,
+			PrevPage:              prevPage,
+		},
 	})
 }
 
-type TimeRange string
-
-const (
-	Last24Hours TimeRange = "24h"
-	Last7Days   TimeRange = "7d"
-	Last30Days  TimeRange = "30d"
-)
-
 type GetEventMetricsQuery struct {
-	ChannelID *string   `query:"channelId"`
-	Range     TimeRange `query:"range"`
-	Name      *string   `query:"name"`
+	timescale.CommonMetricsQueryOptions
+	ChannelSlug *string `json:"channel_slug,omitempty" query:"channelSlug"`
+	Name        *string `json:"name,omitempty" query:"name"`
 }
 
-func (h *EventsHandler) GetEventMetrics(c fiber.Ctx) error {
+// Validate implements validation.Validatable
+func (q GetEventMetricsQuery) Validate() error {
+	if err := q.CommonMetricsQueryOptions.Validate(); err != nil {
+		return err
+	}
+
+	return validation.ValidateStruct(&q,
+		validation.Field(&q.ChannelSlug),
+		validation.Field(&q.Name),
+	)
+}
+
+// Define structs that match the TypeScript interface
+type EventMetricsResponse struct {
+	Total     int                    `json:"total"`
+	ByTime    []timescale.TimeMetric `json:"by_time"`
+	ByChannel []ChannelMetric        `json:"by_channel"`
+}
+
+type ChannelMetric struct {
+	ChannelSlug string `json:"channel_slug"`
+	ChannelName string `json:"channel_name"`
+	Count       int    `json:"count"`
+}
+
+func (h *EventsHandler) GetMetrics(c fiber.Ctx) error {
 	projectID := c.Params("id")
 
 	query := new(GetEventMetricsQuery)
@@ -204,86 +245,156 @@ func (h *EventsHandler) GetEventMetrics(c fiber.Ctx) error {
 		})
 	}
 
-	// Set default range
-	if query.Range == "" {
-		query.Range = Last24Hours
+	// Set defaults
+	if query.End == 0 {
+		query.End = time.Now().UnixMilli()
+	}
+	if query.Start == 0 {
+		query.Start = query.End - 24*time.Hour.Milliseconds()
+	}
+	if query.Interval == "" {
+		query.Interval = timescale.SuggestInterval(query.Start, query.End)
 	}
 
-	// Calculate time bucket and range
-	var interval string
-	var startTime time.Time
-	now := time.Now()
-
-	switch query.Range {
-	case Last24Hours:
-		interval = "1 hour"
-		startTime = now.Add(-24 * time.Hour)
-	case Last7Days:
-		interval = "1 day"
-		startTime = now.Add(-7 * 24 * time.Hour)
-	case Last30Days:
-		interval = "1 day"
-		startTime = now.Add(-30 * 24 * time.Hour)
-	default:
+	if err := query.Validate(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid time range",
+			"error":   "Query parameters validation failed",
+			"message": err.Error(),
 		})
 	}
 
-	sql := `
-		SELECT 
-			time_bucket($1, timestamp) AS bucket,
-			COUNT(*) as count
-		FROM event_logs
-		WHERE project_id = $2
-		AND timestamp >= $3
-		AND timestamp <= $4
+	// Base query parameters and WHERE clause
+	baseWhere := `
+		WHERE project_id = $1
+		AND timestamp >= $2
+		AND timestamp <= $3
 	`
-	args := []interface{}{interval, projectID, startTime, now}
-	argCount := 5
+	baseParams := []interface{}{
+		projectID,
+		timescale.UnixMsToTime(query.Start),
+		timescale.UnixMsToTime(query.End),
+	}
+	paramCount := 4
 
 	// Add optional filters
-	if query.ChannelID != nil {
-		sql += fmt.Sprintf(" AND channel_id = $%d", argCount)
-		args = append(args, *query.ChannelID)
-		argCount++
+	filterClause := ""
+	if query.ChannelSlug != nil {
+		filterClause += fmt.Sprintf(" AND ec.slug = $%d", paramCount)
+		baseParams = append(baseParams, *query.ChannelSlug)
+		paramCount++
 	}
 	if query.Name != nil {
-		sql += fmt.Sprintf(" AND name ILIKE $%d", argCount)
-		args = append(args, fmt.Sprintf("%%%s%%", *query.Name)) // Add wildcards for partial matching
-		argCount++
+		filterClause += fmt.Sprintf(" AND name ILIKE $%d", paramCount)
+		baseParams = append(baseParams, fmt.Sprintf("%%%s%%", *query.Name)) // Add wildcards for partial matching
+		paramCount++
 	}
 
-	sql += " GROUP BY bucket ORDER BY bucket"
+	// 1. Get total count
+	totalSql := `SELECT COUNT(*) 
+		FROM event_logs
+		LEFT JOIN event_channels ec ON event_logs.channel_id = ec.id
+	` + baseWhere + filterClause
 
-	// Execute query
-	rows, err := h.pool.Query(c.Context(), sql, args...)
+	var totalCount int
+	err := h.pool.QueryRow(c.Context(), totalSql, baseParams...).Scan(&totalCount)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch event metrics",
+			"error":   "Failed to get total count",
+			"message": err.Error(),
 		})
 	}
-	defer rows.Close()
 
-	var metrics []struct {
-		Bucket time.Time `json:"bucket"`
-		Count  int       `json:"count"`
+	// Create response object
+	response := EventMetricsResponse{
+		Total:     totalCount,
+		ByChannel: []ChannelMetric{},
+		ByTime:    []timescale.TimeMetric{},
 	}
 
-	for rows.Next() {
-		var metric struct {
-			Bucket time.Time `json:"bucket"`
-			Count  int       `json:"count"`
-		}
-		if err := rows.Scan(&metric.Bucket, &metric.Count); err != nil {
+	// 2. Get metrics by channel
+	channelSQL := `
+		SELECT 
+			ec.slug as channel_slug,
+			ec.name as channel_name,
+			COUNT(*) as count
+		FROM event_logs
+		LEFT JOIN event_channels ec ON event_logs.channel_id = ec.id
+	` + baseWhere + filterClause + `
+		GROUP BY channel_slug, channel_name
+		ORDER BY count DESC
+	`
+
+	channelRows, err := h.pool.Query(c.Context(), channelSQL, baseParams...)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to fetch channel metrics",
+			"message": err.Error(),
+		})
+	}
+	defer channelRows.Close()
+
+	for channelRows.Next() {
+		var channelSlug, channelName *string
+		var count int
+
+		if err := channelRows.Scan(&channelSlug, &channelName, &count); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to scan metrics",
+				"error":   "Failed to scan channel metrics",
+				"message": err.Error(),
 			})
 		}
-		metrics = append(metrics, metric)
+
+		// Only add to response if we have valid channel info
+		if channelSlug != nil && channelName != nil {
+			response.ByChannel = append(response.ByChannel, ChannelMetric{
+				ChannelSlug: *channelSlug,
+				ChannelName: *channelName,
+				Count:       count,
+			})
+		}
 	}
 
-	return c.JSON(metrics)
+	// 3. Get metrics by time with correct parameter numbering
+	timeSql := fmt.Sprintf(`
+		SELECT 
+			time_bucket($%d, timestamp) AS bucket,
+			COUNT(*) AS count
+		FROM event_logs
+		LEFT JOIN event_channels ec ON event_logs.channel_id = ec.id
+	`, paramCount) + baseWhere + filterClause + `
+		GROUP BY bucket
+		ORDER BY bucket ASC
+	`
+
+	// Add the interval parameter last
+	baseParams = append(baseParams, timescale.ConvertIntervalToPostgresFormat(query.Interval))
+
+	timeRows, err := h.pool.Query(c.Context(), timeSql, baseParams...)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to fetch time metrics",
+			"message": err.Error(),
+		})
+	}
+	defer timeRows.Close()
+
+	for timeRows.Next() {
+		var bucket time.Time
+		var count int
+		if err := timeRows.Scan(&bucket, &count); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Failed to scan time metrics",
+				"message": err.Error(),
+			})
+		}
+
+		response.ByTime = append(response.ByTime, timescale.TimeMetric{
+			Timestamp: bucket.UnixMilli(),
+			Count:     count,
+		})
+	}
+
+	return c.JSON(response)
 }
 
 func (h *EventsHandler) DeleteEvent(c fiber.Ctx) error {

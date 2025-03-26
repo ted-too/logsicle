@@ -2,21 +2,25 @@
 
 import { format, formatISO, parseISO } from "date-fns";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	ChartContainer,
 	ChartTooltip,
 	ChartTooltipContent,
 } from "@/components/ui/chart";
-import { appLogsQueries } from "@/qc/legacy-queries/app-logs";
-import {
-	type GetAppLogsParams,
-	type ValidInterval,
-	eachIntervalOfRange,
-} from "@repo/api";
-import { useParams, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { getAppMetricsQueryOptions } from "@/qc/resources/app";
+import { useParams, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { eachIntervalOfRange } from "@repo/api";
+
+interface LogCounts {
+	debug: number;
+	info: number;
+	warning: number;
+	error: number;
+	fatal: number;
+}
 
 const chartConfig = {
 	fatal: {
@@ -60,32 +64,73 @@ const formatYAxisValue = (value: number): string => {
 };
 
 export function LogVolumeChart() {
-	const search = useRouterState({
-		select: (state) => state.location.search,
-	}) as GetAppLogsParams & {
-		tail: boolean | undefined;
-		interval: ValidInterval;
-	};
-	const params = useParams({ from: "/_authd/_app/dashboard/$projId/logs" });
-	const { data } = appLogsQueries.metrics.useQuery(params.projId, {
-		...{ ...search, tail: undefined },
+	const search = useSearch({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
 	});
-	const metrics = data ?? [];
+	const params = useParams({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+	});
+	const { currentProject } = useRouteContext({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+	});
+
+	const { data } = useQuery(
+		getAppMetricsQueryOptions(currentProject.id, {
+			start:
+				typeof search.start === "string"
+					? Number.parseInt(search.start, 10)
+					: search.start,
+			end:
+				typeof search.end === "string"
+					? Number.parseInt(search.end, 10)
+					: search.end,
+			level: search.level,
+			service_name: search.service_name,
+			environment: search.environment,
+			interval: search.interval,
+		}),
+	);
+
+	const metrics = data?.by_time ?? [];
+
 	const allIntervals = useMemo(() => {
 		return eachIntervalOfRange(
 			search.start,
 			search.end,
-			search.interval || "1 hour",
+			search.interval || "1h",
 		);
 	}, [search.start, search.end, search.interval]);
 
-	const metricMap = useMemo(
-		() => new Map(metrics.map((m) => [m.timestamp, m.counts])),
-		[metrics],
-	);
+	// Transform the new metric data format to match our chart requirements
+	const metricMap = useMemo(() => {
+		const map = new Map<string, LogCounts>();
+
+		// Group log counts by level
+		const logsByLevel = new Map<string, number>();
+
+		if (data?.by_level) {
+			for (const item of data.by_level) {
+				logsByLevel.set(item.level, item.count);
+			}
+		}
+
+		// Create time-based data points with counts by level
+		for (const point of metrics) {
+			const timestamp = formatISO(new Date(point.timestamp * 1000));
+			map.set(timestamp, {
+				debug: logsByLevel.get("debug") || 0,
+				info: logsByLevel.get("info") || 0,
+				warning: logsByLevel.get("warn") || 0,
+				error: logsByLevel.get("error") || 0,
+				fatal: 0, // Not included in the API response
+			});
+		}
+
+		return map;
+	}, [data, metrics]);
 
 	const chartData = useMemo(() => {
-		return allIntervals.map((hour) => {
+		return allIntervals.map((hour: Date) => {
 			const timestamp = formatISO(hour);
 			return {
 				timestamp,
@@ -103,9 +148,10 @@ export function LogVolumeChart() {
 	const yTicks = useMemo(() => {
 		// Calculate the maximum sum of all values for each timestamp
 		const maxSum = Math.max(
-			...chartData.map(({ timestamp: _, ...d }) =>
-				Object.values(d).reduce((a, b) => a + b, 0),
-			),
+			...chartData.map(({ timestamp: _, ...levels }) => {
+				const values = Object.values(levels) as number[];
+				return values.reduce((a, b) => a + b, 0);
+			}),
 		);
 
 		// Add 20% padding to the max value

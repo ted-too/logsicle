@@ -2,15 +2,16 @@ import { DeleteChannel } from "@/components/events/delete-channel";
 import { EditChannel } from "@/components/events/edit-channel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useEvents } from "@/hooks/use-events";
+import { getChannelsQueryOptions } from "@/qc/resources/events";
+import { useQuery } from "@tanstack/react-query";
 import {
-	filteredResultsAtom,
-	isFetchingAtom,
-	totalResultsAtom,
-} from "@/stores/generic-filter";
-import type { EventChannel } from "@repo/api";
-import { useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+	useNavigate,
+	useParams,
+	useRouteContext,
+	useSearch,
+} from "@tanstack/react-router";
 import { debounce } from "@tanstack/react-virtual";
-import { useAtomValue } from "jotai";
 import { LoaderCircle, Search } from "lucide-react";
 import {
 	useCallback,
@@ -20,28 +21,35 @@ import {
 	useTransition,
 } from "react";
 
-export function EventsPageHeader({
-	selectedChannel,
-}: {
-	selectedChannel: EventChannel | undefined;
-}) {
-	const params = useParams({ from: "/_authd/_app/dashboard/$projId/events" });
-	const prevSearch = useRouterState({
-		select: (state) => state.location.search,
+export function EventsPageHeader() {
+	const { currentProject } = useRouteContext({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/events",
+	});
+	const params = useParams({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/events",
+	});
+	const searchParams = useSearch({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/events",
 	});
 	const navigate = useNavigate();
 	const [isPending, startTransition] = useTransition();
-	const isFetching = useAtomValue(isFetchingAtom);
-	const totalCount = useAtomValue(totalResultsAtom);
-	const filteredCount = useAtomValue(filteredResultsAtom);
+	const { totalCount, filteredCount, isFetching } = useEvents();
 
 	// Local state for immediate updates
-	const [localSearch, setLocalSearch] = useState(prevSearch.search || "");
+	const [localSearch, setLocalSearch] = useState(searchParams.search || "");
+
+	const { data: channels, isPending: channelsPending } = useQuery(
+		getChannelsQueryOptions(currentProject.id),
+	);
+
+	const selectedChannel = searchParams.channel_slug
+		? channels?.find((c) => c.slug === searchParams.channel_slug)
+		: undefined;
 
 	// Update local state when URL changes
 	useEffect(() => {
-		setLocalSearch(prevSearch.search || "");
-	}, [prevSearch.search]);
+		setLocalSearch(searchParams.search || "");
+	}, [searchParams.search]);
 
 	const debouncedNavigate = useMemo(
 		() =>
@@ -50,16 +58,15 @@ export function EventsPageHeader({
 				(value: string) => {
 					startTransition(() => {
 						navigate({
-							to: "/dashboard/$projId/events",
+							to: "/$orgSlug/$projSlug/events",
 							params,
-							// @ts-expect-error prevSearch is not typed
-							search: { ...prevSearch, name: value },
+							search: { ...searchParams, search: value },
 						});
 					});
 				},
 				300,
 			),
-		[navigate, params, prevSearch],
+		[navigate, params, searchParams],
 	);
 
 	useEffect(() => {

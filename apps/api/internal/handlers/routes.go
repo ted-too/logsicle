@@ -10,6 +10,7 @@ import (
 	appHandler "github.com/ted-too/logsicle/internal/handlers/app"
 	authHandler "github.com/ted-too/logsicle/internal/handlers/auth"
 	"github.com/ted-too/logsicle/internal/handlers/events"
+	requestsHandler "github.com/ted-too/logsicle/internal/handlers/requests"
 	"github.com/ted-too/logsicle/internal/handlers/teams"
 	"github.com/ted-too/logsicle/internal/middleware"
 	"github.com/ted-too/logsicle/internal/queue"
@@ -22,6 +23,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 	teamsHandler := teams.NewTeamsHandler(db)
 	eventsHandler := events.NewEventsHandler(db, pool, queueService)
 	appHandler := appHandler.NewAppLogsHandler(db, pool, queueService)
+	requestsHandler := requestsHandler.NewRequestLogsHandler(db, pool, queueService)
 
 	// Health check endpoint
 	app.Get("/health", func(c fiber.Ctx) error {
@@ -33,7 +35,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 	{
 		v1Ingest.Post("/event", eventsHandler.IngestEvent)
 		v1Ingest.Post("/app", appHandler.IngestLog)
-		// v1Ingest.Post("/request", ingestHandler.IngestRequestLog)
+		v1Ingest.Post("/request", requestsHandler.IngestRequestLog)
 		// v1Ingest.Post("/trace", ingestHandler.IngestTrace)
 	}
 
@@ -66,6 +68,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 	{
 		// User routes
 		v1Authd.Get("/me", authHandler.Me)
+		v1Authd.Patch("/me", authHandler.UpdateUser)
 
 		// Organization routes
 		v1Authd.Post("/organizations", teamsHandler.CreateOrganization)
@@ -91,9 +94,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 
 			// Events routes
 			projects.Get("/:id/events", eventsHandler.GetEventLogs)
-			projects.Delete("/:id/events/:eventId", eventsHandler.DeleteEvent)
+			projects.Delete("/:id/events/:eventId", eventsHandler.DeleteEvent, middleware.RequireRole(models.RoleAdmin, models.RoleOwner))
 			projects.Get("/:id/events/stream", eventsHandler.StreamEvents)
-			projects.Get("/:id/events/metrics", eventsHandler.GetEventMetrics)
+			projects.Get("/:id/events/metrics", eventsHandler.GetMetrics)
 			projects.Get("/:id/events/channels", eventsHandler.GetEventChannels)
 			projects.Get("/:id/events/channels/:channelId", eventsHandler.GetEventChannel)
 			projectsManagement.Post("/:id/events/channels", eventsHandler.CreateChannel)
@@ -101,9 +104,15 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 			projectsManagement.Delete("/:id/events/channels/:channelId", eventsHandler.DeleteChannel)
 
 			// App logs routes
-			projects.Get("/:id/app", appHandler.GetLogs)
-			projects.Delete("/:id/app/:logId", appHandler.DeleteAppLog)
+			projects.Get("/:id/app", appHandler.GetAppLogs)
+			projects.Delete("/:id/app/:logId", appHandler.DeleteAppLog, middleware.RequireRole(models.RoleAdmin, models.RoleOwner))
 			projects.Get("/:id/app/metrics", appHandler.GetMetrics)
+
+			// Request logs routes
+			projects.Get("/:id/request", requestsHandler.GetRequestLogs)
+			projects.Delete("/:id/request/:logId", requestsHandler.DeleteRequestLog, middleware.RequireRole(models.RoleAdmin, models.RoleOwner))
+			projects.Get("/:id/request/metrics", requestsHandler.GetMetrics)
+			projects.Get("/:id/request/stream", requestsHandler.StreamLogs)
 		}
 	}
 

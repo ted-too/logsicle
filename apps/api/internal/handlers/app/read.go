@@ -2,49 +2,53 @@ package app
 
 import (
 	"fmt"
-	"sort"
 	"time"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/gofiber/fiber/v3"
+	"github.com/ted-too/logsicle/internal/storage/timescale"
 	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
 
 type GetAppLogsQuery struct {
-	Start       time.Time `query:"start"`
-	End         time.Time `query:"end"`
-	Limit       int       `query:"limit"`
-	Page        int       `query:"page"`
-	Level       *string   `query:"level"`
-	ServiceName *string   `query:"serviceName"`
-	Environment *string   `query:"environment"`
-	Search      *string   `query:"search"`
+	timescale.CommonLogQueryOptions
+	Level       *string `json:"level,omitempty" query:"level"`
+	ServiceName *string `json:"service_name,omitempty" query:"serviceName"`
+	Environment *string `json:"environment,omitempty" query:"environment"`
 }
 
-type PaginationMeta struct {
-	TotalRowCount         int  `json:"totalRowCount"`
-	TotalFilteredRowCount int  `json:"totalFilteredRowCount"`
-	CurrentPage           int  `json:"currentPage"`
-	NextPage              *int `json:"nextPage"`
-	PrevPage              *int `json:"prevPage"`
+// Validate implements validation.Validatable
+func (q GetAppLogsQuery) Validate() error {
+	if err := q.CommonLogQueryOptions.Validate(); err != nil {
+		return err
+	}
+
+	validLevels := []interface{}{"debug", "info", "warn", "error"}
+	return validation.ValidateStruct(&q,
+		validation.Field(&q.Level, validation.In(validLevels...)),
+		validation.Field(&q.ServiceName),
+		validation.Field(&q.Environment),
+	)
 }
 
 type AppLogResponse struct {
-	Data []models.AppLog `json:"data"`
-	Meta PaginationMeta  `json:"meta"`
+	Data []models.AppLog          `json:"data"`
+	Meta timescale.PaginationMeta `json:"meta"`
 }
 
 // GetLogs returns paginated app logs with filtering
-func (h *AppLogsHandler) GetLogs(c fiber.Ctx) error {
+func (h *AppLogsHandler) GetAppLogs(c fiber.Ctx) error {
 	projectID := c.Params("id")
 
 	query := new(GetAppLogsQuery)
 	if err := c.Bind().Query(query); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid query parameters",
+			"error":   "Invalid query parameters",
+			"message": err.Error(),
 		})
 	}
 
-	// Set default limit and page
+	// Set defaults
 	if query.Limit == 0 {
 		query.Limit = 20
 	} else if query.Limit > 100 {
@@ -53,65 +57,75 @@ func (h *AppLogsHandler) GetLogs(c fiber.Ctx) error {
 	if query.Page == 0 {
 		query.Page = 1
 	}
-
-	// Set default time range
-	if query.End.IsZero() {
-		query.End = time.Now()
+	if query.End == 0 {
+		query.End = time.Now().UnixMilli()
 	}
-	if query.Start.IsZero() {
-		query.Start = query.End.Add(-24 * time.Hour)
+	if query.Start == 0 {
+		query.Start = query.End - 24*time.Hour.Milliseconds()
 	}
 
-	// Calculate offset
+	if err := query.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Query parameters validation failed",
+			"message": err.Error(),
+		})
+	}
+
+	// Calculate offset for pagination
 	offset := (query.Page - 1) * query.Limit
 
-	// Build base WHERE clause and args for reuse
-	baseWhere := `
-					WHERE al.project_id = $1
-					AND al.timestamp >= $2
-					AND al.timestamp <= $3
+	// Base query and parameters
+	baseQuery := `
+		FROM app_logs al
+		WHERE al.project_id = $1
+		  AND al.timestamp >= $2
+		  AND al.timestamp <= $3
 	`
-	baseArgs := []interface{}{projectID, query.Start, query.End}
-	argCount := 4
+	baseParams := []interface{}{
+		projectID,
+		timescale.UnixMsToTime(query.Start),
+		timescale.UnixMsToTime(query.End),
+	}
+	paramCount := 4
 
-	// Build additional filters
-	var additionalFilters string
+	// Apply additional filters
+	whereClause := ""
 	if query.Level != nil {
-		additionalFilters += fmt.Sprintf(" AND level = $%d", argCount)
-		baseArgs = append(baseArgs, *query.Level)
-		argCount++
+		whereClause += fmt.Sprintf(" AND al.level = $%d", paramCount)
+		baseParams = append(baseParams, *query.Level)
+		paramCount++
 	}
 	if query.ServiceName != nil {
-		additionalFilters += fmt.Sprintf(" AND service_name = $%d", argCount)
-		baseArgs = append(baseArgs, *query.ServiceName)
-		argCount++
+		whereClause += fmt.Sprintf(" AND al.service_name = $%d", paramCount)
+		baseParams = append(baseParams, *query.ServiceName)
+		paramCount++
 	}
 	if query.Environment != nil {
-		additionalFilters += fmt.Sprintf(" AND environment = $%d", argCount)
-		baseArgs = append(baseArgs, *query.Environment)
-		argCount++
+		whereClause += fmt.Sprintf(" AND al.environment = $%d", paramCount)
+		baseParams = append(baseParams, *query.Environment)
+		paramCount++
 	}
 	if query.Search != nil {
-		additionalFilters += fmt.Sprintf(`
-				AND (
-						message_tsv @@ plainto_tsquery($%d)
-						OR fields_tsv @@ plainto_tsquery($%d)
-						OR message ILIKE $%d
-						OR fields::text ILIKE $%d
-				)`, argCount, argCount, argCount+1, argCount+1)
+		whereClause += fmt.Sprintf(`
+			AND (
+				al.message_tsv @@ plainto_tsquery($%d)
+				OR al.fields_tsv @@ plainto_tsquery($%d)
+				OR al.message ILIKE $%d
+				OR al.fields::text ILIKE $%d
+			)`, paramCount, paramCount, paramCount+1, paramCount+1)
 
 		searchTerm := *query.Search
-		baseArgs = append(baseArgs,
+		baseParams = append(baseParams,
 			searchTerm,                        // for message_tsv and fields_tsv (same parameter)
 			fmt.Sprintf("%%%s%%", searchTerm), // for ILIKE
 		)
-		argCount += 2
+		paramCount += 2
 	}
 
-	// Get total count (without filters)
+	// Get total count of all logs for this project in time range
+	totalCountSQL := "SELECT COUNT(*) " + baseQuery
 	var totalCount int
-	totalCountSQL := "SELECT COUNT(*) FROM app_logs al " + baseWhere
-	err := h.pool.QueryRow(c.Context(), totalCountSQL, baseArgs[:3]...).Scan(&totalCount)
+	err := h.pool.QueryRow(c.Context(), totalCountSQL, baseParams[:3]...).Scan(&totalCount)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to get total count",
@@ -120,9 +134,9 @@ func (h *AppLogsHandler) GetLogs(c fiber.Ctx) error {
 	}
 
 	// Get filtered count
+	filteredCountSQL := "SELECT COUNT(*) " + baseQuery + whereClause
 	var filteredCount int
-	filteredCountSQL := "SELECT COUNT(*) FROM app_logs al " + baseWhere + additionalFilters
-	err = h.pool.QueryRow(c.Context(), filteredCountSQL, baseArgs...).Scan(&filteredCount)
+	err = h.pool.QueryRow(c.Context(), filteredCountSQL, baseParams...).Scan(&filteredCount)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to get filtered count",
@@ -130,21 +144,19 @@ func (h *AppLogsHandler) GetLogs(c fiber.Ctx) error {
 		})
 	}
 
-	// Build the main data query
+	// Query for the logs with pagination
 	dataSQL := `
-					SELECT 
-							al.id, al.project_id, al.level, al.message,
-							al.fields, al.timestamp, al.caller, al.function,
-							al.service_name, al.version, al.environment, al.host
-					FROM app_logs al
-	` + baseWhere + additionalFilters
+		SELECT 
+			al.id, al.project_id, al.level, al.message,
+			al.fields, al.timestamp, al.caller, al.function,
+			al.service_name, al.version, al.environment, al.host
+	` + baseQuery + whereClause + `
+		ORDER BY al.timestamp DESC
+		LIMIT $` + fmt.Sprint(paramCount) + ` OFFSET $` + fmt.Sprint(paramCount+1)
 
-	// Add pagination
-	dataSQL += " ORDER BY al.timestamp DESC LIMIT $" + fmt.Sprint(argCount) + " OFFSET $" + fmt.Sprint(argCount+1)
-	baseArgs = append(baseArgs, query.Limit, offset)
+	baseParams = append(baseParams, query.Limit, offset)
 
-	// Execute query
-	rows, err := h.pool.Query(c.Context(), dataSQL, baseArgs...)
+	rows, err := h.pool.Query(c.Context(), dataSQL, baseParams...)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to fetch app logs",
@@ -153,6 +165,7 @@ func (h *AppLogsHandler) GetLogs(c fiber.Ctx) error {
 	}
 	defer rows.Close()
 
+	// Process results
 	logs := make([]models.AppLog, 0)
 	for rows.Next() {
 		var log models.AppLog
@@ -186,7 +199,7 @@ func (h *AppLogsHandler) GetLogs(c fiber.Ctx) error {
 
 	return c.JSON(AppLogResponse{
 		Data: logs,
-		Meta: PaginationMeta{
+		Meta: timescale.PaginationMeta{
 			TotalRowCount:         totalCount,
 			TotalFilteredRowCount: filteredCount,
 			CurrentPage:           query.Page,
@@ -197,37 +210,48 @@ func (h *AppLogsHandler) GetLogs(c fiber.Ctx) error {
 }
 
 type GetMetricsQuery struct {
-	Start       time.Time `query:"start"`
-	End         time.Time `query:"end"`
-	Interval    string    `query:"interval"` // e.g., '1 hour', '30 minutes', '1 day'
-	ServiceName *string   `query:"serviceName"`
-	Environment *string   `query:"environment"`
-	Search      *string   `query:"search"`
+	timescale.CommonMetricsQueryOptions
+	Level       *string `json:"level,omitempty" query:"level"`
+	ServiceName *string `json:"service_name,omitempty" query:"serviceName"`
+	Environment *string `json:"environment,omitempty" query:"environment"`
 }
 
-type LogLevelMetric struct {
-	Timestamp time.Time        `json:"timestamp"`
-	Counts    map[string]int64 `json:"counts"` // Map of level -> count
-}
-
-// Helper function to suggest appropriate interval based on time range
-func suggestInterval(start, end time.Time) string {
-	duration := end.Sub(start)
-
-	switch {
-	case duration <= 2*time.Hour:
-		return "1 minute"
-	case duration <= 6*time.Hour:
-		return "5 minutes"
-	case duration <= 24*time.Hour:
-		return "15 minutes"
-	case duration <= 7*24*time.Hour:
-		return "1 hour"
-	case duration <= 30*24*time.Hour:
-		return "6 hours"
-	default:
-		return "1 day"
+// Validate implements validation.Validatable
+func (q GetMetricsQuery) Validate() error {
+	if err := q.CommonMetricsQueryOptions.Validate(); err != nil {
+		return err
 	}
+
+	validLevels := []interface{}{"debug", "info", "warn", "error"}
+	return validation.ValidateStruct(&q,
+		validation.Field(&q.Level, validation.In(validLevels...)),
+		validation.Field(&q.ServiceName),
+		validation.Field(&q.Environment),
+	)
+}
+
+// Define structs that match the TypeScript interface
+type AppLogMetricsResponse struct {
+	Total         int                    `json:"total"`
+	ByLevel       []LevelMetric          `json:"by_level"`
+	ByService     []ServiceMetric        `json:"by_service"`
+	ByEnvironment []EnvironmentMetric    `json:"by_environment"`
+	ByTime        []timescale.TimeMetric `json:"by_time"`
+}
+
+type LevelMetric struct {
+	Level string `json:"level"`
+	Count int    `json:"count"`
+}
+
+type ServiceMetric struct {
+	Service string `json:"service"`
+	Count   int    `json:"count"`
+}
+
+type EnvironmentMetric struct {
+	Environment string `json:"environment"`
+	Count       int    `json:"count"`
 }
 
 // GetMetrics returns metrics about app logs over time
@@ -241,121 +265,189 @@ func (h *AppLogsHandler) GetMetrics(c fiber.Ctx) error {
 		})
 	}
 
-	// Set default times if not provided
-	if query.End.IsZero() {
-		query.End = time.Now()
+	// Set defaults
+	if query.End == 0 {
+		query.End = time.Now().UnixMilli()
 	}
-	if query.Start.IsZero() {
-		query.Start = query.End.Add(-24 * time.Hour) // Default to last 24 hours
+	if query.Start == 0 {
+		query.Start = query.End - 24*time.Hour.Milliseconds()
 	}
-
-	// Set default interval if not provided
 	if query.Interval == "" {
-		query.Interval = suggestInterval(query.Start, query.End)
+		query.Interval = timescale.SuggestInterval(query.Start, query.End)
 	}
 
-	// Build the metrics query
-	metricsSQL := `
-					SELECT 
-									time_bucket($1, timestamp) AS bucket,
-									level,
-									COUNT(*) as count
-					FROM app_logs
-					WHERE project_id = $2
-					AND timestamp >= $3
-					AND timestamp <= $4
-	`
-	args := []interface{}{
-		query.Interval,
-		projectID,
-		query.Start,
-		query.End,
-	}
-	argCount := 5
-
-	// Add optional filters
-	if query.ServiceName != nil {
-		metricsSQL += fmt.Sprintf(" AND service_name = $%d", argCount)
-		args = append(args, *query.ServiceName)
-		argCount++
-	}
-
-	if query.Environment != nil {
-		metricsSQL += fmt.Sprintf(" AND environment = $%d", argCount)
-		args = append(args, *query.Environment)
-		argCount++
-	}
-
-	if query.Search != nil {
-		metricsSQL += fmt.Sprintf(`
-					AND (
-							message_tsv @@ plainto_tsquery($%d)
-							OR fields_tsv @@ plainto_tsquery($%d)
-							OR message ILIKE $%d
-							OR fields::text ILIKE $%d
-					)`, argCount, argCount, argCount+1, argCount+1)
-
-		searchTerm := *query.Search
-		args = append(args,
-			searchTerm,                        // for message_tsv and fields_tsv (same parameter)
-			fmt.Sprintf("%%%s%%", searchTerm), // for ILIKE
-		)
-		argCount += 2
-	}
-
-	metricsSQL += " GROUP BY bucket, level ORDER BY bucket ASC"
-
-	// Execute query
-	rows, err := h.pool.Query(c.Context(), metricsSQL, args...)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to fetch metrics",
+	if err := query.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Query parameters validation failed",
 			"message": err.Error(),
 		})
 	}
-	defer rows.Close()
 
-	// Create a map to store metrics by timestamp
-	metricsByTime := make(map[time.Time]*LogLevelMetric)
+	// Base query parameters and WHERE clause
+	baseWhere := `
+		WHERE project_id = $1
+		AND timestamp >= $2
+		AND timestamp <= $3
+	`
+	baseParams := []interface{}{
+		projectID,
+		timescale.UnixMsToTime(query.Start),
+		timescale.UnixMsToTime(query.End),
+	}
+	paramCount := 4
 
-	// Scan results
-	for rows.Next() {
-		var bucket time.Time
-		var level string
-		var count int64
+	// Add optional filters
+	filterClause := ""
+	if query.ServiceName != nil {
+		filterClause += fmt.Sprintf(" AND service_name = $%d", paramCount)
+		baseParams = append(baseParams, *query.ServiceName)
+		paramCount++
+	}
+	if query.Environment != nil {
+		filterClause += fmt.Sprintf(" AND environment = $%d", paramCount)
+		baseParams = append(baseParams, *query.Environment)
+		paramCount++
+	}
+	if query.Level != nil {
+		filterClause += fmt.Sprintf(" AND level = $%d", paramCount)
+		baseParams = append(baseParams, *query.Level)
+		paramCount++
+	}
 
-		if err := rows.Scan(&bucket, &level, &count); err != nil {
+	// 1. Get total count
+	totalSql := "SELECT COUNT(*) FROM app_logs " + baseWhere + filterClause
+	var totalCount int
+	err := h.pool.QueryRow(c.Context(), totalSql, baseParams...).Scan(&totalCount)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to get total count",
+			"message": err.Error(),
+		})
+	}
+
+	// Create response object
+	response := AppLogMetricsResponse{
+		Total:         totalCount,
+		ByLevel:       []LevelMetric{},
+		ByService:     []ServiceMetric{},
+		ByEnvironment: []EnvironmentMetric{},
+		ByTime:        []timescale.TimeMetric{},
+	}
+
+	// Use a more efficient approach: get metrics by level, service, and environment in a single query
+	categoryMetricsSQL := `
+		SELECT 
+			'level' as category,
+			level as category_value,
+			COUNT(*) as count
+		FROM app_logs
+		` + baseWhere + filterClause + `
+		GROUP BY level
+		
+		UNION ALL
+		
+		SELECT 
+			'service' as category,
+			service_name as category_value,
+			COUNT(*) as count
+		FROM app_logs
+		` + baseWhere + filterClause + `
+		GROUP BY service_name
+		
+		UNION ALL
+		
+		SELECT 
+			'environment' as category,
+			environment as category_value,
+			COUNT(*) as count
+		FROM app_logs
+		` + baseWhere + filterClause + `
+		AND environment IS NOT NULL
+		GROUP BY environment
+		
+		ORDER BY category, count DESC
+	`
+
+	categoryRows, err := h.pool.Query(c.Context(), categoryMetricsSQL, baseParams...)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to fetch category metrics",
+			"message": err.Error(),
+		})
+	}
+	defer categoryRows.Close()
+
+	// Process the category metrics
+	for categoryRows.Next() {
+		var category, categoryValue string
+		var count int
+
+		if err := categoryRows.Scan(&category, &categoryValue, &count); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Failed to scan metrics",
+				"error":   "Failed to scan category metrics",
 				"message": err.Error(),
 			})
 		}
 
-		// Get or create metric for this timestamp
-		metric, exists := metricsByTime[bucket]
-		if !exists {
-			metric = &LogLevelMetric{
-				Timestamp: bucket,
-				Counts:    make(map[string]int64),
-			}
-			metricsByTime[bucket] = metric
+		switch category {
+		case "level":
+			response.ByLevel = append(response.ByLevel, LevelMetric{
+				Level: categoryValue,
+				Count: count,
+			})
+		case "service":
+			response.ByService = append(response.ByService, ServiceMetric{
+				Service: categoryValue,
+				Count:   count,
+			})
+		case "environment":
+			response.ByEnvironment = append(response.ByEnvironment, EnvironmentMetric{
+				Environment: categoryValue,
+				Count:       count,
+			})
+		}
+	}
+
+	// 5. Get metrics by time
+	timeSql := fmt.Sprintf(`
+		SELECT 
+			time_bucket($%d, timestamp) AS bucket,
+			COUNT(*) AS count
+		FROM app_logs
+	`, paramCount) + baseWhere + filterClause + `
+		GROUP BY bucket
+		ORDER BY bucket ASC
+	`
+	baseParams = append(baseParams, timescale.ConvertIntervalToPostgresFormat(query.Interval))
+
+	fmt.Println(timeSql)
+
+	timeRows, err := h.pool.Query(c.Context(), timeSql, baseParams...)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to fetch time metrics",
+			"message": err.Error(),
+		})
+	}
+	defer timeRows.Close()
+
+	for timeRows.Next() {
+		var bucket time.Time
+		var count int
+		if err := timeRows.Scan(&bucket, &count); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Failed to scan time metrics",
+				"message": err.Error(),
+			})
 		}
 
-		metric.Counts[level] = count
+		response.ByTime = append(response.ByTime, timescale.TimeMetric{
+			Timestamp: bucket.UnixMilli(),
+			Count:     count,
+		})
 	}
 
-	// Convert map to sorted slice
-	metrics := make([]LogLevelMetric, 0, len(metricsByTime))
-	for _, metric := range metricsByTime {
-		metrics = append(metrics, *metric)
-	}
-
-	// Sort metrics by timestamp
-	sort.Slice(metrics, func(i, j int) bool {
-		return metrics[i].Timestamp.Before(metrics[j].Timestamp)
-	})
-
-	return c.JSON(metrics)
+	return c.JSON(response)
 }
 
 func (h *AppLogsHandler) DeleteAppLog(c fiber.Ctx) error {

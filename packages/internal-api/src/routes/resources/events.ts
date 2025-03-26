@@ -1,5 +1,22 @@
 import { type ErrorResponse, type Opts, createClient } from "@/index";
 import { z } from "zod";
+import { LOG_RETENTION_DAYS } from "@/routes/teams/projects";
+import type { PaginatedResponse } from "@/types";
+import {
+  createTimeRangedPaginatedSchema,
+  baseMetricsSchema,
+} from "@/validations";
+import { add } from "date-fns";
+
+export const AVAILABLE_COLORS = [
+  "#e76f51",
+  "#f4a261",
+  "#e9c46a",
+  "#2a9d8f",
+  "#6a994e",
+] as const;
+
+export type EventChannelColor = (typeof AVAILABLE_COLORS)[number];
 
 export interface EventLog {
   id: string;
@@ -8,9 +25,12 @@ export interface EventLog {
   deleted_at: string | null;
   project_id: string;
   channel_id: string;
+  channel: EventChannel | null;
   name: string;
+  description?: string;
   payload: Record<string, string | number | boolean | null>;
   metadata: Record<string, string | number | boolean | null>;
+  tags?: string[];
   timestamp: string;
 }
 
@@ -21,6 +41,9 @@ export interface EventChannel {
   deleted_at: string | null;
   project_id: string;
   name: string;
+  color: EventChannelColor;
+  slug: string;
+  retention_days: number;
   description: string;
   schema: Record<string, string | number | boolean | null>;
   is_active: boolean;
@@ -29,37 +52,43 @@ export interface EventChannel {
 export interface EventMetrics {
   total: number;
   by_channel: {
-    channel_id: string;
+    channel_slug: string;
     channel_name: string;
     count: number;
   }[];
   by_time: {
-    timestamp: string;
+    timestamp: number;
     count: number;
   }[];
 }
 
 // List Events
-export const listEventsSchema = z.object({
-  start: z.string().optional(),
-  end: z.string().optional(),
-  limit: z.number().min(1).max(100).optional(),
-  page: z.number().min(1).optional(),
-  channel_id: z.string().optional(),
-  search: z.string().optional(),
-});
+export const listEventsSchema = createTimeRangedPaginatedSchema({
+  channel_slug: z.string().optional(),
+}).merge(
+  z.object({
+    start: z.coerce
+      .number()
+      .transform((val) => {
+        // If it's already a timestamp, use it
+        if (typeof val === "number") return val;
+        // If it's a Date object or string, convert to timestamp
+        return new Date(val).getTime();
+      })
+      .catch(new Date(5).getTime()), // Default to beginning of time
+    end: z.coerce
+      .number()
+      .transform((val) => {
+        // If it's already a timestamp, use it
+        if (typeof val === "number") return val;
+        // If it's a Date object or string, convert to timestamp
+        return new Date(val).getTime();
+      })
+      .catch(add(new Date(), { days: 1 }).getTime()),
+  })
+);
 
 export type ListEventsRequest = z.infer<typeof listEventsSchema>;
-
-export interface ListEventsResponse {
-  data: EventLog[];
-  meta: {
-    total: number;
-    filtered: number;
-    page: number;
-    limit: number;
-  };
-}
 
 export async function listEvents(
   projectId: string,
@@ -68,7 +97,7 @@ export async function listEvents(
 ) {
   const client = $fetch ?? createClient();
 
-  return await client<ListEventsResponse, ErrorResponse>(
+  return await client<PaginatedResponse<EventLog>, ErrorResponse>(
     `/v1/projects/${projectId}/events`,
     {
       credentials: "include",
@@ -97,13 +126,8 @@ export async function deleteEvent(
 }
 
 // Get Event Metrics
-export const getEventMetricsSchema = z.object({
-  start: z.string().optional(),
-  end: z.string().optional(),
-  interval: z
-    .enum(["1m", "5m", "15m", "30m", "1h", "6h", "12h", "24h"])
-    .optional(),
-  channel_id: z.string().optional(),
+export const getEventMetricsSchema = baseMetricsSchema.extend({
+  channel_slug: z.string().optional(),
 });
 
 export type GetEventMetricsRequest = z.infer<typeof getEventMetricsSchema>;
@@ -130,6 +154,15 @@ export const createChannelSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   schema: z.record(z.unknown()).optional(),
+  color: z.enum(AVAILABLE_COLORS).optional(),
+  retention_days: z
+    .union([z.string(), z.number()])
+    .transform((val) => Number(val))
+    .refine(
+      (val) =>
+        LOG_RETENTION_DAYS.includes(val as (typeof LOG_RETENTION_DAYS)[number]),
+      "Invalid retention days value"
+    ),
 });
 
 export type CreateChannelRequest = z.infer<typeof createChannelSchema>;

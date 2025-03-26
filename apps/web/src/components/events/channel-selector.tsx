@@ -17,8 +17,6 @@ import {
 } from "@/components/ui/react-hook-form";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { createChannelsMutations } from "@/qc/legacy-queries/create-channels";
-import { projectsQueries } from "@/qc/legacy-queries/projects";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	RadioGroup,
@@ -29,10 +27,15 @@ import {
 	AVAILABLE_COLORS,
 	type EventChannel,
 	LOG_RETENTION_DAYS,
-	createEventChannelSchema,
+	createChannelSchema,
 } from "@repo/api";
-import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	useParams,
+	useRouteContext,
+	useRouter,
+	useSearch,
+} from "@tanstack/react-router";
 import { CircleCheckIcon, HashIcon, PlusIcon } from "lucide-react";
 import { memo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -47,26 +50,26 @@ import {
 } from "../ui/select";
 import { Separator } from "../ui/separator";
 import { toast } from "../ui/sonner-wrapper";
+import { getChannelsQueryOptions } from "@/qc/resources/events";
+import { createChannel } from "@/server/resources/events";
 
-interface ChannelSelectorProps {
-	channels: EventChannel[];
-}
-
-function InternalChannelSelector({ channels }: ChannelSelectorProps) {
-	const navigate = useNavigate();
+// FIXME: Add pending state
+function InternalChannelSelector() {
+	const router = useRouter();
 	const queryClient = useQueryClient();
-	const params = useParams({
-		from: "/_authd/_app/dashboard/$projId/events",
-	});
-	const { channelId, ...rest } = useSearch({
-		from: "/_authd/_app/dashboard/$projId/events",
-	});
 	const [open, setOpen] = useState(false);
-	const { projId } = useParams({
-		from: "/_authd/_app/dashboard/$projId/events",
+	const { currentProject } = useRouteContext({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/events",
 	});
-	const { data: projects, isPending: projectsPending } =
-		projectsQueries.list.useQuery();
+	const params = useParams({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/events",
+	});
+	const searchParams = useSearch({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/events",
+	});
+	const { data: channels, isPending: channelsPending } = useQuery(
+		getChannelsQueryOptions(currentProject.id),
+	);
 
 	const allChannels: EventChannel[] = [
 		{
@@ -74,28 +77,28 @@ function InternalChannelSelector({ channels }: ChannelSelectorProps) {
 			id: undefined,
 			name: "all-events",
 		},
-		...channels,
+		...(channels ?? []),
 	];
 
-	const { mutateAsync } = createChannelsMutations.event.create();
-
-	const form = useForm<z.infer<typeof createEventChannelSchema>>({
-		resolver: zodResolver(createEventChannelSchema),
+	const form = useForm<z.infer<typeof createChannelSchema>>({
+		resolver: zodResolver(createChannelSchema),
 	});
 
 	// 2. Define a submit handler.
-	async function onSubmit(values: z.infer<typeof createEventChannelSchema>) {
-		try {
-			await mutateAsync({ projectId: params.projId, ...values });
-			await queryClient.refetchQueries({
-				queryKey: ["projects", params.projId, "channels", "event"],
-			});
-			setOpen(false);
-			form.reset();
-			toast.success("Your channel has been created successfully");
-		} catch (error) {
+	async function onSubmit(values: z.infer<typeof createChannelSchema>) {
+		const { error } = await createChannel({
+			data: { projectId: currentProject.id, body: values },
+		});
+		if (error) {
 			toast.APIError(error);
+			return;
 		}
+		await queryClient.refetchQueries({
+			queryKey: ["projects", currentProject.id, "channels", "event"],
+		});
+		setOpen(false);
+		form.reset();
+		toast.success("Your channel has been created successfully");
 	}
 
 	return (
@@ -163,16 +166,16 @@ function InternalChannelSelector({ channels }: ChannelSelectorProps) {
 											<FormLabel>Retention</FormLabel>
 											<Select
 												onValueChange={field.onChange}
-												defaultValue={
-													projects !== undefined
-														? projects
-																.find((p) => p.id === projId)
-																?.log_retention_days.toString()
-														: field.value
-															? field.value.toString()
-															: undefined
-												}
-												disabled={projectsPending}
+												// defaultValue={
+												// 	projects !== undefined
+												// 		? projects
+												// 				.find((p) => p.id === projId)
+												// 				?.log_retention_days.toString()
+												// 		: field.value
+												// 			? field.value.toString()
+												// 			: undefined
+												// }
+												// disabled={projectsPending}
 											>
 												<FormControl>
 													<SelectTrigger>
@@ -247,12 +250,16 @@ function InternalChannelSelector({ channels }: ChannelSelectorProps) {
 				{allChannels.map((ch, i) => (
 					<Button
 						key={ch.id ?? "all"}
-						variant={channelId === ch.id ? "secondary" : "ghost"}
+						variant={
+							searchParams.channel_slug === ch.slug ? "secondary" : "ghost"
+						}
 						className={cn(
 							"justify-between shadow-none",
 							i > 0 && "channel-button",
 						)}
-						data-active={channelId === ch.id ? "true" : "false"}
+						data-active={
+							searchParams.channel_slug === ch.slug ? "true" : "false"
+						}
 						style={
 							ch.color
 								? ({
@@ -261,10 +268,10 @@ function InternalChannelSelector({ channels }: ChannelSelectorProps) {
 								: {}
 						}
 						onClick={() =>
-							navigate({
-								to: "/dashboard/$projId/events",
+							router.navigate({
+								to: "/$orgSlug/$projSlug/events",
 								params,
-								search: { channelId: ch.id, ...rest },
+								search: { ...searchParams, channel_slug: ch.slug },
 							})
 						}
 					>
@@ -272,7 +279,9 @@ function InternalChannelSelector({ channels }: ChannelSelectorProps) {
 							<HashIcon
 								className="h-4 w-4"
 								style={
-									ch.color && channelId !== ch.id ? { color: ch.color } : {}
+									ch.color && searchParams.channel_slug !== ch.slug
+										? { color: ch.color }
+										: {}
 								}
 							/>
 							{ch.name}

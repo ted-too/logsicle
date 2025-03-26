@@ -114,7 +114,7 @@ func (h *AuthHandler) Register(c fiber.Ctx) error {
 		defaultOrg := models.Organization{
 			Name:        user.Name + "'s Organization",
 			Description: "Default organization",
-			CreatedBy:   user.ID,
+			CreatedByID: user.ID,
 		}
 
 		if err := tx.Create(&defaultOrg).Error; err != nil {

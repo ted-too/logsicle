@@ -12,7 +12,7 @@ import {
 
 export * from "./types";
 export * from "./routes";
-// export * from "./validations";
+export * from "./validations";
 
 export const BASE_URL = import.meta.env.VITE_API_URL;
 export const createClient = () =>

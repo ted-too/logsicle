@@ -22,8 +22,6 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { projectsQueries } from "@/qc/legacy-queries/projects";
-import { updateChannelsMutations } from "@/qc/legacy-queries/update-channels";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	RadioGroup,
@@ -34,10 +32,9 @@ import {
 	AVAILABLE_COLORS,
 	type EventChannel,
 	LOG_RETENTION_DAYS,
-	updateEventChannelSchema,
+	updateChannelSchema,
 } from "@repo/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { useParams } from "@tanstack/react-router";
 import { CircleCheckIcon, SquarePenIcon } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -51,32 +48,34 @@ import {
 	SelectValue,
 } from "../ui/select";
 import { toast } from "../ui/sonner-wrapper";
+import { channelsQueryKey } from "@/qc/resources/events";
+import { updateChannel } from "@/server/resources/events";
 
 export function EditChannel({ channel }: { channel: EventChannel }) {
 	const [open, setOpen] = useState(false);
 	const queryClient = useQueryClient();
-	const { mutateAsync } = updateChannelsMutations.event.update();
-	const { data: projects, isPending: projectsPending } =
-		projectsQueries.list.useQuery();
-	const params = useParams({
-		from: "/_authd/_app/dashboard/$projId/events",
-	});
 
-	const form = useForm<z.infer<typeof updateEventChannelSchema>>({
-		resolver: zodResolver(updateEventChannelSchema),
+	const form = useForm<z.infer<typeof updateChannelSchema>>({
+		resolver: zodResolver(updateChannelSchema),
 		defaultValues: channel,
 	});
 
 	// 2. Define a submit handler.
-	async function onSubmit(values: z.infer<typeof updateEventChannelSchema>) {
+	async function onSubmit(values: z.infer<typeof updateChannelSchema>) {
 		try {
-			await mutateAsync({
-				projectId: params.projId,
-				channelId: channel.id,
-				...values,
+			const { error } = await updateChannel({
+				data: {
+					projectId: channel.project_id,
+					channelId: channel.id,
+					body: values,
+				},
 			});
+			if (error) {
+				toast.APIError(error);
+				return;
+			}
 			await queryClient.refetchQueries({
-				queryKey: ["projects", params.projId, "channels", "event"],
+				queryKey: channelsQueryKey(channel.project_id),
 			});
 			setOpen(false);
 			form.reset();
@@ -162,16 +161,16 @@ export function EditChannel({ channel }: { channel: EventChannel }) {
 										<FormLabel>Retention</FormLabel>
 										<Select
 											onValueChange={field.onChange}
-											defaultValue={
-												projects !== undefined
-													? projects
-															.find((p) => p.id === params.projId)
-															?.log_retention_days.toString()
-													: field.value
-														? field.value.toString()
-														: undefined
-											}
-											disabled={projectsPending}
+											// defaultValue={
+											// 	projects !== undefined
+											// 		? projects
+											// 				.find((p) => p.id === params.projId)
+											// 				?.log_retention_days.toString()
+											// 		: field.value
+											// 			? field.value.toString()
+											// 			: undefined
+											// }
+											// disabled={projectsPending}
 										>
 											<FormControl>
 												<SelectTrigger>

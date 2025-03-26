@@ -18,7 +18,8 @@ type Organization struct {
 	Name        string           `gorm:"not null" json:"name"`
 	Slug        string           `gorm:"not null;unique" json:"slug"`
 	Description string           `json:"description"`
-	CreatedBy   string           `gorm:"index;not null" json:"created_by"` // User ID who created the organization
+	CreatedByID string           `gorm:"index;not null" json:"created_by_id"` // User ID who created the organisation
+	CreatedBy   User             `json:"created_by" gorm:"foreignKey:CreatedByID"`
 	Projects    []Project        `json:"projects"`
 	Members     []TeamMembership `json:"members" gorm:"foreignKey:OrganizationID"`
 }
@@ -45,6 +46,35 @@ func (o *Organization) BeforeCreate(tx *gorm.DB) (err error) {
 	}
 
 	return nil
+}
+
+func (o Organization) MarshalJSON() ([]byte, error) {
+	baseJSON, err := json.Marshal(o.BaseModel)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(baseJSON, &result); err != nil {
+		return nil, err
+	}
+
+	result["name"] = o.Name
+	result["slug"] = o.Slug
+	result["description"] = o.Description
+	result["created_by"] = o.CreatedBy
+	result["projects"] = o.Projects
+	result["members"] = o.Members
+
+	// Convert CreatedBy to OtherUser
+	result["created_by"] = OtherUser{
+		BaseModel: o.CreatedBy.BaseModel,
+		Name:      o.CreatedBy.Name,
+		Email:     o.CreatedBy.Email,
+		Image:     o.CreatedBy.Image,
+	}
+
+	return json.Marshal(result)
 }
 
 // Role defines the permission level within an organization

@@ -1,32 +1,34 @@
 import type { BetterFetch } from "@better-fetch/fetch";
 
 export interface Opts {
-	$fetch?: BetterFetch;
-	headers?: HeadersInit;
+  $fetch?: BetterFetch;
+  headers?: HeadersInit;
 }
 
 export interface ErrorResponse {
-	message: string;
-	error: string;
+  message: string;
+  error: string;
 }
 
 export type FnResponse<T> =
-	| {
-			data: T;
-			error: null;
-	  }
-	| {
-			data: null;
-			error: ErrorResponse;
-	  };
+  | {
+      data: T;
+      error: null;
+    }
+  | {
+      data: null;
+      error: ErrorResponse;
+    };
+
+export interface PaginationMeta {
+  totalRowCount: number;
+  totalFilteredRowCount: number;
+  currentPage: number;
+  nextPage: number | null;
+  prevPage: number | null;
+}
 
 export type PaginatedResponse<T> = {
-	data: T[];
-	meta: {
-		totalRowCount: number;
-		totalFilteredRowCount: number;
-		currentPage: number;
-		nextPage: number | null;
-		prevPage: number | null;
-	};
+  data: T[];
+  meta: PaginationMeta;
 };

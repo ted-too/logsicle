@@ -20,14 +20,20 @@ export interface Project {
   api_keys: APIKey[];
 }
 
-export const LOG_RETENTION_DAYS = [3, 7, 14, 30, 90];
+export const LOG_RETENTION_DAYS = [3, 7, 14, 30, 90] as const;
 
 export const allowedOriginSchema = z.union([z.literal("*"), z.string().url()]);
 
 export const createProjectSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  allowed_origins: z.array(z.string()).optional(),
-  log_retention_days: z.number().min(1).optional(),
+  allowed_origins: z.array(z.string()),
+  log_retention_days: z
+    .union([z.string(), z.number()])
+    .transform((val) => Number(val))
+    .refine(
+      (val) => LOG_RETENTION_DAYS.includes(val as typeof LOG_RETENTION_DAYS[number]),
+      "Invalid retention days value"
+    ),
 });
 
 export type CreateProjectRequest = z.infer<typeof createProjectSchema>;

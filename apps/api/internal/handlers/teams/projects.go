@@ -32,7 +32,7 @@ func (h *TeamsHandler) ListProjects(c fiber.Ctx) error {
 	orgID := session.ActiveOrganization
 
 	var projects []models.Project
-	if err := h.db.Where("organization_id = ?", orgID).Find(&projects).Error; err != nil {
+	if err := h.db.Preload("APIKeys").Where("organization_id = ?", orgID).Find(&projects).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch projects",
 		})

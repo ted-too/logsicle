@@ -1,43 +1,19 @@
 import { EventCard } from "@/components/events/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/components/ui/sonner-wrapper";
-import { eventsQueries } from "@/qc/legacy-queries/events";
-import { filteredResultsAtom, totalResultsAtom } from "@/stores/generic-filter";
-import { useParams, useRouterState } from "@tanstack/react-router";
+import { useEvents } from "@/hooks/use-events";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 export function EventList() {
-	const { projId } = useParams({
-		from: "/_authd/_app/dashboard/$projId/events",
-	});
-	const search = useRouterState({
-		select: (state) => state.location.search,
-	});
-
 	const parentRef = useRef<HTMLDivElement>(null);
-	const {
-		data,
-		error,
-		isFetching,
-		fetchNextPage,
-		// @ts-expect-error range is always default 24hrs
-	} = eventsQueries.list.useInfiniteQuery(projId, search);
+	const { data, error, isFetching, fetchNextPage, totalCount, filteredCount } =
+		useEvents();
 
 	const flatData = useMemo(
 		() => data?.pages?.flatMap((page) => page.data) ?? [],
 		[data],
 	);
-
-	const [totalCount, setTotalCount] = useAtom(totalResultsAtom);
-	const [filteredCount, setFilteredCount] = useAtom(filteredResultsAtom);
-
-	// Update global state
-	useEffect(() => {
-		setTotalCount(data?.pages?.[0]?.totalCount ?? 0);
-		setFilteredCount(flatData.length);
-	}, [data, flatData, setFilteredCount, setTotalCount]);
 
 	// called on scroll and possibly on mount to fetch more data as the user scrolls and reaches bottom of table
 	const fetchMoreOnBottomReached = useCallback(

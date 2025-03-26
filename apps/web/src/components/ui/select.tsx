@@ -7,9 +7,11 @@ import type * as React from "react";
 import { cn } from "@/lib/utils";
 import { type VariantProps, cva } from "class-variance-authority";
 
+export type SelectPrimitiveProps = React.ComponentProps<typeof SelectPrimitive.Root>
+
 function Select({
 	...props
-}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+}: SelectPrimitiveProps) {
 	return <SelectPrimitive.Root data-slot="select" {...props} />;
 }
 

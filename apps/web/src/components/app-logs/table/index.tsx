@@ -1,12 +1,8 @@
 import { toast } from "@/components/ui/sonner-wrapper";
 import { Table } from "@/components/ui/table";
-import { useLogStream } from "@/hooks/use-log-stream";
-import { appLogsQueries } from "@/qc/legacy-queries/app-logs";
-import { syncCountAtom } from "@/stores/generic-filter";
 import useResizeObserver from "@react-hook/resize-observer";
-import type { AppLog, GetAppLogsParams, PaginatedResponse } from "@repo/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { useParams, useRouterState } from "@tanstack/react-router";
+import { useRouteContext, useSearch } from "@tanstack/react-router";
 import {
 	type ColumnSizingState,
 	type RowData,
@@ -15,10 +11,10 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useSetAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Body, TableHeaderComponent } from "./body";
 import { columns } from "./columns";
+import { useAppLogs } from "@/hooks/use-app-logs";
 
 declare module "@tanstack/react-table" {
 	interface ColumnMeta<TData extends RowData, TValue> {
@@ -37,85 +33,70 @@ export function AppLogTable({
 	className?: string;
 	style?: React.CSSProperties;
 }) {
-	const { projId } = useParams({
-		from: "/_authd/_app/dashboard/$projId/logs",
+	const { currentProject } = useRouteContext({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
 	});
-	const search = useRouterState({
-		select: (state) => state.location.search,
-	}) as GetAppLogsParams & { tail: boolean | undefined };
+	const search = useSearch({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+	});
 
-	const { data, error, isFetching, fetchNextPage, hasNextPage } =
-		appLogsQueries.list.useInfiniteQuery(projId, {
-			...search,
-			// @ts-expect-error tail is not in GetAppLogsParams
-			tail: undefined,
-		});
+	const { data, error, isFetching, fetchNextPage, hasNextPage } = useAppLogs();
 
 	const queryClient = useQueryClient();
-	useLogStream(projId, {
-		enabled: search.tail ?? false,
-		types: ["app"],
-		callback: (log) => {
-			queryClient.setQueryData(
-				[
-					"projects",
-					projId,
-					"app-logs",
-					{
-						...search,
-						tail: undefined,
-					},
-				],
-				(
-					prev:
-						| {
-								pageParams: {
-									page: number;
-								}[];
-								pages: PaginatedResponse<AppLog>[];
-								totalRowCount: number;
-								totalFilteredRowCount: number;
-						  }
-						| undefined,
-				) => {
-					return prev
-						? {
-								...prev,
-								pages: [
-									{
-										...prev.pages[0],
-										data: [log.data, ...prev.pages[0].data],
-									},
-									...prev.pages.slice(1),
-								],
-								totalRowCount: prev.totalRowCount + 1,
-								totalFilteredRowCount: prev.totalFilteredRowCount + 1,
-							}
-						: {
-								pageParams: [{ page: 0 }],
-								pages: [{ data: [log.data], totalCount: 1 }],
-								totalRowCount: 1,
-								totalFilteredRowCount: 1,
-							};
-				},
-			);
-		},
-	});
+	// useLogStream(projId, {
+	// 	enabled: search.tail ?? false,
+	// 	types: ["app"],
+	// 	callback: (log) => {
+	// 		queryClient.setQueryData(
+	// 			[
+	// 				"projects",
+	// 				projId,
+	// 				"app-logs",
+	// 				{
+	// 					...search,
+	// 					tail: undefined,
+	// 				},
+	// 			],
+	// 			(
+	// 				prev:
+	// 					| {
+	// 							pageParams: {
+	// 								page: number;
+	// 							}[];
+	// 							pages: PaginatedResponse<AppLog>[];
+	// 							totalRowCount: number;
+	// 							totalFilteredRowCount: number;
+	// 					  }
+	// 					| undefined,
+	// 			) => {
+	// 				return prev
+	// 					? {
+	// 							...prev,
+	// 							pages: [
+	// 								{
+	// 									...prev.pages[0],
+	// 									data: [log.data, ...prev.pages[0].data],
+	// 								},
+	// 								...prev.pages.slice(1),
+	// 							],
+	// 							totalRowCount: prev.totalRowCount + 1,
+	// 							totalFilteredRowCount: prev.totalFilteredRowCount + 1,
+	// 						}
+	// 					: {
+	// 							pageParams: [{ page: 0 }],
+	// 							pages: [{ data: [log.data], totalCount: 1 }],
+	// 							totalRowCount: 1,
+	// 							totalFilteredRowCount: 1,
+	// 						};
+	// 			},
+	// 		);
+	// 	},
+	// });
 
 	const flatData = useMemo(
 		() => data?.pages?.flatMap((page) => page.data) ?? [],
 		[data],
 	);
-
-	const syncCount = useSetAtom(syncCountAtom);
-
-	// Update global state
-	useEffect(() => {
-		syncCount({
-			totalRowCount: data?.totalRowCount ?? 0,
-			totalFilteredRowCount: data?.totalFilteredRowCount ?? 0,
-		});
-	}, [data, flatData, syncCount]);
 
 	const containerRef = useRef<HTMLTableElement>(null);
 
@@ -147,6 +128,7 @@ export function AppLogTable({
 	const [colSizing, setColSizing] = useState<ColumnSizingState>({});
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: dw about it
 	const handleResize = useCallback(
 		(containerWidth: number) => {
 			const tableElement = containerRef.current;
@@ -158,11 +140,11 @@ export function AppLogTable({
 
 			// Calculate total width of other columns
 			let otherColumnsWidth = 0;
-			thElements.forEach((th) => {
+			for (const th of Array.from(thElements)) {
 				if (th.getAttribute("data-column-id") !== columnId) {
 					otherColumnsWidth += th.getBoundingClientRect().width;
 				}
-			});
+			}
 			// Calculate new width for the fields column
 			let newFieldWidth = Math.max(200, containerWidth - otherColumnsWidth);
 
@@ -199,11 +181,13 @@ export function AppLogTable({
 	});
 
 	const allHeaders = table.getFlatHeaders();
+	// biome-ignore lint/correctness/useExhaustiveDependencies: dw about it
 	const columnSizeVars = useMemo(() => {
 		const headers = allHeaders;
 		const colSizes: { [key: string]: number } = {};
 		for (let i = 0; i < headers.length; i++) {
-			const header = headers[i]!;
+			const header = headers[i];
+			if (!header) continue;
 			colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
 		}
 		return colSizes;

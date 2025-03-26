@@ -61,12 +61,13 @@ CREATE TABLE "organizations" (
   "name" text NOT NULL,
   "slug" text NOT NULL,
   "description" text NULL,
-  "created_by" text NOT NULL,
+  "created_by_id" text NOT NULL,
   PRIMARY KEY ("id"),
-  CONSTRAINT "uni_organizations_slug" UNIQUE ("slug")
+  CONSTRAINT "uni_organizations_slug" UNIQUE ("slug"),
+  CONSTRAINT "fk_organizations_created_by" FOREIGN KEY ("created_by_id") REFERENCES "users" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION
 );
--- Create index "idx_organizations_created_by" to table: "organizations"
-CREATE INDEX "idx_organizations_created_by" ON "organizations" ("created_by");
+-- Create index "idx_organizations_created_by_id" to table: "organizations"
+CREATE INDEX "idx_organizations_created_by_id" ON "organizations" ("created_by_id");
 -- Create index "idx_organizations_deleted_at" to table: "organizations"
 CREATE INDEX "idx_organizations_deleted_at" ON "organizations" ("deleted_at");
 -- Create "projects" table
