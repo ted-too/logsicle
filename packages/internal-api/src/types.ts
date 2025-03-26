@@ -32,3 +32,7 @@ export type PaginatedResponse<T> = {
   data: T[];
   meta: PaginationMeta;
 };
+
+export type RawJsonPrimitive = string | number | boolean | null;
+export type RawJsonValue = RawJsonPrimitive | { [key: string]: RawJsonValue };
+export type JsonValue = Record<string, RawJsonValue>;

@@ -1,6 +1,6 @@
 import { type ErrorResponse, type Opts, createClient } from "@/index";
 import { z } from "zod";
-import type { PaginatedResponse } from "@/types";
+import type { JsonValue, PaginatedResponse } from "@/types";
 import {
 	LOG_LEVELS,
 	type LogLevel,
@@ -13,7 +13,7 @@ export interface AppLog {
 	project_id: string;
 	level: LogLevel;
 	message: string;
-	fields: Record<string, string | number | boolean | null> | null;
+	fields: JsonValue | null;
 	timestamp: string;
 	service_name: string;
 	caller: string | null;

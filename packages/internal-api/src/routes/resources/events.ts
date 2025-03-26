@@ -1,7 +1,7 @@
 import { type ErrorResponse, type Opts, createClient } from "@/index";
 import { z } from "zod";
 import { LOG_RETENTION_DAYS } from "@/routes/teams/projects";
-import type { PaginatedResponse } from "@/types";
+import type { JsonValue, PaginatedResponse } from "@/types";
 import {
   createTimeRangedPaginatedSchema,
   baseMetricsSchema,
@@ -28,8 +28,8 @@ export interface EventLog {
   channel: EventChannel | null;
   name: string;
   description?: string;
-  payload: Record<string, string | number | boolean | null>;
-  metadata: Record<string, string | number | boolean | null>;
+  payload: JsonValue;
+  metadata: JsonValue;
   tags?: string[];
   timestamp: string;
 }
@@ -45,7 +45,7 @@ export interface EventChannel {
   slug: string;
   retention_days: number;
   description: string;
-  schema: Record<string, string | number | boolean | null>;
+  schema: JsonValue;
   is_active: boolean;
 }
 
@@ -153,7 +153,7 @@ export async function getEventMetrics(
 export const createChannelSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  schema: z.record(z.unknown()).optional(),
+  schema: z.record(z.string(), z.any()).nullish(),
   color: z.enum(AVAILABLE_COLORS).optional(),
   retention_days: z
     .union([z.string(), z.number()])

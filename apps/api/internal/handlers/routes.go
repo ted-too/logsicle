@@ -10,8 +10,10 @@ import (
 	appHandler "github.com/ted-too/logsicle/internal/handlers/app"
 	authHandler "github.com/ted-too/logsicle/internal/handlers/auth"
 	"github.com/ted-too/logsicle/internal/handlers/events"
+	metricsHandler "github.com/ted-too/logsicle/internal/handlers/metrics"
 	requestsHandler "github.com/ted-too/logsicle/internal/handlers/requests"
 	"github.com/ted-too/logsicle/internal/handlers/teams"
+	tracesHandler "github.com/ted-too/logsicle/internal/handlers/traces"
 	"github.com/ted-too/logsicle/internal/middleware"
 	"github.com/ted-too/logsicle/internal/queue"
 	"github.com/ted-too/logsicle/internal/storage/models"
@@ -24,6 +26,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 	eventsHandler := events.NewEventsHandler(db, pool, queueService)
 	appHandler := appHandler.NewAppLogsHandler(db, pool, queueService)
 	requestsHandler := requestsHandler.NewRequestLogsHandler(db, pool, queueService)
+	metricsHandler := metricsHandler.NewMetricsHandler(db, pool, queueService)
+	tracesHandler := tracesHandler.NewTracesHandler(db, pool, queueService)
 
 	// Health check endpoint
 	app.Get("/health", func(c fiber.Ctx) error {
@@ -36,14 +40,15 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 		v1Ingest.Post("/event", eventsHandler.IngestEvent)
 		v1Ingest.Post("/app", appHandler.IngestLog)
 		v1Ingest.Post("/request", requestsHandler.IngestRequestLog)
-		// v1Ingest.Post("/trace", ingestHandler.IngestTrace)
+		v1Ingest.Post("/metric", metricsHandler.IngestMetric)
+		v1Ingest.Post("/trace", tracesHandler.IngestTrace)
 	}
 
 	// FIXME: Make super authd middleware
 	v1SuperAuthd := app.Group("/v1")
 	{
-		metricsHandler := NewMetricsHandler(processor)
-		v1SuperAuthd.Get("/metrics/queue", metricsHandler.GetQueueMetrics)
+		internalMetricsHandler := NewMetricsHandler(processor)
+		v1SuperAuthd.Get("/metrics/queue", internalMetricsHandler.GetQueueMetrics)
 	}
 
 	log.Printf("[DEBUG] Allowed origins: %s", cfg.GetAllowedOrigins())
@@ -113,6 +118,15 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 			projects.Delete("/:id/request/:logId", requestsHandler.DeleteRequestLog, middleware.RequireRole(models.RoleAdmin, models.RoleOwner))
 			projects.Get("/:id/request/metrics", requestsHandler.GetMetrics)
 			projects.Get("/:id/request/stream", requestsHandler.StreamLogs)
+
+			// Metrics routes
+			projects.Get("/:id/metrics", metricsHandler.GetMetrics)
+			projects.Get("/:id/metrics/stats", metricsHandler.GetMetricStats)
+
+			// Traces routes
+			projects.Get("/:id/traces", tracesHandler.GetTraces)
+			projects.Get("/:id/traces/stats", tracesHandler.GetTraceStats)
+			projects.Get("/:id/traces/:traceId", tracesHandler.GetTraceTimeline)
 		}
 	}
 

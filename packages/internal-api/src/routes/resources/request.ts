@@ -1,6 +1,6 @@
 import { type ErrorResponse, type Opts, createClient } from "@/index";
 import { z } from "zod";
-import type { PaginatedResponse } from "@/types";
+import type { JsonValue, PaginatedResponse } from "@/types";
 import {
   createTimeRangedPaginatedSchema,
   baseMetricsSchema,
@@ -27,8 +27,8 @@ export interface RequestLog {
   path: string;
   status_code: number;
   duration: number;
-  request_body: Record<string, string | number | boolean | null> | null;
-  response_body: Record<string, string | number | boolean | null> | null;
+  request_body: JsonValue | null;
+  response_body: JsonValue | null;
   headers: Record<string, string> | null;
   query_params: Record<string, string> | null;
   user_agent: string | null;

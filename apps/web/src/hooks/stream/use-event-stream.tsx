@@ -1,16 +1,5 @@
 import { useEffect, useState } from "react";
-
-interface EventLog {
-  id: string;
-  project_id: string;
-  channel_id?: string;
-  name: string;
-  description: string;
-  parser?: string;
-  metadata?: Record<string, string | number | boolean | null>;
-  tags?: string[];
-  timestamp: string;
-}
+import type { EventLog } from "@repo/api";
 
 type EventLogEvent = {
   type: "event";

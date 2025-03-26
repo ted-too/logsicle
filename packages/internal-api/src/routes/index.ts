@@ -7,3 +7,5 @@ export * from "./teams/projects";
 export * from "./resources/app";
 export * from "./resources/events";
 export * from "./resources/request";
+export * from "./resources/metrics";
+export * from "./resources/traces";

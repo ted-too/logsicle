@@ -15,6 +15,7 @@ const (
 	AppLogStream     = "app_logs"
 	RequestLogStream = "request_logs"
 	MetricStream     = "metrics"
+	TraceStream      = "traces"
 	BatchSize        = 100
 	MaxRetries       = 3
 )
@@ -55,6 +56,11 @@ func (q *QueueService) EnqueueRequestLog(ctx context.Context, log *models.Reques
 // EnqueueMetric adds a metric to the queue
 func (q *QueueService) EnqueueMetric(ctx context.Context, metric *models.Metric) error {
 	return q.enqueue(ctx, MetricStream, metric)
+}
+
+// EnqueueTrace adds a trace to the queue
+func (q *QueueService) EnqueueTrace(ctx context.Context, trace *models.Trace) error {
+	return q.enqueue(ctx, TraceStream, trace)
 }
 
 // Generic enqueue function

@@ -1,15 +1,5 @@
 import { useEffect, useState } from "react";
-
-interface AppLog {
-  id: string;
-  project_id: string;
-  channel_id?: string;
-  level: string;
-  message: string;
-  metadata?: Record<string, string | number | boolean | null>;
-  tags?: string[];
-  timestamp: string;
-}
+import type { AppLog } from "@repo/api";
 
 type AppLogEvent = {
   type: "app";

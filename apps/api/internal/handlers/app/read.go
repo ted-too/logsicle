@@ -420,8 +420,6 @@ func (h *AppLogsHandler) GetMetrics(c fiber.Ctx) error {
 	`
 	baseParams = append(baseParams, timescale.ConvertIntervalToPostgresFormat(query.Interval))
 
-	fmt.Println(timeSql)
-
 	timeRows, err := h.pool.Query(c.Context(), timeSql, baseParams...)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
