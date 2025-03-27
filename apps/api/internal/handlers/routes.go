@@ -66,7 +66,13 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 		auth.Post("/sign-up", authHandler.Register)
 		auth.Post("/sign-in", authHandler.Login)
 		auth.Post("/sign-out", authHandler.Logout)
+
+		// Invitation routes (for non-authenticated users)
+		auth.Get("/invitations/:token", teamsHandler.ValidateInvitation)
+		auth.Post("/invitations/accept-with-registration", authHandler.AcceptInvitationWithRegistration)
 	}
+
+	requireManagementMiddleware := middleware.RequireRole(models.RoleAdmin, models.RoleOwner)
 
 	// Protected routes
 	v1Authd := v1.Group("", middleware.AuthMiddleware(db))
@@ -75,17 +81,29 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 		v1Authd.Get("/me", authHandler.Me)
 		v1Authd.Patch("/me", authHandler.UpdateUser)
 
+		// Invitation acceptance for authenticated users
+		v1Authd.Post("/invitations/accept", authHandler.AcceptInvitation)
+
 		// Organization routes
 		v1Authd.Post("/organizations", teamsHandler.CreateOrganization)
 		v1Authd.Get("/organizations", teamsHandler.ListUserOrganizationMemberships)
 		v1Authd.Get("/organizations/members", teamsHandler.ListOrganizationMembers)
-		v1Authd.Delete("/organizations/:id", teamsHandler.DeleteOrganization, middleware.RequireRole(models.RoleAdmin, models.RoleOwner))
+		v1Authd.Delete("/organizations/:id", teamsHandler.DeleteOrganization, requireManagementMiddleware)
 		v1Authd.Post("/organizations/:id/activate", authHandler.SetActiveOrganization)
+
+		// Organization invitations (requires active organization and admin role)
+		orgInvitationsAdmin := v1Authd.Group("/invitations", middleware.RequireActiveOrganization(db), requireManagementMiddleware)
+		{
+			orgInvitationsAdmin.Post("", teamsHandler.CreateInvitation, requireManagementMiddleware)
+			orgInvitationsAdmin.Get("", teamsHandler.ListInvitations)
+			orgInvitationsAdmin.Post("/:id/resend", teamsHandler.ResendInvitation, requireManagementMiddleware)
+			orgInvitationsAdmin.Delete("/:id", teamsHandler.CancelInvitation, requireManagementMiddleware)
+		}
 
 		// Project routes (requires active organization)
 		projects := v1Authd.Group("/projects", middleware.RequireActiveOrganization(db))
 		{
-			projectsManagement := projects.Group("", middleware.RequireRole(models.RoleAdmin, models.RoleOwner))
+			projectsManagement := projects.Group("", requireManagementMiddleware)
 			projectsManagement.Post("", teamsHandler.CreateProject)
 			projects.Get("", teamsHandler.ListProjects)
 			projects.Get("/:id", teamsHandler.GetProject)
@@ -99,7 +117,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 
 			// Events routes
 			projects.Get("/:id/events", eventsHandler.GetEventLogs)
-			projects.Delete("/:id/events/:eventId", eventsHandler.DeleteEvent, middleware.RequireRole(models.RoleAdmin, models.RoleOwner))
+			projects.Delete("/:id/events/:eventId", eventsHandler.DeleteEvent, requireManagementMiddleware)
 			projects.Get("/:id/events/stream", eventsHandler.StreamEvents)
 			projects.Get("/:id/events/metrics", eventsHandler.GetMetrics)
 			projects.Get("/:id/events/channels", eventsHandler.GetEventChannels)
@@ -110,12 +128,12 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 
 			// App logs routes
 			projects.Get("/:id/app", appHandler.GetAppLogs)
-			projects.Delete("/:id/app/:logId", appHandler.DeleteAppLog, middleware.RequireRole(models.RoleAdmin, models.RoleOwner))
+			projects.Delete("/:id/app/:logId", appHandler.DeleteAppLog, requireManagementMiddleware)
 			projects.Get("/:id/app/metrics", appHandler.GetMetrics)
 
 			// Request logs routes
 			projects.Get("/:id/request", requestsHandler.GetRequestLogs)
-			projects.Delete("/:id/request/:logId", requestsHandler.DeleteRequestLog, middleware.RequireRole(models.RoleAdmin, models.RoleOwner))
+			projects.Delete("/:id/request/:logId", requestsHandler.DeleteRequestLog, requireManagementMiddleware)
 			projects.Get("/:id/request/metrics", requestsHandler.GetMetrics)
 			projects.Get("/:id/request/stream", requestsHandler.StreamLogs)
 

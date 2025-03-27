@@ -14,8 +14,9 @@ export interface Organization {
 	deleted_at: string | null;
 	name: string;
 	slug: string;
+	logo: string | null;
 	description: string;
-	created_by: string;
+	created_by: OtherUser;
 	projects: Project[];
 	members: TeamMembership[];
 }
@@ -40,6 +41,7 @@ export interface TeamMembershipWithOrganization extends TeamMembership {
 
 export const createOrganizationSchema = z.object({
 	name: z.string().min(1, "Name is required"),
+	logo: z.string().nullish(),
 	description: z.string().optional(),
 });
 

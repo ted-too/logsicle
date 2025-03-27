@@ -93,7 +93,11 @@ export function AppLogsTable() {
       // FIXME: make it configurable - TODO: use `columnHidden: boolean` in `filterFields`
       defaultColumnVisibility={{
         id: false,
-        // TODO: add the rest of the columns
+        function: false,
+        host: false,
+        service_name: false,
+        caller: false,
+        version: false
       }}
       meta={{}}
       filterFields={filterFields}

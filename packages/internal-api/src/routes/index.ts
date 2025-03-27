@@ -3,6 +3,7 @@ export * from "./auth/api-keys";
 
 export * from "./teams/organizations";
 export * from "./teams/projects";
+export * from "./teams/invitations";
 
 export * from "./resources/app";
 export * from "./resources/events";

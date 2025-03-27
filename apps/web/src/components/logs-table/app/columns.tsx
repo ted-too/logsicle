@@ -11,6 +11,7 @@ import { getLevelColor } from "@/lib/request/level";
 
 export const appLogColumns: ColumnDef<AppLog>[] = [
   {
+    id: "level_level_label",
     accessorKey: "level",
     header: "",
     cell: ({ row }) => {
@@ -51,7 +52,6 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
     },
   },
   {
-    id: "id",
     accessorKey: "id",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Log Id" />
@@ -72,7 +72,7 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
     },
   },
   {
-    id: "log_level",
+    id: "level",
     accessorKey: "level",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Level" />
@@ -148,4 +148,44 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
         "min-w-[--header-environment-size] w-[--header-environment-size]",
     },
   },
+	{
+		accessorKey: "function",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Function" />
+		),
+		size: 69,
+		minSize: 69,
+	},
+	{
+		accessorKey: "host",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Host" />
+		),
+		size: 69,
+		minSize: 69,
+	},
+	{
+		accessorKey: "service_name", 
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Service" />
+		),
+		size: 69,
+		minSize: 69,
+	},
+	{
+		accessorKey: "caller",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Caller" />
+		),
+		size: 69,
+		minSize: 69,
+	},
+	{
+		accessorKey: "version",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Version" />
+		),
+		size: 69,
+		minSize: 69,
+	}
 ];

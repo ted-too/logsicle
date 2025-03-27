@@ -6,13 +6,15 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authd")({
   beforeLoad: async ({ location, context }) => {
-    const { data: user, error } = await getUser();
+    const { data, error } = await getUser();
 
     if (error) {
       throw redirect({
         to: "/",
       });
     }
+
+    const { user, session } = data;
 
     void context.queryClient.setQueryData(userQueryKey, user);
 
@@ -35,6 +37,7 @@ export const Route = createFileRoute("/_authd")({
     return {
       user,
       userOrgs,
+      session,
     };
   },
   component: AuthedLayout,

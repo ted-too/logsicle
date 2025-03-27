@@ -1,5 +1,6 @@
-import { useLocalStorage } from "@/hooks/use-local-storage";
-import { createContext, useContext } from "react";
+import { setSidebarStates } from "@/routes/_authd/$orgSlug/$projSlug/_dashboard";
+import { useRouteContext } from "@tanstack/react-router";
+import { createContext, useContext, useCallback, useState } from "react";
 
 interface ControlsContextType {
   open: boolean;
@@ -9,7 +10,19 @@ interface ControlsContextType {
 export const ControlsContext = createContext<ControlsContextType | null>(null);
 
 export function ControlsProvider({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useLocalStorage("data-table-controls", true);
+  const { sidebarStates } = useRouteContext({
+    from: "/_authd/$orgSlug/$projSlug/_dashboard",
+  });
+  const [open, _setOpen] = useState(sidebarStates.secondarySidebarState);
+
+  const setOpen = useCallback(
+    (value: boolean | ((value: boolean) => boolean)) => {
+      const openState = typeof value === "function" ? value(open) : value;
+      _setOpen(openState);
+      setSidebarStates({ data: { secondarySidebarState: openState } });
+    },
+    [open]
+  );
 
   return (
     <ControlsContext.Provider value={{ open, setOpen }}>

@@ -19,13 +19,5 @@ export const Route = createFileRoute(
       appDataOptions(context.currentProject.id, location.search as SearchParams)
     );
   },
-  component: RouteComponent,
+  component: AppLogsTable,
 });
-
-function RouteComponent() {
-  return (
-    <div className="h-[var(--content-height)] w-[90%]">
-      <AppLogsTable />
-    </div>
-  );
-}

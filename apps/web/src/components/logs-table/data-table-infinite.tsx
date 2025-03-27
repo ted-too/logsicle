@@ -30,7 +30,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/custom/table";
-import { DataTableFilterControls } from "@/components/data-table/data-table-filter-controls";
 import { DataTableFilterCommand } from "@/components/data-table/data-table-filter-command";
 import type {
   DataTableFilterField,
@@ -63,6 +62,8 @@ import {
   type RequestLog,
 } from "@repo/api";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { DataTableFilterControls } from "../data-table/data-table-filter-controls";
+import { ScrollArea } from "../ui/scroll-area";
 
 type TableTypeToData = {
   app: AppLog;
@@ -168,6 +169,13 @@ export function DataTableInfinite<
 
   const navigate = useNavigate();
 
+  const searchParams = useSearch({
+    from:
+      type === "app"
+        ? "/_authd/$orgSlug/$projSlug/_dashboard/app-logs"
+        : "/_authd/$orgSlug/$projSlug/_dashboard/request-logs",
+  });
+
   const setSearch = (search: Record<string, unknown>) => {
     navigate({
       to:
@@ -175,7 +183,10 @@ export function DataTableInfinite<
           ? "/$orgSlug/$projSlug/app-logs"
           : "/$orgSlug/$projSlug/request-logs",
       params,
-      search,
+      search: {
+        ...searchParams,
+        ...search,
+      },
     });
   };
 
@@ -241,21 +252,34 @@ export function DataTableInfinite<
   });
 
   React.useEffect(() => {
-    const columnFiltersWithNullable = filterFields.map((field) => {
+    const columnFiltersWithUndefined = filterFields.map((field) => {
       const filterValue = columnFilters.find(
         (filter) => filter.id === field.value
       );
-      if (!filterValue) return { id: field.value, value: null };
+      if (!filterValue) return { id: field.value, value: undefined };
       return { id: field.value, value: filterValue.value };
     });
 
-    const search = columnFiltersWithNullable.reduce(
+    const search = columnFiltersWithUndefined.reduce(
       (prev, curr) => {
         prev[curr.id as string] = curr.value;
         return prev;
       },
       {} as Record<string, unknown>
     );
+
+    if (
+      search.timestamp &&
+      Array.isArray(search.timestamp) &&
+      search.timestamp[0] &&
+      search.timestamp[1]
+    ) {
+      const start = new Date(search.timestamp[0]).getTime();
+      const end = new Date(search.timestamp[1]).getTime();
+      search.timestamp = undefined;
+      search.start = start;
+      search.end = end;
+    }
 
     setSearch(search);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,7 +359,7 @@ export function DataTableInfinite<
       getFacetedMinMaxValues={getFacetedMinMaxValues}
     >
       <div
-        className="flex h-full min-h-screen w-full flex-col sm:flex-row"
+        className="flex h-full min-h-(--content-height) w-full flex-col sm:flex-row"
         style={
           {
             "--top-bar-height": `${topBarHeight}px`,
@@ -345,12 +369,12 @@ export function DataTableInfinite<
       >
         <div
           className={cn(
-            "h-full w-full flex-col sm:sticky sm:top-0 sm:max-h-screen sm:min-h-screen sm:min-w-52 sm:max-w-52 sm:self-start md:min-w-72 md:max-w-72",
+            "h-full w-full flex-col sm:sticky sm:top-0 sm:max-h-(--content-height) sm:min-h-(--content-height) sm:min-w-52 sm:max-w-52 sm:self-start md:min-w-72 md:max-w-72 sm:border-r",
             "group-data-[expanded=false]/controls:hidden",
             "hidden sm:flex"
           )}
         >
-          <div className="border-b border-border bg-background p-2 md:sticky md:top-0">
+          <div className="border-b border-border bg-background p-2 pl-0 md:sticky md:top-0">
             <div className="flex h-[46px] items-center justify-between gap-3">
               <p className="px-2 font-medium text-foreground">Filters</p>
               <div>
@@ -360,13 +384,13 @@ export function DataTableInfinite<
               </div>
             </div>
           </div>
-          <div className="flex-1 p-2 sm:overflow-y-scroll">
+          <ScrollArea className="w-full grow p-2 pl-0">
             <DataTableFilterControls />
-          </div>
+          </ScrollArea>
         </div>
         <div
           className={cn(
-            "flex max-w-full flex-1 flex-col border-border sm:border-l",
+            "flex max-w-full flex-1 flex-col border-border",
             // Chrome issue
             "group-data-[expanded=true]/controls:sm:max-w-[calc(100vw_-_208px)] group-data-[expanded=true]/controls:md:max-w-[calc(100vw_-_288px)]"
           )}
@@ -396,13 +420,13 @@ export function DataTableInfinite<
             />
             <TimelineChart type={type} className="-mb-2" columnId="timestamp" />
           </div>
-          <div className="z-0">
+          <div className="z-0 grow">
             <Table
               ref={tableRef}
               onScroll={onScroll}
               // REMINDER: https://stackoverflow.com/questions/50361698/border-style-do-not-work-with-sticky-position-element
               className="border-separate border-spacing-0"
-              containerClassName="max-h-[calc(100vh_-_var(--top-bar-height))]"
+              containerClassName="max-h-[calc(var(--content-height)_-_var(--top-bar-height))]"
             >
               <TableHeader className={cn("sticky top-0 z-20 bg-background")}>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -488,8 +512,9 @@ export function DataTableInfinite<
                 )}
                 <TableRow className="hover:bg-transparent data-[state=selected]:bg-transparent">
                   <TableCell colSpan={columns.length} className="text-center">
-                    {(totalRowsFetched < filterRows && filterRows !== 0) ||
-                    !table.getCoreRowModel().rows?.length ? (
+                    {(totalRowsFetched < filterRows ||
+                      !table.getCoreRowModel().rows?.length) &&
+                    filterRows !== 0 ? (
                       <Button
                         disabled={isFetching || isLoading}
                         onClick={() => fetchNextPage()}

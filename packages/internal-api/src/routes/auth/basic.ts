@@ -18,6 +18,19 @@ export interface OwnUser extends OtherUser {
   organizations: Organization[];
 }
 
+export interface Session {
+  user_id: string;
+  ip_address: string;
+  user_agent: string;
+  active_organization: string;
+  expires_at: string;
+}
+
+export interface UserSession {
+  user: OwnUser;
+  session: Session;
+}
+
 export const registerSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	email: z.string().email("Invalid email"),
@@ -32,7 +45,7 @@ export async function register(
 ) {
   const client = $fetch ?? createClient();
 
-  return await client<OwnUser, ErrorResponse>("/v1/auth/sign-up", {
+  return await client<UserSession, ErrorResponse>("/v1/auth/sign-up", {
     method: "POST",
     body: JSON.stringify(body),
     ...opts,
@@ -49,7 +62,7 @@ export type LoginRequest = z.infer<typeof loginSchema>;
 export async function login(body: LoginRequest, { $fetch, ...opts }: Opts) {
   const client = $fetch ?? createClient();
 
-  return await client<OwnUser, ErrorResponse>("/v1/auth/sign-in", {
+  return await client<UserSession, ErrorResponse>("/v1/auth/sign-in", {
     method: "POST",
     body: JSON.stringify(body),
     credentials: "include",
@@ -70,7 +83,7 @@ export async function logout({ $fetch, ...opts }: Opts) {
 export async function getUser({ $fetch, ...opts }: Opts) {
   const client = $fetch ?? createClient();
 
-  return await client<OwnUser, ErrorResponse>("/v1/me", {
+  return await client<UserSession, ErrorResponse>("/v1/me", {
     credentials: "include",
     ...opts,
   });

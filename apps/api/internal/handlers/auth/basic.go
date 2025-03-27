@@ -16,6 +16,11 @@ import (
 	"gorm.io/gorm"
 )
 
+type UserSession struct {
+	User    models.User     `json:"user"`
+	Session storage.Session `json:"session"`
+}
+
 type RegisterRequest struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
@@ -162,7 +167,10 @@ func (h *AuthHandler) Register(c fiber.Ctx) error {
 
 	sess.Set(storage.SessionDataKey, userSession)
 
-	return c.Status(fiber.StatusCreated).JSON(user)
+	return c.Status(fiber.StatusCreated).JSON(UserSession{
+		User:    user,
+		Session: *userSession,
+	})
 }
 
 // Login handles user login
@@ -244,7 +252,10 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 
 	user.Organizations = organizations
 
-	return c.JSON(user)
+	return c.JSON(UserSession{
+		User:    user,
+		Session: *userSession,
+	})
 }
 
 // Logout handles user logout
@@ -258,7 +269,19 @@ func (h *AuthHandler) Logout(c fiber.Ctx) error {
 func (h *AuthHandler) Me(c fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 
-	return c.JSON(user)
+	sess := session.FromContext(c)
+	userSession, ok := sess.Get(storage.SessionDataKey).(storage.Session)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error":   "Not authenticated",
+			"message": "No active session found",
+		})
+	}
+
+	return c.JSON(UserSession{
+		User:    *user,
+		Session: userSession,
+	})
 }
 
 // SetActiveOrganization sets the active organization for the current session

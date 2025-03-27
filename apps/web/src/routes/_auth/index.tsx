@@ -29,7 +29,9 @@ function SignInPage() {
 
       toast.success("Signed in successfully");
 
-      const org = data.organizations?.[0];
+      const { user } = data;
+
+      const org = user.organizations?.[0];
       const proj = org.projects?.[0];
 
       if (proj) {

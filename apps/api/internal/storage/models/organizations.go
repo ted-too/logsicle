@@ -1,7 +1,9 @@
 package models
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"strconv"
 	"time"
@@ -17,6 +19,7 @@ type Organization struct {
 	storage.BaseModel
 	Name        string           `gorm:"not null" json:"name"`
 	Slug        string           `gorm:"not null;unique" json:"slug"`
+	Logo        sql.NullString   `json:"logo"`
 	Description string           `json:"description"`
 	CreatedByID string           `gorm:"index;not null" json:"created_by_id"` // User ID who created the organisation
 	CreatedBy   User             `json:"created_by" gorm:"foreignKey:CreatedByID"`
@@ -61,6 +64,11 @@ func (o Organization) MarshalJSON() ([]byte, error) {
 
 	result["name"] = o.Name
 	result["slug"] = o.Slug
+	if o.Logo.Valid {
+		result["logo"] = o.Logo.String
+	} else {
+		result["logo"] = nil
+	}
 	result["description"] = o.Description
 	result["created_by"] = o.CreatedBy
 	result["projects"] = o.Projects
@@ -157,4 +165,102 @@ func (t TeamMembership) MarshalJSON() ([]byte, error) {
 	result["organization"] = org
 
 	return json.Marshal(result)
+}
+
+// InvitationStatus represents the status of an invitation
+type InvitationStatus string
+
+const (
+	InvitationPending  InvitationStatus = "pending"
+	InvitationAccepted InvitationStatus = "accepted"
+	InvitationRejected InvitationStatus = "rejected"
+	InvitationExpired  InvitationStatus = "expired"
+)
+
+// Invitation represents an invitation to join an organization
+type Invitation struct {
+	storage.BaseModel
+	Email          string           `gorm:"not null" json:"email"`
+	OrganizationID string           `gorm:"index;not null" json:"organization_id"`
+	Organization   Organization     `json:"organization" gorm:"foreignKey:OrganizationID"`
+	Role           Role             `gorm:"not null;default:'member'" json:"role"`
+	Token          string           `gorm:"uniqueIndex;not null" json:"token,omitempty"`
+	ExpiresAt      time.Time        `gorm:"not null" json:"expires_at"`
+	Status         InvitationStatus `gorm:"not null;default:'pending'" json:"status"`
+	InvitedByID    string           `gorm:"index;not null" json:"invited_by_id"`
+	InvitedBy      User             `json:"invited_by" gorm:"foreignKey:InvitedByID"`
+}
+
+func (i *Invitation) BeforeCreate(tx *gorm.DB) error {
+	if i.BaseModel.ID == "" {
+		id, err := typeid.New[InvitationID]()
+		if err != nil {
+			return err
+		}
+		i.BaseModel.ID = id.String()
+	}
+
+	if i.Status == "" {
+		i.Status = InvitationPending
+	}
+
+	if i.ExpiresAt.IsZero() {
+		// Default expiration time is 7 days
+		i.ExpiresAt = time.Now().Add(7 * 24 * time.Hour)
+	}
+
+	if i.Token == "" {
+		// Generate a secure random token
+		token, err := generateInvitationToken()
+		if err != nil {
+			return err
+		}
+		i.Token = token
+	}
+
+	return nil
+}
+
+func (i Invitation) MarshalJSON() ([]byte, error) {
+	baseJSON, err := json.Marshal(i.BaseModel)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(baseJSON, &result); err != nil {
+		return nil, err
+	}
+
+	result["email"] = i.Email
+	result["organization_id"] = i.OrganizationID
+	result["organization"] = i.Organization
+	result["role"] = i.Role
+	result["token"] = i.Token
+	result["expires_at"] = i.ExpiresAt
+	result["status"] = i.Status
+	result["invited_by_id"] = i.InvitedByID
+
+	// Convert InvitedBy to OtherUser
+	result["invited_by"] = OtherUser{
+		BaseModel: i.InvitedBy.BaseModel,
+		Name:      i.InvitedBy.Name,
+		Email:     i.InvitedBy.Email,
+		Image:     i.InvitedBy.Image,
+	}
+
+	return json.Marshal(result)
+}
+
+// Generate a secure random token for invitation links
+func generateInvitationToken() (string, error) {
+	// Use crypto random to generate a secure token
+	tokenBytes := make([]byte, 32)
+	_, err := rand.Read(tokenBytes)
+	if err != nil {
+		return "", err
+	}
+
+	// Encode as base64 for URL safety
+	return base64.URLEncoding.EncodeToString(tokenBytes), nil
 }

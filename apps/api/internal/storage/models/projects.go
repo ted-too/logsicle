@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"encoding/json"
 	"strconv"
 
@@ -18,6 +19,7 @@ type Project struct {
 	OrganizationID   string         `gorm:"index;not null" json:"organization_id"`
 	Name             string         `gorm:"not null" json:"name"`
 	Slug             string         `gorm:"not null;unique" json:"slug"`
+	Logo             sql.NullString `json:"logo"`
 	AllowedOrigins   pq.StringArray `gorm:"type:text[]" json:"allowed_origins"`
 	LogRetentionDays int            `gorm:"default:30" json:"log_retention_days"`
 	EventChannels    []EventChannel `json:"event_channels"`
@@ -70,6 +72,11 @@ func (p Project) MarshalJSON() ([]byte, error) {
 	result["organization_id"] = p.OrganizationID
 	result["name"] = p.Name
 	result["slug"] = p.Slug
+	if p.Logo.Valid {
+		result["logo"] = p.Logo.String
+	} else {
+		result["logo"] = nil
+	}
 	result["allowed_origins"] = p.AllowedOrigins
 	result["log_retention_days"] = p.LogRetentionDays
 	result["event_channels"] = p.EventChannels

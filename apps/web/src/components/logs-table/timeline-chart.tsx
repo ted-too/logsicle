@@ -83,7 +83,7 @@ export function TimelineChart({
 		() =>
 			(data?.by_time ?? []).map((item) => ({
 				...item,
-				[columnId]: new Date(item.timestamp).toString(),
+				[columnId]: new Date(item.timestamp).getTime(),
 			})),
 		[data],
 	);

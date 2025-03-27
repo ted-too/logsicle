@@ -25,7 +25,7 @@ interface DataTableToolbarProps {
 export function DataTableToolbar({ renderActions }: DataTableToolbarProps) {
   const { table, isLoading, columnFilters } = useDataTable();
   const { open, setOpen } = useControls();
-  useHotKey(() => setOpen((prev) => !prev), "b");
+  useHotKey(() => setOpen((prev) => !prev), ["shift", "s"]);
   const filters = table.getState().columnFilters;
 
   const rows = useMemo(
@@ -33,7 +33,7 @@ export function DataTableToolbar({ renderActions }: DataTableToolbarProps) {
       total: table.getCoreRowModel().rows.length,
       filtered: table.getFilteredRowModel().rows.length,
     }),
-    [isLoading, columnFilters],
+    [isLoading, columnFilters]
   );
 
   return (
@@ -66,6 +66,7 @@ export function DataTableToolbar({ renderActions }: DataTableToolbarProps) {
                 Toggle controls with{" "}
                 <Kbd className="ml-1 text-muted-foreground group-hover:text-accent-foreground">
                   <span className="mr-1">⌘</span>
+                  <span className="mr-1">Shift</span>
                   <span>B</span>
                 </Kbd>
               </p>

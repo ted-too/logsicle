@@ -79,7 +79,6 @@ export function createTimeRangedPaginatedSchema<T extends z.ZodRawShape>(
 ) {
   return timeRangeSchema.extend({
     id: z.string().optional().catch(undefined),
-    timestamp: z.coerce.number().optional(),
     search: z.string().optional(),
     sort: z.object({ id: z.string(), desc: z.boolean() }).optional().catch(undefined),
     ...basePaginationSchema.shape,
