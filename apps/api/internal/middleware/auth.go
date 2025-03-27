@@ -1,66 +1,115 @@
 package middleware
 
 import (
-	"log"
-	"strings"
-
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
-	"github.com/ted-too/logsicle/internal/config"
-	"github.com/ted-too/logsicle/internal/integrations/oidc"
+	"github.com/ted-too/logsicle/internal/storage"
 	"github.com/ted-too/logsicle/internal/storage/models"
 	"gorm.io/gorm"
 )
 
-func AuthMiddleware(cfg *config.Config, db *gorm.DB) fiber.Handler {
+// AuthMiddleware creates a middleware for protecting routes
+func AuthMiddleware(db *gorm.DB) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		session := session.FromContext(c)
-		if session == nil {
-			log.Printf("Session is nil in auth middleware")
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to get session",
-			})
-		}
 
-		oidcClient, err := oidc.NewClient(c.Context(), cfg, session)
-		if err != nil {
-			log.Printf("Failed to initialize OIDC client: %v", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to initialize OIDC client",
-				"error":   err.Error(),
-			})
-		}
-
-		// Try to get token claims, which will handle refresh if needed
-		claims, err := oidcClient.GetIDTokenClaims(c.Context())
-		if err != nil {
-			log.Printf("Authentication failed: %v", err)
-			// Redirect to sign-in for browser requests
-			if strings.Contains(c.Get("Accept"), "text/html") {
-				log.Printf("Unauthorized access attempt to path: %s", c.Path())
-				return c.Redirect().Status(fiber.StatusTemporaryRedirect).To("/v1/auth/sign-in")
-			}
+		userSession, ok := session.Get(storage.SessionDataKey).(storage.Session)
+		if !ok {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"message": "Unauthorized",
+				"error": "Not authenticated",
 			})
 		}
 
-		c.Locals("oauth-id", claims.Sub)
-
+		// Get user
 		var user models.User
-		if err := db.Where("external_oauth_id = ?", claims.Sub).First(&user).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-					"message": "User not found",
+		if err := db.Preload("Organizations").Where("id = ?", userSession.UserID).First(&user).Error; err != nil {
+			session.Delete(storage.SessionDataKey)
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "User not found",
+			})
+		}
+
+		// Store user in context
+		c.Locals("user", &user)
+		c.Locals("session", userSession)
+
+		return c.Next()
+	}
+}
+
+// RequireActiveOrganization creates a middleware that requires an active organization
+func RequireActiveOrganization(db *gorm.DB) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		session := session.FromContext(c)
+		userSession, ok := session.Get(storage.SessionDataKey).(storage.Session)
+		if !ok {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to get session",
+			})
+		}
+
+		if userSession.ActiveOrganization == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "No active organization selected",
+			})
+		}
+
+		// Verify user belongs to organization
+		var membership models.TeamMembership
+		if err := db.Where("user_id = ? AND organization_id = ?", userSession.UserID, userSession.ActiveOrganization).First(&membership).Error; err != nil {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Not a member of this organization",
+			})
+		}
+
+		// Store membership in context
+		c.Locals("membership", &membership)
+
+		projectID := c.Params("id")
+		if projectID != "" {
+			// Verify project belongs to organization
+			var count int64
+			if err := db.Model(&models.Project{}).Where("id = ? AND organization_id = ?", projectID, userSession.ActiveOrganization).Count(&count).Error; err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to verify project access",
 				})
 			}
+
+			if count == 0 {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "Project not found or access denied",
+				})
+			}
+		}
+
+		return c.Next()
+	}
+}
+
+// RequireRole creates a middleware that requires specific roles
+func RequireRole(roles ...models.Role) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		membership, ok := c.Locals("membership").(*models.TeamMembership)
+		if !ok {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to fetch user",
-				"error":   err.Error(),
+				"error": "Membership not found in context",
 			})
 		}
 
-		c.Locals("user-id", user.ID)
+		// Check if user has any of the required roles
+		hasRole := false
+		for _, role := range roles {
+			if membership.Role == role {
+				hasRole = true
+				break
+			}
+		}
+
+		if !hasRole {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Insufficient permissions",
+			})
+		}
 
 		return c.Next()
 	}

@@ -34,15 +34,6 @@ type Config struct {
 		RedisQueueURL   string `toml:"redis_queue_url" env:"REDIS_QUEUE_URL"`
 		RedisSessionURL string `toml:"redis_session_url" env:"REDIS_SESSION_URL"`
 	} `toml:"storage"`
-	Auth struct {
-		Endpoint    string `toml:"endpoint" env:"AUTH_ENDPOINT"`
-		AppID       string `toml:"app_id" env:"AUTH_APP_ID"`
-		AppSecret   string `toml:"app_secret" env:"AUTH_APP_SECRET"`
-		SignInURL   string
-		RedirectURL string
-		FrontendURL string
-		Resources   []string `toml:"resources" env:"AUTH_RESOURCES"`
-	} `toml:"auth"`
 }
 
 // GetAllowedOrigins returns the allowed origins as a slice
@@ -110,47 +101,12 @@ func (c Config) Validate() error {
 		return fmt.Errorf("Storage config: %w", err)
 	}
 
-	// Validate Auth fields
-	if err := validation.ValidateStruct(&c.Auth,
-		validation.Field(&c.Auth.Endpoint, validation.Required, is.URL),
-		validation.Field(&c.Auth.AppID, validation.Required),
-		validation.Field(&c.Auth.AppSecret, validation.Required),
-		validation.Field(&c.Auth.SignInURL, validation.Required, is.URL),
-		validation.Field(&c.Auth.RedirectURL, validation.Required, is.URL),
-		validation.Field(&c.Auth.FrontendURL, validation.Required, is.URL),
-		validation.Field(&c.Auth.Resources, validation.Required),
-	); err != nil {
-		return fmt.Errorf("Auth config: %w", err)
-	}
-
 	return nil
 }
 
 func (c *Config) SetDefaultValues() {
 	if c.ShutdownTimeout == "" {
 		c.ShutdownTimeout = "5s"
-	}
-
-	// Set derived URLs if base URLs are provided and the derived URLs aren't explicitly set
-	if c.ApiBaseURL != "" {
-		apiBase := strings.TrimSuffix(c.ApiBaseURL, "/")
-
-		// Only set these if they weren't explicitly provided
-		if c.Auth.SignInURL == "" {
-			c.Auth.SignInURL = fmt.Sprintf("%s/v1/auth/sign-in", apiBase)
-		}
-
-		if c.Auth.RedirectURL == "" {
-			c.Auth.RedirectURL = fmt.Sprintf("%s/v1/auth/callback", apiBase)
-		}
-	}
-
-	if c.WebBaseURL != "" && c.Auth.FrontendURL == "" {
-		c.Auth.FrontendURL = c.WebBaseURL
-	}
-
-	if c.Auth.Resources == nil || len(c.Auth.Resources) == 0 {
-		c.Auth.Resources = []string{"*"}
 	}
 }
 
@@ -183,11 +139,8 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	// Set defaults for required fields if not provided
-
-	// TODO: Implement RBAC
-	config.Auth.Resources = []string{"*"}
-
 	config.SetDefaultValues()
+
 	// Validate the configuration
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)

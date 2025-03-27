@@ -12,11 +12,24 @@ import (
 
 // Base model with string ID
 type BaseModel struct {
-	ID        string         `gorm:"primaryKey" json:"id"`
+	ID        string         `gorm:"primaryKey;not null" json:"id"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 }
+
+// User session data
+type Session struct {
+	UserID             string    `json:"user_id"`             // User this session belongs to
+	IPAddress          string    `json:"ip_address"`          // IP address of the client
+	UserAgent          string    `json:"user_agent"`          // User agent of the client
+	ActiveOrganization string    `json:"active_organization"` // Currently active organization
+	ExpiresAt          time.Time `json:"expires_at"`          // When the session expires
+}
+
+const (
+	SessionDataKey = "user"
+)
 
 func New(cfg *config.Config) (*gorm.DB, error) {
 	dsn := cfg.Storage.Dsn

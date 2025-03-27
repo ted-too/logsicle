@@ -47,6 +47,7 @@ func (p *Processor) Start(ctx context.Context) {
 	go p.processAppLogs(ctx)
 	go p.processRequestLogs(ctx)
 	go p.processMetrics(ctx)
+	go p.processTraces(ctx)
 }
 
 // newStreamProcessor creates a new stream processor for a specific type
@@ -205,6 +206,14 @@ func (p *Processor) processMetrics(ctx context.Context) {
 	cfg := processorConfig[*models.Metric]{
 		stream:     MetricStream,
 		bulkInsert: p.qs.ts.BulkInsertMetrics,
+	}
+	newStreamProcessor(p, cfg).processWithRecovery(ctx)
+}
+
+func (p *Processor) processTraces(ctx context.Context) {
+	cfg := processorConfig[*models.Trace]{
+		stream:     TraceStream,
+		bulkInsert: p.qs.ts.BulkInsertTraces,
 	}
 	newStreamProcessor(p, cfg).processWithRecovery(ctx)
 }

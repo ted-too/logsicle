@@ -7,52 +7,84 @@ import (
 
 	"github.com/sumup/typeid"
 	"github.com/ted-too/logsicle/internal/storage"
+	"gorm.io/gorm"
 )
-
-type UserPrefix struct{}
-
-func (UserPrefix) Prefix() string {
-	return "user"
-}
-
-type UserID = typeid.Sortable[UserPrefix]
 
 type User struct {
 	storage.BaseModel
-	ExternalOauthID string         `gorm:"uniqueIndex;not null" json:"-"`
-	Email           string         `gorm:"uniqueIndex" json:"email"`
-	Name            string         `json:"name"`
-	AvatarURL       sql.NullString `json:"-"`
-	HasOnboarded    bool           `gorm:"default:false" json:"has_onboarded"`
-	LastLoginAt     time.Time      `json:"last_login_at"`
-	Projects        []Project      `json:"projects"`
+	Name          string         `gorm:"not null" json:"name"`
+	Email         string         `gorm:"uniqueIndex;not null" json:"email"`
+	EmailVerified bool           `gorm:"default:false" json:"email_verified"`
+	Image         sql.NullString `json:"image"`
+	HasOnboarded  bool           `gorm:"default:false" json:"has_onboarded"`
+	LastLoginAt   time.Time      `json:"last_login_at"`
+	Organizations []Organization `json:"organizations" gorm:"many2many:team_memberships"`
 }
 
-func (u User) MarshalJSON() ([]byte, error) {
-	// Get the base model fields
+type OtherUser struct {
+	storage.BaseModel
+	Name  string         `json:"name"`
+	Image sql.NullString `json:"image"`
+	Email string         `json:"email"`
+}
+
+func (u OtherUser) MarshalJSON() ([]byte, error) {
 	baseJSON, err := json.Marshal(u.BaseModel)
 	if err != nil {
 		return nil, err
 	}
 
-	// Unmarshal into a map to combine with other fields
 	var result map[string]interface{}
 	if err := json.Unmarshal(baseJSON, &result); err != nil {
 		return nil, err
 	}
 
-	// Add the fields
-	result["email"] = u.Email
 	result["name"] = u.Name
-	result["has_onboarded"] = u.HasOnboarded
-	result["last_login_at"] = u.LastLoginAt
-	result["projects"] = u.Projects
+	result["email"] = u.Email
 
-	// Handle AvatarURL
-	result["avatar_url"] = nil
-	if u.AvatarURL.Valid {
-		result["avatar_url"] = u.AvatarURL.String
+	// Handle Image
+	result["image"] = nil
+	if u.Image.Valid {
+		result["image"] = u.Image.String
 	}
 
 	return json.Marshal(result)
+}
+
+func (u User) MarshalJSON() ([]byte, error) {
+	baseJSON, err := json.Marshal(u.BaseModel)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(baseJSON, &result); err != nil {
+		return nil, err
+	}
+
+	result["name"] = u.Name
+	result["email"] = u.Email
+	result["email_verified"] = u.EmailVerified
+	result["has_onboarded"] = u.HasOnboarded
+	result["last_login_at"] = u.LastLoginAt
+	result["organizations"] = u.Organizations
+
+	// Handle Image
+	result["image"] = nil
+	if u.Image.Valid {
+		result["image"] = u.Image.String
+	}
+
+	return json.Marshal(result)
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	if u.BaseModel.ID == "" {
+		id, err := typeid.New[UserID]()
+		if err != nil {
+			return err
+		}
+		u.BaseModel.ID = id.String()
+	}
+	return nil
 }

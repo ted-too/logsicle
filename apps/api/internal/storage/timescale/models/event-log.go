@@ -14,6 +14,7 @@ import (
 type ChannelRelation struct {
 	Name  string  `json:"name"`
 	Color *string `json:"color"`
+	Slug  *string `json:"slug"`
 }
 
 type EventLogID = typeid.Sortable[EventLogPrefix]

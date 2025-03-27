@@ -18,7 +18,7 @@ env "local" {
   ]
   migration {
     dir    = "file://internal/storage/migrations"
-    exclude = ["parser_type", "aggregation_temporality", "metric_type", "span_kind", "span_status"]
+    exclude = ["parser_type", "aggregation_temporality", "metric_type", "span_kind", "span_status", "other_user"]
   }
   format {
     migrate {

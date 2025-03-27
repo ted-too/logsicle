@@ -26,11 +26,12 @@ import {
 import { cn } from "@/lib/utils";
 import { fromDate, getLocalTimeZone } from "@internationalized/date";
 import type { EventLog } from "@repo/api";
-import { memo, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { eventsMutations } from "@/qc/queries/events";
-import { toast } from "../ui/sonner-wrapper";
+import { memo, useMemo, useState } from "react";
 import { Button } from "../ui/button";
+import { toast } from "../ui/sonner-wrapper";
+import { deleteEvent } from "@/server/resources/events";
+import { eventsQueryKey } from "@/qc/resources/events";
 
 interface EventCardProps {
   event: EventLog;
@@ -53,22 +54,23 @@ function InternalEventCard({ event, className }: EventCardProps) {
   };
 
   const queryClient = useQueryClient();
-  const { mutateAsync } = eventsMutations.delete();
 
   async function handleDelete() {
-    try {
-      await mutateAsync({
+    const { error } = await deleteEvent({
+      data: {
         projectId: event.project_id,
-        logId: event.id,
-      });
-      await queryClient.refetchQueries({
-        queryKey: ["projects", event.project_id, "events"],
-      });
-      setOpen(false);
-      toast.success(`Event log "${event.name}" deleted successfully`);
-    } catch (error) {
+        eventId: event.id,
+      },
+    });
+    if (error) {
       toast.APIError(error);
+      return;
     }
+    await queryClient.refetchQueries({
+      queryKey: eventsQueryKey(event.project_id),
+    });
+    setOpen(false);
+    toast.success(`Event log "${event.name}" deleted successfully`);
   }
 
   const formattedDate = useMemo(
@@ -172,7 +174,7 @@ function InternalEventCard({ event, className }: EventCardProps) {
           </SheetHeader>
           <div className="mt-6 space-y-6">
             <div className="space-y-2">
-              {event.description == "" ? (
+              {event.description === "" ? (
                 <span className="text-muted-foreground text-sm">
                   No description
                 </span>

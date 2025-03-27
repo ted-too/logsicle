@@ -1,268 +1,254 @@
-"use client";
-
-import { ActionButton, Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
+import { useAppForm } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner-wrapper";
 import { cn } from "@/lib/utils";
-import { projectsQueries } from "@/qc/queries/projects";
-import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  createProject as serverCreateProject,
+  updateProject as serverUpdateProject,
+} from "@/server/teams/projects";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import {
+  type CreateProjectRequest,
+  LOG_RETENTION_DAYS,
   allowedOriginSchema,
   createProjectSchema,
-  LOG_RETENTION_DAYS,
-  Organization,
-  Project,
-  UserOrganization,
 } from "@repo/api";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouteContext } from "@tanstack/react-router";
 import { XIcon } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { getProjectsQueryOptions, projectsQueryKey } from "@/qc/teams/projects";
 
 export function SetupProject({
   steps,
-  project,
-  organizations,
 }: {
   steps: { next: () => void; prev: () => void };
-  project: Project | undefined;
-  organizations: UserOrganization[];
 }) {
+  const { currentUserOrg } = useRouteContext({
+    from: "/_authd/$orgSlug/_onboarding/onboarding",
+  });
+  const { data: projects } = useQuery({
+    ...getProjectsQueryOptions(),
+    initialData: currentUserOrg.organization.projects,
+  });
+  const project = projects?.[0];
   const queryClient = useQueryClient();
   const [parent] = useAutoAnimate();
-  const { mutateAsync: createProject } = projectsQueries.create();
-  const { mutateAsync: updateProject } = projectsQueries.update();
 
-  // Get the first organization (which should be the default one)
-  const defaultOrganization = organizations[0];
-
-  const form = useForm<z.infer<typeof createProjectSchema>>({
-    resolver: zodResolver(createProjectSchema),
-    defaultValues:
-      project !== undefined
-        ? {
-            name: project.name,
-            log_retention_days: project.log_retention_days,
-            allowed_origins: project.allowed_origins,
-            organization_id: project.organization_id,
-          }
-        : {
-            name: "",
-            log_retention_days: LOG_RETENTION_DAYS[0],
-            allowed_origins: [],
-            organization_id: defaultOrganization?.organization_id || "",
-          },
+  const { mutateAsync: createProject } = useMutation({
+    mutationFn: async (input: CreateProjectRequest) => {
+      const { data, error } = await serverCreateProject({ data: input });
+      if (error) return Promise.reject(error);
+      return data;
+    },
   });
 
-  // If no default organization is found, show an error
-  if (!defaultOrganization) {
-    return (
-      <div className="text-destructive">
-        Error: No organization found. Please contact support.
-      </div>
-    );
-  }
-
-  async function onSubmit(input: z.infer<typeof createProjectSchema>) {
-    try {
-      if (project) {
-        await updateProject({ projectId: project.id, input });
-        toast.success("Project updated successfully");
-      } else {
-        await createProject(input);
-        toast.success("Project created successfully");
-      }
-      await queryClient.refetchQueries({
-        queryKey: projectsQueries.listQueryOptions().queryKey,
+  const { mutateAsync: updateProject } = useMutation({
+    mutationFn: async (
+      input: Partial<CreateProjectRequest> & { projectId: string }
+    ) => {
+      const { data, error } = await serverUpdateProject({
+        data: {
+          projectId: input.projectId,
+          body: input,
+        },
       });
-      steps.next();
-    } catch (error) {
-      toast.APIError(error);
-    }
-  }
+      if (error) return Promise.reject(error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.refetchQueries({
+        queryKey: projectsQueryKey,
+      });
+    },
+  });
+
+  const form = useAppForm({
+    defaultValues: {
+      name: project?.name ?? "",
+      log_retention_days: (project?.log_retention_days.toString() ??
+        // biome-ignore lint/suspicious/noExplicitAny: zod is bugging
+        LOG_RETENTION_DAYS[0].toString()) as any,
+      allowed_origins: project?.allowed_origins ?? [],
+    },
+    validators: {
+      onSubmit: createProjectSchema,
+    },
+    onSubmit: async ({ value, formApi }) => {
+      try {
+        if (formApi.state.isDirty) {
+          if (project) {
+            await updateProject({ projectId: project.id, ...value });
+            toast.success("Project updated successfully");
+          } else {
+            await createProject(value);
+            toast.success("Project created successfully");
+          }
+        }
+        steps.next();
+      } catch (error) {
+        toast.APIError(error);
+      }
+    },
+  });
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="grid grid-flow-row grid-cols-2 gap-4"
-      >
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input placeholder="my app" {...field} required />
-              </FormControl>
-              <FormDescription>
-                This will be used to identify your project
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="log_retention_days"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Log Retention</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value.toString()}
-                required
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {LOG_RETENTION_DAYS.map((days) => (
-                    <SelectItem key={days} value={days.toString()}>
-                      {days} days
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                How long your logs shall be stored for
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="allowed_origins"
-          render={({ field: { onChange, onBlur: _, value, ...field } }) => (
-            <FormItem className="col-span-2">
-              <FormLabel>Allowed origins</FormLabel>
-              <FormControl>
-                <div className="relative" aria-required>
-                  <Input
-                    className="pe-11"
-                    placeholder="https://example.com or *"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        form.handleSubmit();
+      }}
+      className="grid grid-flow-row grid-cols-2 gap-4"
+    >
+      <form.AppField
+        name="name"
+        children={(field) => (
+          <field.TextField
+            label="Name"
+            description="This will be used to identify your project"
+            placeholder="my app"
+            required
+          />
+        )}
+      />
+      <form.AppField
+        name="log_retention_days"
+        children={(field) => (
+          <field.SelectField
+            label="Log Retention"
+            description="How long your logs shall be stored for"
+            options={LOG_RETENTION_DAYS.map((days) => ({
+              label: `${days} days`,
+              value: days.toString(),
+            }))}
+            className={{ input: "w-full" }}
+            primitiveProps={{
+              required: true,
+            }}
+          />
+        )}
+      />
+      <form.AppField
+        name="allowed_origins"
+        children={(field) => (
+          <div className="col-span-2">
+            <label
+              htmlFor={field.name}
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Allowed origins
+            </label>
+            <div className="relative mt-2" aria-required>
+              <Input
+                className="pe-11"
+                placeholder="https://example.com or *"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
 
-                        // If value already contains "*", prevent adding other origins
-                        if (value.includes("*")) {
-                          toast.warning(
-                            "Cannot add specific origins when all origins (*) is selected"
-                          );
-                          return;
-                        }
+                    // If value already contains "*", prevent adding other origins
+                    if (field.state.value?.includes("*")) {
+                      toast.warning(
+                        "Cannot add specific origins when all origins (*) is selected"
+                      );
+                      return;
+                    }
 
-                        const input = e.currentTarget.value.trim();
+                    const input = e.currentTarget.value.trim();
 
-                        const validationResult =
-                          allowedOriginSchema.safeParse(input);
-                        if (validationResult.success) {
-                          if (validationResult.data === "*") {
-                            onChange(["*"]);
-                            e.currentTarget.value = "";
-                            form.clearErrors("allowed_origins");
-                            return;
-                          }
-
-                          const parsedURL = new URL(validationResult.data);
-                          parsedURL.pathname = "";
-                          parsedURL.search = "";
-                          const parsedURLString = parsedURL
-                            .toString()
-                            .replace(/\/$/, "");
-                          // Add to array if it's not already included
-                          if (!value.includes(parsedURLString)) {
-                            onChange([...value, parsedURLString]);
-                          }
-                          // Clear the input
-                          e.currentTarget.value = "";
-                          // Reset the error
-                          form.clearErrors("allowed_origins");
-                        } else {
-                          form.setError("allowed_origins", {
-                            type: "manual",
-                            message:
-                              "Please enter a valid URL or use * to allow all origins",
-                          });
-                        }
+                    const validationResult =
+                      allowedOriginSchema.safeParse(input);
+                    if (validationResult.success) {
+                      if (validationResult.data === "*") {
+                        field.handleChange(["*"]);
+                        e.currentTarget.value = "";
+                        return;
                       }
-                    }}
-                    {...field}
-                  />
-                  <div className="pointer-events-none absolute inset-y-0 end-0 flex items-center justify-center pe-2 text-muted-foreground">
-                    <kbd className="inline-flex h-5 max-h-full items-center rounded border border-border px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
-                      Enter
-                    </kbd>
-                  </div>
-                </div>
-              </FormControl>
-              <FormDescription>
-                Where your logs will be sent from (use * to allow all origins)
-              </FormDescription>
-              <div
-                ref={parent}
-                className={cn(
-                  "flex flex-wrap gap-3",
-                  value.length == 0 && "hidden"
-                )}
-              >
-                {value.map((origin, i) => (
-                  <div
-                    key={`allowed-origin-${i}`}
-                    className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs font-mono tracking-tight"
-                  >
-                    <span className="whitespace-nowrap">
-                      {origin === "*" ? "all origins [*]" : origin}
-                    </span>
-                    <Button
-                      variant="link"
-                      onClick={() => {
-                        onChange(value.filter((_, index) => index !== i));
-                      }}
-                      className="size-max p-0 [&_svg]:size-3"
-                      size="icon"
-                    >
-                      <XIcon />
-                    </Button>
-                  </div>
-                ))}
+
+                      const parsedURL = new URL(validationResult.data);
+                      parsedURL.pathname = "";
+                      parsedURL.search = "";
+                      const parsedURLString = parsedURL
+                        .toString()
+                        .replace(/\/$/, "");
+                      // Add to array if it's not already included
+                      if (!field.state.value?.includes(parsedURLString)) {
+                        field.handleChange([
+                          ...(field.state.value || []),
+                          parsedURLString,
+                        ]);
+                      }
+                      // Clear the input
+                      e.currentTarget.value = "";
+                    } else {
+                      field.setErrorMap({
+                        onChange: {
+                          allowed_origins:
+                            "Please enter a valid URL or use * to allow all origins",
+                        },
+                      });
+                    }
+                  }
+                }}
+              />
+              <div className="pointer-events-none absolute inset-y-0 end-0 flex items-center justify-center pe-2 text-muted-foreground">
+                <kbd className="inline-flex h-5 max-h-full items-center rounded border border-border px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
+                  Enter
+                </kbd>
               </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <ActionButton
-          type="submit"
-          variant="caribbean"
-          className="mt-4 w-20"
-          isLoading={form.formState.isSubmitting}
-          disabled={!form.formState.isDirty}
-        >
-          {project ? "Update" : "Next"}
-        </ActionButton>
-      </form>
-    </Form>
+            </div>
+            <div
+              ref={parent}
+              className={cn(
+                "flex flex-wrap gap-3 mt-2",
+                field.state.value?.length === 0 && "hidden"
+              )}
+            >
+              {(field.state.value ?? []).map((origin, i) => (
+                <div
+                  key={`allowed-origin-${i}`}
+                  className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs font-mono tracking-tight"
+                >
+                  <span className="whitespace-nowrap">
+                    {origin === "*" ? "all origins [*]" : origin}
+                  </span>
+                  <Button
+                    variant="link"
+                    onClick={() => {
+                      field.handleChange(
+                        field.state.value?.filter((_, index) => index !== i) ||
+                          []
+                      );
+                    }}
+                    className="size-max p-0 [&_svg]:size-3"
+                    size="icon"
+                  >
+                    <XIcon />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <p className="text-muted-foreground text-sm mt-2">
+              Where your logs will be sent from (use * to allow all origins)
+            </p>
+            {field.state.meta.errors && (
+              <p className="text-destructive text-sm mt-1">
+                {field.state.meta.errors.join(", ")}
+              </p>
+            )}
+          </div>
+        )}
+      />
+      <form.Subscribe
+        selector={(state) => state.isDirty}
+        children={(isDirty) => (
+          <form.AppForm>
+            <form.SubmitButton className="mt-4 w-20">
+              {project && isDirty ? "Update" : "Next"}
+            </form.SubmitButton>
+          </form.AppForm>
+        )}
+      />
+    </form>
   );
 }

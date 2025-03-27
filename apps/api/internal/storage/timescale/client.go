@@ -3,11 +3,129 @@ package timescale
 import (
 	"context"
 	"fmt"
+	"time"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
+
+// Common query options for all log types
+type CommonLogQueryOptions struct {
+	Start  int64   `json:"start"` // Unix timestamp in milliseconds
+	End    int64   `json:"end"`   // Unix timestamp in milliseconds
+	Limit  int     `json:"limit"`
+	Page   int     `json:"page"`
+	Search *string `json:"search,omitempty"`
+}
+
+// Validate implements validation.Validatable
+func (q CommonLogQueryOptions) Validate() error {
+	return validation.ValidateStruct(&q,
+		validation.Field(&q.Start, validation.Required),
+		validation.Field(&q.End, validation.Required, validation.Min(q.Start)),
+		validation.Field(&q.Limit, validation.Required, validation.Min(1), validation.Max(100)),
+		validation.Field(&q.Page, validation.Required, validation.Min(1)),
+	)
+}
+
+// Helper function to convert Unix timestamp (ms) to time.Time
+func UnixMsToTime(ts int64) time.Time {
+	return time.Unix(0, ts*int64(time.Millisecond))
+}
+
+// Helper function to convert time.Time to Unix timestamp (ms)
+func TimeToUnixMs(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond)
+}
+
+// Common metrics query options
+type CommonMetricsQueryOptions struct {
+	Start    int64  `json:"start"` // Unix timestamp in milliseconds
+	End      int64  `json:"end"`   // Unix timestamp in milliseconds
+	Interval string `json:"interval,omitempty"`
+}
+
+// Validate implements validation.Validatable
+func (q CommonMetricsQueryOptions) Validate() error {
+	validIntervals := []interface{}{"1m", "5m", "15m", "30m", "1h", "6h", "12h", "24h"}
+	return validation.ValidateStruct(&q,
+		validation.Field(&q.Start, validation.Required),
+		validation.Field(&q.End, validation.Required, validation.Min(q.Start)),
+		validation.Field(&q.Interval, validation.In(validIntervals...)),
+	)
+}
+
+type TimeMetric struct {
+	Timestamp int64 `json:"timestamp"`
+	Count     int   `json:"count"`
+}
+
+// Helper function to suggest interval based on time range
+func SuggestInterval(start, end int64) string {
+	duration := end - start
+	hours := float64(duration) / float64(time.Hour.Milliseconds())
+
+	switch {
+	case hours <= 2:
+		return "1m"
+	case hours <= 6:
+		return "5m"
+	case hours <= 12:
+		return "15m"
+	case hours <= 24:
+		return "30m"
+	case hours <= 24*3: // 3 days
+		return "1h"
+	case hours <= 24*7: // 7 days
+		return "6h"
+	case hours <= 24*14: // 14 days
+		return "12h"
+	default:
+		return "24h"
+	}
+}
+
+// ConvertIntervalToPostgresFormat converts our short interval notation to PostgreSQL interval format
+// e.g. "1m" -> '1 minute', "5m" -> '5 minutes', "1h" -> '1 hour', etc.
+func ConvertIntervalToPostgresFormat(interval string) string {
+	if len(interval) < 2 {
+		return interval
+	}
+
+	// Extract the number and unit
+	value := interval[:len(interval)-1]
+	unit := interval[len(interval)-1:]
+
+	switch unit {
+	case "m":
+		if value == "1" {
+			return "'" + value + " minute'"
+		}
+		return "'" + value + " minutes'"
+	case "h":
+		if value == "1" {
+			return "'" + value + " hour'"
+		}
+		return "'" + value + " hours'"
+	case "d":
+		if value == "1" {
+			return "'" + value + " day'"
+		}
+		return "'" + value + " days'"
+	}
+
+	return interval
+}
+
+type PaginationMeta struct {
+	TotalRowCount         int  `json:"totalRowCount"`
+	TotalFilteredRowCount int  `json:"totalFilteredRowCount"`
+	CurrentPage           int  `json:"currentPage"`
+	NextPage              *int `json:"nextPage"`
+	PrevPage              *int `json:"prevPage"`
+}
 
 type TimescaleClient struct {
 	Pool *pgxpool.Pool

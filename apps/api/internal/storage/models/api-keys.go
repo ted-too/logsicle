@@ -2,26 +2,16 @@ package models
 
 import (
 	"crypto/rand"
-	"crypto/subtle"
 	"encoding/base32"
-	"encoding/base64"
 	"fmt"
 	"strings"
 
 	"github.com/lib/pq"
 	"github.com/sumup/typeid"
+	"github.com/ted-too/logsicle/internal/crypto"
 	"github.com/ted-too/logsicle/internal/storage"
-	"golang.org/x/crypto/argon2"
 	"gorm.io/gorm"
 )
-
-type ApiKeyPrefix struct{}
-
-func (ApiKeyPrefix) Prefix() string {
-	return "key"
-}
-
-type ApiKeyID = typeid.Sortable[ApiKeyPrefix]
 
 // Define available scopes
 const (
@@ -37,120 +27,32 @@ const (
 	ScopeEventsRead   = "events:read"
 )
 
-type ApiKey struct {
+// APIKey represents an API key in the database
+type APIKey struct {
 	storage.BaseModel
-	ProjectID string         `gorm:"index;not null" json:"project_id"`
-	Name      string         `gorm:"not null" json:"name"`
-	Key       string         `gorm:"uniqueIndex;not null" json:"-"` // Hashed key, hidden from JSON
-	MaskedKey string         `gorm:"not null" json:"key"`           // Stored masked version for display
-	Scopes    pq.StringArray `gorm:"type:text[]" json:"scopes"`
+	Name        string         `gorm:"not null" json:"name"`
+	Key         string         `gorm:"uniqueIndex;not null" json:"-"` // Hashed key
+	MaskedKey   string         `gorm:"not null" json:"key"`           // Masked version for display
+	ProjectID   string         `gorm:"index;not null" json:"project_id"`
+	Project     *Project       `json:"project" gorm:"foreignKey:ProjectID"`
+	UserID      string         `gorm:"index;not null" json:"created_by"` // User who created the key
+	User        *User          `json:"creator" gorm:"foreignKey:UserID"`
+	ExpiresAt   *string        `json:"expires_at,omitempty"`
+	LastUsedAt  *string        `json:"last_used_at,omitempty"`
+	Permissions string         `json:"permissions"`
+	Metadata    string         `json:"metadata"`
+	Scopes      pq.StringArray `gorm:"type:text[]" json:"scopes"`
 }
 
-// Argon2 parameters
-type params struct {
-	memory      uint32
-	iterations  uint32
-	parallelism uint8
-	saltLength  uint32
-	keyLength   uint32
-}
-
-var defaultParams = &params{
-	memory:      64 * 1024, // 64MB
-	iterations:  3,
-	parallelism: 2,
-	saltLength:  16,
-	keyLength:   32,
-}
-
-// generateSalt creates a random salt of the specified length
-func generateSalt(n uint32) ([]byte, error) {
-	salt := make([]byte, n)
-	_, err := rand.Read(salt)
-	return salt, err
-}
-
-// hashKey hashes an API key using Argon2id
-func hashKey(key string, p *params) (string, error) {
-	salt, err := generateSalt(p.saltLength)
-	if err != nil {
-		return "", err
+func (k *APIKey) BeforeCreate(tx *gorm.DB) error {
+	if k.BaseModel.ID == "" {
+		id, err := typeid.New[APIKeyID]()
+		if err != nil {
+			return err
+		}
+		k.BaseModel.ID = id.String()
 	}
 
-	hash := argon2.IDKey(
-		[]byte(key),
-		salt,
-		p.iterations,
-		p.memory,
-		p.parallelism,
-		p.keyLength,
-	)
-
-	// Encode as base64
-	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
-	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
-
-	// Format: $argon2id$v=19$m=65536,t=3,p=2$<salt>$<hash>
-	encodedHash := fmt.Sprintf(
-		"$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
-		argon2.Version,
-		p.memory,
-		p.iterations,
-		p.parallelism,
-		b64Salt,
-		b64Hash,
-	)
-
-	return encodedHash, nil
-}
-
-// verifyKey checks if a provided key matches the hash
-func verifyKey(providedKey, encodedHash string) (bool, error) {
-	parts := strings.Split(encodedHash, "$")
-	if len(parts) != 6 {
-		return false, fmt.Errorf("invalid hash format")
-	}
-
-	var p params
-	_, err := fmt.Sscanf(
-		parts[3],
-		"m=%d,t=%d,p=%d",
-		&p.memory,
-		&p.iterations,
-		&p.parallelism,
-	)
-	if err != nil {
-		return false, err
-	}
-
-	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
-	if err != nil {
-		return false, err
-	}
-
-	decodedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
-	if err != nil {
-		return false, err
-	}
-
-	p.keyLength = uint32(len(decodedHash))
-
-	// Compute hash of provided key
-	computedHash := argon2.IDKey(
-		[]byte(providedKey),
-		salt,
-		p.iterations,
-		p.memory,
-		p.parallelism,
-		p.keyLength,
-	)
-
-	// Compare in constant time
-	return subtle.ConstantTimeCompare(decodedHash, computedHash) == 1, nil
-}
-
-// Hooks
-func (k *ApiKey) BeforeCreate(tx *gorm.DB) error {
 	// Create masked version for display
 	if len(k.Key) > 12 {
 		k.MaskedKey = k.Key[:8] + "..." + k.Key[len(k.Key)-3:]
@@ -158,8 +60,8 @@ func (k *ApiKey) BeforeCreate(tx *gorm.DB) error {
 		k.MaskedKey = k.Key
 	}
 
-	// Hash the key using Argon2
-	hashedKey, err := hashKey(k.Key, defaultParams)
+	// Hash the key
+	hashedKey, err := crypto.HashPassword(k.Key, crypto.DefaultParams)
 	if err != nil {
 		return err
 	}
@@ -168,30 +70,24 @@ func (k *ApiKey) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Method to verify an API key
-func (k *ApiKey) VerifyKey(providedKey string) bool {
-	match, err := verifyKey(providedKey, k.Key)
+// VerifyKey verifies if a provided key matches
+func (k *APIKey) VerifyKey(providedKey string) bool {
+	match, err := crypto.VerifyPassword(providedKey, k.Key)
 	if err != nil {
 		return false
 	}
 	return match
 }
 
+// GenerateAPIKey generates a new API key
 func GenerateAPIKey() (string, error) {
-	// Generate 32 bytes of random data (256 bits)
 	randomBytes := make([]byte, 32)
 	if _, err := rand.Read(randomBytes); err != nil {
 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 	}
 
-	// Create a prefix to identify the key type
-	prefix := "lsk-v1-" // logsicle key prefix
-
-	// Encode the random bytes to base32 (more readable than base64, no special chars)
-	// Use base32.NoPadding to avoid the trailing '=' characters
+	prefix := "lsk-v1-"
 	encoded := strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomBytes))
-
-	// Combine prefix and encoded bytes
 	apiKey := prefix + encoded
 
 	return apiKey, nil

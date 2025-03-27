@@ -11,13 +11,24 @@ import (
 	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/gofiber/storage/redis/v3"
+	"github.com/sumup/typeid"
 	"github.com/ted-too/logsicle/internal/config"
 	"github.com/ted-too/logsicle/internal/handlers"
 	"github.com/ted-too/logsicle/internal/queue"
 	"github.com/ted-too/logsicle/internal/server"
+	"github.com/ted-too/logsicle/internal/storage"
 	database "github.com/ted-too/logsicle/internal/storage"
+	"github.com/ted-too/logsicle/internal/storage/models"
 	"github.com/ted-too/logsicle/internal/storage/timescale"
 )
+
+func generateSessionID() string {
+	id, err := typeid.New[models.SessionID]()
+	if err != nil {
+		log.Fatalf("Failed to generate session ID: %v", err)
+	}
+	return id.String()
+}
 
 func main() {
 	ctx := context.Background()
@@ -45,13 +56,18 @@ func main() {
 		URL: cfg.Storage.RedisSessionURL,
 	})
 
-	app.Use(session.New(session.Config{
+	sessionMiddleware, sessionStore := session.NewWithStore(session.Config{
 		Storage:        redisStorage,
 		CookieDomain:   cfg.Cors.CookieDomain,
 		KeyLookup:      "cookie:session_id",
+		KeyGenerator:   generateSessionID,
 		CookieSecure:   !cfg.Dev, // For HTTPS
 		CookieHTTPOnly: true,
-	}))
+	})
+
+	sessionStore.RegisterType(storage.Session{})
+
+	app.Use(sessionMiddleware)
 
 	// Initialize TimescaleDB client
 	ts, err := timescale.NewTimescaleClient(ctx, cfg.Storage.Dsn)

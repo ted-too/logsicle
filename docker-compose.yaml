@@ -60,8 +60,6 @@ services:
         condition: service_healthy
     networks:
       - logsicle-network
-    # Coolify-specific option to exclude from healthchecks
-    exclude_from_hc: true
 
   postgres:
     image: timescale/timescaledb:latest-pg15
