@@ -13,9 +13,9 @@ export function TracesIcon({ className, ...props }: IconProps) {
 			{...props}
 		>
 			<rect x="2.5" y="5" width="27" height="4" rx="1.5" fill="currentColor" />
-			<rect x="2.5" y="13" width="9" height="2" rx="1" fill="currentColor" />
-			<rect x="11.5" y="19" width="9" height="2" rx="1" fill="currentColor" />
-			<rect x="20.5" y="25" width="9" height="2" rx="1" fill="currentColor" />
+			<rect x="2.5" y="13" width="9" height="4" rx="1.25" fill="currentColor" opacity={1} />
+			<rect x="11.5" y="19" width="9" height="4" rx="1.25" fill="currentColor" opacity={0.8} />
+			<rect x="20.5" y="25" width="9" height="4" rx="1.25" fill="currentColor" opacity={0.6} />
 		</svg>
 	);
 }

@@ -65,13 +65,13 @@ const formatYAxisValue = (value: number): string => {
 
 export function LogVolumeChart() {
 	const search = useSearch({
-		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
 	});
 	const params = useParams({
-		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
 	});
 	const { currentProject } = useRouteContext({
-		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
 	});
 
 	const { data } = useQuery(

@@ -6,6 +6,9 @@ import {
   baseMetricsSchema,
 } from "@/validations";
 
+export const REQUEST_LEVELS = ["success", "warning", "error", "info"] as const;
+export type RequestLevel = (typeof REQUEST_LEVELS)[number];
+
 // HTTP methods supported in request logs
 export const HTTP_METHODS = [
   "GET",
@@ -59,12 +62,17 @@ export interface RequestLogMetrics {
   }[];
 }
 
-// List Request Logs
-export const listRequestLogsSchema = createTimeRangedPaginatedSchema({
+export const requestLogFilterSchema = z.object({
   method: z.enum(HTTP_METHODS).optional(),
   statusCode: z.number().min(100).max(599).optional(),
   pathPattern: z.string().optional(),
   host: z.string().optional(),
+});
+
+
+// List Request Logs
+export const listRequestLogsSchema = createTimeRangedPaginatedSchema({
+  ...requestLogFilterSchema.shape,
 });
 
 export type ListRequestLogsRequest = z.infer<typeof listRequestLogsSchema>;

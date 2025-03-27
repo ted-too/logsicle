@@ -5,7 +5,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouteContext, useSearch } from "@tanstack/react-router";
 import {
 	type ColumnSizingState,
-	type RowData,
 	type VisibilityState,
 	getCoreRowModel,
 	useReactTable,
@@ -16,16 +15,6 @@ import { Body, TableHeaderComponent } from "./body";
 import { columns } from "./columns";
 import { useAppLogs } from "@/hooks/use-app-logs";
 
-declare module "@tanstack/react-table" {
-	interface ColumnMeta<TData extends RowData, TValue> {
-		minSize: string | number;
-	}
-	interface TableMeta<TData extends RowData> {
-		containerRef: React.RefObject<HTMLDivElement | null>;
-		handleResize: (containerWidth: number) => void;
-	}
-}
-
 export function AppLogTable({
 	className,
 	style,
@@ -34,10 +23,10 @@ export function AppLogTable({
 	style?: React.CSSProperties;
 }) {
 	const { currentProject } = useRouteContext({
-		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
 	});
 	const search = useSearch({
-		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
 	});
 
 	const { data, error, isFetching, fetchNextPage, hasNextPage } = useAppLogs();

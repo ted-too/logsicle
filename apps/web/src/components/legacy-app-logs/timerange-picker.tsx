@@ -47,16 +47,16 @@ const HR_MM_TIMES = Array.from({ length: 96 }).map((_, i) => {
 
 export default function TimeRangePicker() {
 	const { currentProject: project } = useRouteContext({
-		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
 	});
 	const params = useParams({
-		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
 	});
 	const navigate = useNavigate();
 	const [isPending, startTransition] = useTransition();
 	const timezone = getLocalTimeZone();
 	const searchParams = useSearch({
-		from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+		from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
 	});
 
 	// Local state for immediate updates

@@ -35,10 +35,12 @@
       },
       "correctness": {
         "noUnusedImports": "error",
-        "noChildrenProp": "off"
+        "noChildrenProp": "off",
+				"useExhaustiveDependencies": "off"
       },
       "suspicious": {
-        "noArrayIndexKey": "off"
+        "noArrayIndexKey": "off",
+				"noExplicitAny": "off"
       }
     }
   },

@@ -17,10 +17,10 @@ import { useAppLogs } from "@/hooks/use-app-logs";
 
 export function AppLogsPageHeader() {
   const params = useParams({
-    from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+    from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
   });
   const searchParams = useSearch({
-    from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+    from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
   });
   const navigate = useNavigate();
   const [isPending, startTransition] = useTransition();

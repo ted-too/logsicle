@@ -22,10 +22,14 @@ import { Route as AuthdOrgSlugOnboardingIndexImport } from './routes/_authd/$org
 import { Route as AuthdOrgSlugOnboardingOnboardingImport } from './routes/_authd/$orgSlug/_onboarding/onboarding'
 import { Route as AuthdOrgSlugProjSlugDashboardImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard'
 import { Route as AuthdOrgSlugProjSlugDashboardIndexImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard/index'
+import { Route as AuthdOrgSlugProjSlugDashboardTracesImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard/traces'
 import { Route as AuthdOrgSlugProjSlugDashboardTestImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard/test'
 import { Route as AuthdOrgSlugProjSlugDashboardSettingsImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard/settings'
-import { Route as AuthdOrgSlugProjSlugDashboardLogsImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard/logs'
+import { Route as AuthdOrgSlugProjSlugDashboardRequestLogsImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard/request-logs'
+import { Route as AuthdOrgSlugProjSlugDashboardMetricsImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard/metrics'
 import { Route as AuthdOrgSlugProjSlugDashboardEventsImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard/events'
+import { Route as AuthdOrgSlugProjSlugDashboardAppLogsImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard/app-logs'
+import { Route as AuthdOrgSlugProjSlugDashboardAlertsImport } from './routes/_authd/$orgSlug/$projSlug/_dashboard/alerts'
 
 // Create Virtual Routes
 
@@ -102,6 +106,13 @@ const AuthdOrgSlugProjSlugDashboardIndexRoute =
     getParentRoute: () => AuthdOrgSlugProjSlugDashboardRoute,
   } as any)
 
+const AuthdOrgSlugProjSlugDashboardTracesRoute =
+  AuthdOrgSlugProjSlugDashboardTracesImport.update({
+    id: '/traces',
+    path: '/traces',
+    getParentRoute: () => AuthdOrgSlugProjSlugDashboardRoute,
+  } as any)
+
 const AuthdOrgSlugProjSlugDashboardTestRoute =
   AuthdOrgSlugProjSlugDashboardTestImport.update({
     id: '/test',
@@ -116,10 +127,17 @@ const AuthdOrgSlugProjSlugDashboardSettingsRoute =
     getParentRoute: () => AuthdOrgSlugProjSlugDashboardRoute,
   } as any)
 
-const AuthdOrgSlugProjSlugDashboardLogsRoute =
-  AuthdOrgSlugProjSlugDashboardLogsImport.update({
-    id: '/logs',
-    path: '/logs',
+const AuthdOrgSlugProjSlugDashboardRequestLogsRoute =
+  AuthdOrgSlugProjSlugDashboardRequestLogsImport.update({
+    id: '/request-logs',
+    path: '/request-logs',
+    getParentRoute: () => AuthdOrgSlugProjSlugDashboardRoute,
+  } as any)
+
+const AuthdOrgSlugProjSlugDashboardMetricsRoute =
+  AuthdOrgSlugProjSlugDashboardMetricsImport.update({
+    id: '/metrics',
+    path: '/metrics',
     getParentRoute: () => AuthdOrgSlugProjSlugDashboardRoute,
   } as any)
 
@@ -127,6 +145,20 @@ const AuthdOrgSlugProjSlugDashboardEventsRoute =
   AuthdOrgSlugProjSlugDashboardEventsImport.update({
     id: '/events',
     path: '/events',
+    getParentRoute: () => AuthdOrgSlugProjSlugDashboardRoute,
+  } as any)
+
+const AuthdOrgSlugProjSlugDashboardAppLogsRoute =
+  AuthdOrgSlugProjSlugDashboardAppLogsImport.update({
+    id: '/app-logs',
+    path: '/app-logs',
+    getParentRoute: () => AuthdOrgSlugProjSlugDashboardRoute,
+  } as any)
+
+const AuthdOrgSlugProjSlugDashboardAlertsRoute =
+  AuthdOrgSlugProjSlugDashboardAlertsImport.update({
+    id: '/alerts',
+    path: '/alerts',
     getParentRoute: () => AuthdOrgSlugProjSlugDashboardRoute,
   } as any)
 
@@ -204,6 +236,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthdOrgSlugOnboardingIndexImport
       parentRoute: typeof AuthdOrgSlugOnboardingImport
     }
+    '/_authd/$orgSlug/$projSlug/_dashboard/alerts': {
+      id: '/_authd/$orgSlug/$projSlug/_dashboard/alerts'
+      path: '/alerts'
+      fullPath: '/$orgSlug/$projSlug/alerts'
+      preLoaderRoute: typeof AuthdOrgSlugProjSlugDashboardAlertsImport
+      parentRoute: typeof AuthdOrgSlugProjSlugDashboardImport
+    }
+    '/_authd/$orgSlug/$projSlug/_dashboard/app-logs': {
+      id: '/_authd/$orgSlug/$projSlug/_dashboard/app-logs'
+      path: '/app-logs'
+      fullPath: '/$orgSlug/$projSlug/app-logs'
+      preLoaderRoute: typeof AuthdOrgSlugProjSlugDashboardAppLogsImport
+      parentRoute: typeof AuthdOrgSlugProjSlugDashboardImport
+    }
     '/_authd/$orgSlug/$projSlug/_dashboard/events': {
       id: '/_authd/$orgSlug/$projSlug/_dashboard/events'
       path: '/events'
@@ -211,11 +257,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthdOrgSlugProjSlugDashboardEventsImport
       parentRoute: typeof AuthdOrgSlugProjSlugDashboardImport
     }
-    '/_authd/$orgSlug/$projSlug/_dashboard/logs': {
-      id: '/_authd/$orgSlug/$projSlug/_dashboard/logs'
-      path: '/logs'
-      fullPath: '/$orgSlug/$projSlug/logs'
-      preLoaderRoute: typeof AuthdOrgSlugProjSlugDashboardLogsImport
+    '/_authd/$orgSlug/$projSlug/_dashboard/metrics': {
+      id: '/_authd/$orgSlug/$projSlug/_dashboard/metrics'
+      path: '/metrics'
+      fullPath: '/$orgSlug/$projSlug/metrics'
+      preLoaderRoute: typeof AuthdOrgSlugProjSlugDashboardMetricsImport
+      parentRoute: typeof AuthdOrgSlugProjSlugDashboardImport
+    }
+    '/_authd/$orgSlug/$projSlug/_dashboard/request-logs': {
+      id: '/_authd/$orgSlug/$projSlug/_dashboard/request-logs'
+      path: '/request-logs'
+      fullPath: '/$orgSlug/$projSlug/request-logs'
+      preLoaderRoute: typeof AuthdOrgSlugProjSlugDashboardRequestLogsImport
       parentRoute: typeof AuthdOrgSlugProjSlugDashboardImport
     }
     '/_authd/$orgSlug/$projSlug/_dashboard/settings': {
@@ -230,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/test'
       fullPath: '/$orgSlug/$projSlug/test'
       preLoaderRoute: typeof AuthdOrgSlugProjSlugDashboardTestImport
+      parentRoute: typeof AuthdOrgSlugProjSlugDashboardImport
+    }
+    '/_authd/$orgSlug/$projSlug/_dashboard/traces': {
+      id: '/_authd/$orgSlug/$projSlug/_dashboard/traces'
+      path: '/traces'
+      fullPath: '/$orgSlug/$projSlug/traces'
+      preLoaderRoute: typeof AuthdOrgSlugProjSlugDashboardTracesImport
       parentRoute: typeof AuthdOrgSlugProjSlugDashboardImport
     }
     '/_authd/$orgSlug/$projSlug/_dashboard/': {
@@ -274,23 +334,35 @@ const AuthdOrgSlugOnboardingRouteWithChildren =
   )
 
 interface AuthdOrgSlugProjSlugDashboardRouteChildren {
+  AuthdOrgSlugProjSlugDashboardAlertsRoute: typeof AuthdOrgSlugProjSlugDashboardAlertsRoute
+  AuthdOrgSlugProjSlugDashboardAppLogsRoute: typeof AuthdOrgSlugProjSlugDashboardAppLogsRoute
   AuthdOrgSlugProjSlugDashboardEventsRoute: typeof AuthdOrgSlugProjSlugDashboardEventsRoute
-  AuthdOrgSlugProjSlugDashboardLogsRoute: typeof AuthdOrgSlugProjSlugDashboardLogsRoute
+  AuthdOrgSlugProjSlugDashboardMetricsRoute: typeof AuthdOrgSlugProjSlugDashboardMetricsRoute
+  AuthdOrgSlugProjSlugDashboardRequestLogsRoute: typeof AuthdOrgSlugProjSlugDashboardRequestLogsRoute
   AuthdOrgSlugProjSlugDashboardSettingsRoute: typeof AuthdOrgSlugProjSlugDashboardSettingsRoute
   AuthdOrgSlugProjSlugDashboardTestRoute: typeof AuthdOrgSlugProjSlugDashboardTestRoute
+  AuthdOrgSlugProjSlugDashboardTracesRoute: typeof AuthdOrgSlugProjSlugDashboardTracesRoute
   AuthdOrgSlugProjSlugDashboardIndexRoute: typeof AuthdOrgSlugProjSlugDashboardIndexRoute
 }
 
 const AuthdOrgSlugProjSlugDashboardRouteChildren: AuthdOrgSlugProjSlugDashboardRouteChildren =
   {
+    AuthdOrgSlugProjSlugDashboardAlertsRoute:
+      AuthdOrgSlugProjSlugDashboardAlertsRoute,
+    AuthdOrgSlugProjSlugDashboardAppLogsRoute:
+      AuthdOrgSlugProjSlugDashboardAppLogsRoute,
     AuthdOrgSlugProjSlugDashboardEventsRoute:
       AuthdOrgSlugProjSlugDashboardEventsRoute,
-    AuthdOrgSlugProjSlugDashboardLogsRoute:
-      AuthdOrgSlugProjSlugDashboardLogsRoute,
+    AuthdOrgSlugProjSlugDashboardMetricsRoute:
+      AuthdOrgSlugProjSlugDashboardMetricsRoute,
+    AuthdOrgSlugProjSlugDashboardRequestLogsRoute:
+      AuthdOrgSlugProjSlugDashboardRequestLogsRoute,
     AuthdOrgSlugProjSlugDashboardSettingsRoute:
       AuthdOrgSlugProjSlugDashboardSettingsRoute,
     AuthdOrgSlugProjSlugDashboardTestRoute:
       AuthdOrgSlugProjSlugDashboardTestRoute,
+    AuthdOrgSlugProjSlugDashboardTracesRoute:
+      AuthdOrgSlugProjSlugDashboardTracesRoute,
     AuthdOrgSlugProjSlugDashboardIndexRoute:
       AuthdOrgSlugProjSlugDashboardIndexRoute,
   }
@@ -344,10 +416,14 @@ export interface FileRoutesByFullPath {
   '/$orgSlug/$projSlug': typeof AuthdOrgSlugProjSlugDashboardRouteWithChildren
   '/$orgSlug/onboarding': typeof AuthdOrgSlugOnboardingOnboardingRoute
   '/$orgSlug/': typeof AuthdOrgSlugOnboardingIndexRoute
+  '/$orgSlug/$projSlug/alerts': typeof AuthdOrgSlugProjSlugDashboardAlertsRoute
+  '/$orgSlug/$projSlug/app-logs': typeof AuthdOrgSlugProjSlugDashboardAppLogsRoute
   '/$orgSlug/$projSlug/events': typeof AuthdOrgSlugProjSlugDashboardEventsRoute
-  '/$orgSlug/$projSlug/logs': typeof AuthdOrgSlugProjSlugDashboardLogsRoute
+  '/$orgSlug/$projSlug/metrics': typeof AuthdOrgSlugProjSlugDashboardMetricsRoute
+  '/$orgSlug/$projSlug/request-logs': typeof AuthdOrgSlugProjSlugDashboardRequestLogsRoute
   '/$orgSlug/$projSlug/settings': typeof AuthdOrgSlugProjSlugDashboardSettingsRoute
   '/$orgSlug/$projSlug/test': typeof AuthdOrgSlugProjSlugDashboardTestRoute
+  '/$orgSlug/$projSlug/traces': typeof AuthdOrgSlugProjSlugDashboardTracesRoute
   '/$orgSlug/$projSlug/': typeof AuthdOrgSlugProjSlugDashboardIndexRoute
 }
 
@@ -358,10 +434,14 @@ export interface FileRoutesByTo {
   '/$orgSlug': typeof AuthdOrgSlugOnboardingIndexRoute
   '/$orgSlug/$projSlug': typeof AuthdOrgSlugProjSlugDashboardIndexRoute
   '/$orgSlug/onboarding': typeof AuthdOrgSlugOnboardingOnboardingRoute
+  '/$orgSlug/$projSlug/alerts': typeof AuthdOrgSlugProjSlugDashboardAlertsRoute
+  '/$orgSlug/$projSlug/app-logs': typeof AuthdOrgSlugProjSlugDashboardAppLogsRoute
   '/$orgSlug/$projSlug/events': typeof AuthdOrgSlugProjSlugDashboardEventsRoute
-  '/$orgSlug/$projSlug/logs': typeof AuthdOrgSlugProjSlugDashboardLogsRoute
+  '/$orgSlug/$projSlug/metrics': typeof AuthdOrgSlugProjSlugDashboardMetricsRoute
+  '/$orgSlug/$projSlug/request-logs': typeof AuthdOrgSlugProjSlugDashboardRequestLogsRoute
   '/$orgSlug/$projSlug/settings': typeof AuthdOrgSlugProjSlugDashboardSettingsRoute
   '/$orgSlug/$projSlug/test': typeof AuthdOrgSlugProjSlugDashboardTestRoute
+  '/$orgSlug/$projSlug/traces': typeof AuthdOrgSlugProjSlugDashboardTracesRoute
 }
 
 export interface FileRoutesById {
@@ -376,10 +456,14 @@ export interface FileRoutesById {
   '/_authd/$orgSlug/$projSlug/_dashboard': typeof AuthdOrgSlugProjSlugDashboardRouteWithChildren
   '/_authd/$orgSlug/_onboarding/onboarding': typeof AuthdOrgSlugOnboardingOnboardingRoute
   '/_authd/$orgSlug/_onboarding/': typeof AuthdOrgSlugOnboardingIndexRoute
+  '/_authd/$orgSlug/$projSlug/_dashboard/alerts': typeof AuthdOrgSlugProjSlugDashboardAlertsRoute
+  '/_authd/$orgSlug/$projSlug/_dashboard/app-logs': typeof AuthdOrgSlugProjSlugDashboardAppLogsRoute
   '/_authd/$orgSlug/$projSlug/_dashboard/events': typeof AuthdOrgSlugProjSlugDashboardEventsRoute
-  '/_authd/$orgSlug/$projSlug/_dashboard/logs': typeof AuthdOrgSlugProjSlugDashboardLogsRoute
+  '/_authd/$orgSlug/$projSlug/_dashboard/metrics': typeof AuthdOrgSlugProjSlugDashboardMetricsRoute
+  '/_authd/$orgSlug/$projSlug/_dashboard/request-logs': typeof AuthdOrgSlugProjSlugDashboardRequestLogsRoute
   '/_authd/$orgSlug/$projSlug/_dashboard/settings': typeof AuthdOrgSlugProjSlugDashboardSettingsRoute
   '/_authd/$orgSlug/$projSlug/_dashboard/test': typeof AuthdOrgSlugProjSlugDashboardTestRoute
+  '/_authd/$orgSlug/$projSlug/_dashboard/traces': typeof AuthdOrgSlugProjSlugDashboardTracesRoute
   '/_authd/$orgSlug/$projSlug/_dashboard/': typeof AuthdOrgSlugProjSlugDashboardIndexRoute
 }
 
@@ -393,10 +477,14 @@ export interface FileRouteTypes {
     | '/$orgSlug/$projSlug'
     | '/$orgSlug/onboarding'
     | '/$orgSlug/'
+    | '/$orgSlug/$projSlug/alerts'
+    | '/$orgSlug/$projSlug/app-logs'
     | '/$orgSlug/$projSlug/events'
-    | '/$orgSlug/$projSlug/logs'
+    | '/$orgSlug/$projSlug/metrics'
+    | '/$orgSlug/$projSlug/request-logs'
     | '/$orgSlug/$projSlug/settings'
     | '/$orgSlug/$projSlug/test'
+    | '/$orgSlug/$projSlug/traces'
     | '/$orgSlug/$projSlug/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -406,10 +494,14 @@ export interface FileRouteTypes {
     | '/$orgSlug'
     | '/$orgSlug/$projSlug'
     | '/$orgSlug/onboarding'
+    | '/$orgSlug/$projSlug/alerts'
+    | '/$orgSlug/$projSlug/app-logs'
     | '/$orgSlug/$projSlug/events'
-    | '/$orgSlug/$projSlug/logs'
+    | '/$orgSlug/$projSlug/metrics'
+    | '/$orgSlug/$projSlug/request-logs'
     | '/$orgSlug/$projSlug/settings'
     | '/$orgSlug/$projSlug/test'
+    | '/$orgSlug/$projSlug/traces'
   id:
     | '__root__'
     | '/_auth'
@@ -422,10 +514,14 @@ export interface FileRouteTypes {
     | '/_authd/$orgSlug/$projSlug/_dashboard'
     | '/_authd/$orgSlug/_onboarding/onboarding'
     | '/_authd/$orgSlug/_onboarding/'
+    | '/_authd/$orgSlug/$projSlug/_dashboard/alerts'
+    | '/_authd/$orgSlug/$projSlug/_dashboard/app-logs'
     | '/_authd/$orgSlug/$projSlug/_dashboard/events'
-    | '/_authd/$orgSlug/$projSlug/_dashboard/logs'
+    | '/_authd/$orgSlug/$projSlug/_dashboard/metrics'
+    | '/_authd/$orgSlug/$projSlug/_dashboard/request-logs'
     | '/_authd/$orgSlug/$projSlug/_dashboard/settings'
     | '/_authd/$orgSlug/$projSlug/_dashboard/test'
+    | '/_authd/$orgSlug/$projSlug/_dashboard/traces'
     | '/_authd/$orgSlug/$projSlug/_dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -502,10 +598,14 @@ export const routeTree = rootRoute
       "filePath": "_authd/$orgSlug/$projSlug/_dashboard.tsx",
       "parent": "/_authd/$orgSlug/$projSlug",
       "children": [
+        "/_authd/$orgSlug/$projSlug/_dashboard/alerts",
+        "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
         "/_authd/$orgSlug/$projSlug/_dashboard/events",
-        "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+        "/_authd/$orgSlug/$projSlug/_dashboard/metrics",
+        "/_authd/$orgSlug/$projSlug/_dashboard/request-logs",
         "/_authd/$orgSlug/$projSlug/_dashboard/settings",
         "/_authd/$orgSlug/$projSlug/_dashboard/test",
+        "/_authd/$orgSlug/$projSlug/_dashboard/traces",
         "/_authd/$orgSlug/$projSlug/_dashboard/"
       ]
     },
@@ -517,12 +617,24 @@ export const routeTree = rootRoute
       "filePath": "_authd/$orgSlug/_onboarding/index.tsx",
       "parent": "/_authd/$orgSlug/_onboarding"
     },
+    "/_authd/$orgSlug/$projSlug/_dashboard/alerts": {
+      "filePath": "_authd/$orgSlug/$projSlug/_dashboard/alerts.tsx",
+      "parent": "/_authd/$orgSlug/$projSlug/_dashboard"
+    },
+    "/_authd/$orgSlug/$projSlug/_dashboard/app-logs": {
+      "filePath": "_authd/$orgSlug/$projSlug/_dashboard/app-logs.tsx",
+      "parent": "/_authd/$orgSlug/$projSlug/_dashboard"
+    },
     "/_authd/$orgSlug/$projSlug/_dashboard/events": {
       "filePath": "_authd/$orgSlug/$projSlug/_dashboard/events.tsx",
       "parent": "/_authd/$orgSlug/$projSlug/_dashboard"
     },
-    "/_authd/$orgSlug/$projSlug/_dashboard/logs": {
-      "filePath": "_authd/$orgSlug/$projSlug/_dashboard/logs.tsx",
+    "/_authd/$orgSlug/$projSlug/_dashboard/metrics": {
+      "filePath": "_authd/$orgSlug/$projSlug/_dashboard/metrics.tsx",
+      "parent": "/_authd/$orgSlug/$projSlug/_dashboard"
+    },
+    "/_authd/$orgSlug/$projSlug/_dashboard/request-logs": {
+      "filePath": "_authd/$orgSlug/$projSlug/_dashboard/request-logs.tsx",
       "parent": "/_authd/$orgSlug/$projSlug/_dashboard"
     },
     "/_authd/$orgSlug/$projSlug/_dashboard/settings": {
@@ -531,6 +643,10 @@ export const routeTree = rootRoute
     },
     "/_authd/$orgSlug/$projSlug/_dashboard/test": {
       "filePath": "_authd/$orgSlug/$projSlug/_dashboard/test.tsx",
+      "parent": "/_authd/$orgSlug/$projSlug/_dashboard"
+    },
+    "/_authd/$orgSlug/$projSlug/_dashboard/traces": {
+      "filePath": "_authd/$orgSlug/$projSlug/_dashboard/traces.tsx",
       "parent": "/_authd/$orgSlug/$projSlug/_dashboard"
     },
     "/_authd/$orgSlug/$projSlug/_dashboard/": {

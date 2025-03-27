@@ -43,11 +43,15 @@ export interface AppLogMetrics {
 	}[];
 }
 
-// List App Logs
-export const listAppLogsSchema = createTimeRangedPaginatedSchema({
+export const appLogFilterSchema = z.object({
 	level: z.enum(LOG_LEVELS).optional(),
 	service_name: z.string().optional(),
 	environment: z.string().optional(),
+});
+
+// List App Logs
+export const listAppLogsSchema = createTimeRangedPaginatedSchema({
+	...appLogFilterSchema.shape,
 });
 
 export type ListAppLogsRequest = z.infer<typeof listAppLogsSchema>;

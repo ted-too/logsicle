@@ -5,10 +5,10 @@ import { useRouteContext, useSearch } from "@tanstack/react-router";
 
 export function useAppLogs() {
   const { currentProject } = useRouteContext({
-    from: "/_authd/$orgSlug/$projSlug/_dashboard/logs",
+    from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs",
   });
   const searchParams = useSearch({
-    from: "/_authd/$orgSlug/$projSlug/_dashboard/logs", 
+    from: "/_authd/$orgSlug/$projSlug/_dashboard/app-logs", 
   });
 
   const query = useInfiniteQuery({
