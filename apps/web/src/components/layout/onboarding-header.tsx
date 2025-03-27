@@ -49,7 +49,6 @@ export function OnboardingHeader() {
             onCloseAutoFocus={(e) => e.preventDefault()}
           >
             <DropdownMenuLabel className="flex flex-col gap-1 text-xs">
-              {/* TODO: Make signed in with dynamic */}
               <span className="font-light text-muted-foreground">
                 Signed in with email
               </span>

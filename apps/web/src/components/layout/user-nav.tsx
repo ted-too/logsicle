@@ -28,7 +28,7 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <SidebarMenuButton
           size="lg"
-          className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground min-h-12"
+          className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
         >
           <Avatar className="h-8 w-8 rounded-lg">
             <AvatarImage src={user.image || ""} alt={user.image || ""} />
@@ -48,7 +48,7 @@ export function UserNav() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-        side="bottom"
+        side="right"
         align="end"
         sideOffset={4}
       >
@@ -76,17 +76,15 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <div className="flex items-center justify-between px-2 py-1.5">
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={async () => {
-              await logout();
-              router.navigate({ to: "/" });
-            }}
-          >
-            Log out
-          </DropdownMenuItem>
-        </div>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={async () => {
+            await logout();
+            router.navigate({ to: "/" });
+          }}
+        >
+          Log out
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

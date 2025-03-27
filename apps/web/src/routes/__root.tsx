@@ -2,6 +2,7 @@ import { DefaultCatchBoundary } from "@/components/catch-boundary";
 import { NotFound } from "@/components/not-found";
 import { Toaster } from "@/components/ui/sonner";
 import appCss from "@/index.css?url";
+import { ThemeProvider } from "@/providers/theme";
 import starryNightCss from "@/starry-night.css?url";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -56,7 +57,7 @@ function RootComponent() {
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
@@ -67,7 +68,9 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
           } as React.CSSProperties
         }
       >
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          {children}
+        </ThemeProvider>
         <TanStackRouterDevtools position="bottom-right" />
         <ReactQueryDevtools buttonPosition="bottom-right" />
         <Toaster position="bottom-right" richColors />

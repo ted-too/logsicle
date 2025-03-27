@@ -8,6 +8,7 @@ import {
   LibraryBigIcon,
   Loader2,
   type LucideIcon,
+  TestTubesIcon,
 } from "lucide-react";
 import type * as React from "react";
 import {
@@ -57,7 +58,6 @@ import {
   Warning2,
   type IconProps,
 } from "iconsax-react";
-import { TestTubesIcon } from "lucide-react";
 import { LogsIcon, TracesIcon } from "../icons";
 import { AddOrganization } from "../teams/add-org";
 import {
@@ -75,32 +75,21 @@ import { UserNav } from "./user-nav";
 import { AddProject } from "../teams/add-project";
 import type { TeamMembership } from "@repo/api";
 
+/**
+ * Core types for sidebar navigation
+ */
 type Icon = LucideIcon | React.ComponentType<IconProps>;
 
-type SingleNavItem = {
-  isSingle?: true;
+// A single navigation item
+type NavItem = {
   title: string;
   url: string;
   icon?: Icon;
   isEnabled?: (userMembership: TeamMembership) => boolean;
+  items?: NavItem[]; // For grouped items
 };
 
-// NavItem type
-// Consists of a single item or a group of items
-// If `isSingle` is true or undefined, the item is a single item
-// If `isSingle` is false, the item is a group of items
-type NavItem =
-  | SingleNavItem
-  | {
-      isSingle: false;
-      title: string;
-      icon: LucideIcon;
-      items: SingleNavItem[];
-      isEnabled?: (userMembership: TeamMembership) => boolean;
-    };
-
-// ExternalLink type
-// Represents an external link item (used for the help section)
+// External link (for help section)
 type ExternalLink = {
   name: string;
   url: string;
@@ -108,46 +97,37 @@ type ExternalLink = {
   isEnabled?: (userMembership: TeamMembership) => boolean;
 };
 
-// Menu type
-// Consists of home, settings, and help items
+// Complete menu structure
 type Menu = {
   resources: NavItem[];
   settings: NavItem[];
   help: ExternalLink[];
 };
 
-// Menu items
-// Consists of unfiltered home, settings, and help items
-// The items are filtered based on the user's role and permissions
-// The `isEnabled` function is called to determine if the item should be displayed
+// Define menu items structure
 const MENU: Menu = {
   resources: [
     {
-      isSingle: true,
       title: "Events",
       url: "/$orgSlug/$projSlug/events",
       icon: Brodcast,
     },
     {
-      isSingle: true,
       title: "App Logs",
       url: "/$orgSlug/$projSlug/app-logs",
       icon: LogsIcon,
     },
     {
-      isSingle: true,
       title: "Request Logs",
       url: "/$orgSlug/$projSlug/request-logs",
       icon: Global,
     },
     {
-      isSingle: true,
       title: "Metrics",
       url: "/$orgSlug/$projSlug/metrics",
       icon: TestTubesIcon,
     },
     {
-      isSingle: true,
       title: "Traces",
       url: "/$orgSlug/$projSlug/traces",
       icon: TracesIcon,
@@ -156,13 +136,11 @@ const MENU: Menu = {
 
   settings: [
     {
-      isSingle: true,
       title: "Alerts",
       url: "/$orgSlug/$projSlug/alerts",
       icon: Warning2,
     },
     {
-      isSingle: true,
       title: "Organization Settings",
       url: "/$orgSlug/$projSlug/settings/organization",
       icon: BuildingIcon,
@@ -170,7 +148,6 @@ const MENU: Menu = {
         ["admin", "owner"].includes(userMembership.role),
     },
     {
-      isSingle: true,
       title: "Project Settings",
       url: "/$orgSlug/$projSlug/settings/project",
       icon: LibraryBigIcon,
@@ -186,45 +163,29 @@ const MENU: Menu = {
       icon: BookIcon,
     },
   ],
-} as const;
+};
 
 /**
- * Creates a menu based on the current user's role and permissions
- * @returns a menu object with the home, settings, and help items
+ * Filters menu items based on user's role and permissions
  */
-function createMenuForAuthUser(opts: { userMembership: TeamMembership }): Menu {
+function filterMenuForUser(menu: Menu, userMembership: TeamMembership): Menu {
   return {
-    // Filter the home items based on the user's role and permissions
-    // Calls the `isEnabled` function if it exists to determine if the item should be displayed
-    resources: MENU.resources.filter((item) =>
-      !item.isEnabled ? true : item.isEnabled(opts.userMembership)
+    resources: menu.resources.filter((item) =>
+      !item.isEnabled ? true : item.isEnabled(userMembership)
     ),
-    // Filter the settings items based on the user's role and permissions
-    // Calls the `isEnabled` function if it exists to determine if the item should be displayed
-    settings: MENU.settings.filter((item) =>
-      !item.isEnabled ? true : item.isEnabled(opts.userMembership)
+    settings: menu.settings.filter((item) =>
+      !item.isEnabled ? true : item.isEnabled(userMembership)
     ),
-    // Filter the help items based on the user's role and permissions
-    // Calls the `isEnabled` function if it exists to determine if the item should be displayed
-    help: MENU.help.filter((item) =>
-      !item.isEnabled ? true : item.isEnabled(opts.userMembership)
+    help: menu.help.filter((item) =>
+      !item.isEnabled ? true : item.isEnabled(userMembership)
     ),
   };
 }
 
 /**
- * Determines if an item url is active based on the current pathname
- * @returns true if the item url is active, false otherwise
+ * Checks if a route is active based on current pathname
  */
-function isActiveRoute({
-  itemUrl,
-  pathname,
-}: {
-  /** The url of the item. Usually obtained from `item.url` */
-  itemUrl: string;
-  /** The current pathname. Usually obtained from `usePathname()` */
-  pathname: string;
-}): boolean {
+function isActiveRoute(itemUrl: string, pathname: string): boolean {
   if (!pathname) return false;
 
   // Remove the first two path segments (orgSlug and projSlug)
@@ -245,38 +206,8 @@ function isActiveRoute({
 }
 
 /**
- * Finds the active nav item based on the current pathname
- * @returns the active nav item with `SingleNavItem` type or undefined if none is active
+ * Organization logo and selector component
  */
-function findActiveNavItem(
-  navItems: NavItem[],
-  pathname: string
-): SingleNavItem | undefined {
-  const found = navItems.find((item) =>
-    item.isSingle !== false
-      ? // The current item is single, so check if the item url is active
-        isActiveRoute({ itemUrl: item.url, pathname })
-      : // The current item is not single, so check if any of the sub items are active
-        item.items.some((item) =>
-          isActiveRoute({ itemUrl: item.url, pathname })
-        )
-  );
-
-  if (found?.isSingle !== false) {
-    // The found item is single, so return it
-    return found;
-  }
-
-  // The found item is not single, so find the active sub item
-  return found?.items.find((item) =>
-    isActiveRoute({ itemUrl: item.url, pathname })
-  );
-}
-
-interface Props {
-  children: React.ReactNode;
-}
-
 function SidebarLogo() {
   const { state, isMobile } = useSidebar();
   const { session } = useRouteContext({
@@ -310,15 +241,14 @@ function SidebarLogo() {
               : "flex-row justify-between items-center"
           )}
         >
-          {/* Organization Logo and Selector */}
-          <SidebarMenuItem className={"w-full"}>
+          <SidebarMenuItem className="w-full">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
-                  size={state === "collapsed" ? "sm" : "lg"}
+                  size="lg"
                   className={cn(
-                    "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground ",
-                    state === "collapsed" && "-translate-x-2 h-10 w-10"
+                    "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
+                    state === "collapsed" && "h-10 w-10 rounded-full"
                   )}
                 >
                   <div
@@ -327,10 +257,13 @@ function SidebarLogo() {
                       state === "collapsed" && "justify-center"
                     )}
                   >
-                    <Logo
-                      className={cn("transition-all size-8 shrink-0")}
-                      logoUrl={activeOrganization?.logo || undefined}
-                    />
+                    <div className="flex items-center justify-center transition-all dark:bg-[#EDFFB2] bg-[#E1FF80] rounded-full size-8">
+                      <Logo
+                        className="transition-all size-4 shrink-0"
+                        logoUrl={activeOrganization?.logo || undefined}
+                        variant="iconOnly"
+                      />
+                    </div>
                     <div
                       className={cn(
                         "flex flex-col items-start whitespace-nowrap",
@@ -409,7 +342,105 @@ function SidebarLogo() {
   );
 }
 
-export function AppSidebar({ children }: Props) {
+/**
+ * Renders a navigation item
+ */
+function NavItemComponent({
+  item,
+  orgSlug,
+  projSlug,
+  pathname,
+}: {
+  item: NavItem;
+  orgSlug: string;
+  projSlug: string;
+  pathname: string;
+}) {
+  const hasSubitems = item.items && item.items.length > 0;
+  const isActive = hasSubitems
+    ? item.items?.some((subItem) => isActiveRoute(subItem.url, pathname))
+    : isActiveRoute(item.url, pathname);
+
+  return (
+    <Collapsible
+      key={item.title}
+      asChild
+      defaultOpen={isActive}
+      className="group/collapsible"
+    >
+      <SidebarMenuItem>
+        {!hasSubitems ? (
+          <SidebarMenuButton asChild tooltip={item.title}>
+            <Link
+              to={item.url}
+              params={{ orgSlug, projSlug }}
+              data-active={isActive}
+              className="flex w-full items-center gap-2"
+            >
+              {item.icon && (
+                <item.icon
+                  className={cn(isActive && "text-primary")}
+                  color="currentColor"
+                />
+              )}
+              <span>{item.title}</span>
+            </Link>
+          </SidebarMenuButton>
+        ) : (
+          <>
+            <CollapsibleTrigger asChild>
+              <SidebarMenuButton tooltip={item.title} isActive={isActive}>
+                {item.icon && <item.icon color="currentColor" />}
+
+                <span>{item.title}</span>
+                {hasSubitems && (
+                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                )}
+              </SidebarMenuButton>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarMenuSub>
+                {item.items?.map((subItem) => (
+                  <SidebarMenuSubItem key={subItem.title}>
+                    <SidebarMenuSubButton asChild>
+                      <Link
+                        to={subItem.url}
+                        params={{ orgSlug, projSlug }}
+                        data-active={isActiveRoute(subItem.url, pathname)}
+                        className="flex w-full items-center"
+                      >
+                        {subItem.icon && (
+                          <span className="mr-2">
+                            <subItem.icon
+                              className={cn(
+                                "h-4 w-4 text-muted-foreground",
+                                isActive && "text-primary"
+                              )}
+                            />
+                          </span>
+                        )}
+                        <span>{subItem.title}</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                ))}
+              </SidebarMenuSub>
+            </CollapsibleContent>
+          </>
+        )}
+      </SidebarMenuItem>
+    </Collapsible>
+  );
+}
+
+/**
+ * Main sidebar component
+ */
+interface AppSidebarProps {
+  children: React.ReactNode;
+}
+
+export function AppSidebar({ children }: AppSidebarProps) {
   const { sidebarStates, currentUserOrg } = useRouteContext({
     from: "/_authd/$orgSlug/$projSlug/_dashboard",
   });
@@ -421,11 +452,7 @@ export function AppSidebar({ children }: Props) {
   const router = useRouter();
   const pathname = router.latestLocation.pathname;
 
-  const {
-    resources: filteredHome,
-    settings: filteredSettings,
-    help,
-  } = createMenuForAuthUser({ userMembership: currentUserOrg });
+  const filteredMenu = filterMenuForUser(MENU, currentUserOrg);
 
   const { data: invitations, refetch: refetchInvitations } = useQuery(
     listInvitationsQueryOptions()
@@ -446,16 +473,18 @@ export function AppSidebar({ children }: Props) {
         <SidebarHeader>
           <SidebarLogo />
         </SidebarHeader>
+
         <SidebarContent>
+          {/* Dashboard Link */}
           <SidebarGroup>
             <SidebarMenu>
               <SidebarMenuButton asChild tooltip="Dashboard">
                 <Link
                   to="/$orgSlug/$projSlug"
-                  data-active={isActiveRoute({
-                    itemUrl: `/${orgSlug}/${projSlug}`,
-                    pathname,
-                  })}
+                  data-active={isActiveRoute(
+                    `/${orgSlug}/${projSlug}`,
+                    pathname
+                  )}
                   params={{ orgSlug, projSlug }}
                   className="flex w-full items-center gap-2"
                 >
@@ -465,183 +494,44 @@ export function AppSidebar({ children }: Props) {
               </SidebarMenuButton>
             </SidebarMenu>
           </SidebarGroup>
+
+          {/* Resources */}
           <SidebarGroup>
             <SidebarGroupLabel>Resources</SidebarGroupLabel>
             <SidebarMenu>
-              {filteredHome.map((item) => {
-                const isSingle = item.isSingle !== false;
-                const isActive = isSingle
-                  ? isActiveRoute({ itemUrl: item.url, pathname })
-                  : item.items.some((item) =>
-                      isActiveRoute({ itemUrl: item.url, pathname })
-                    );
-
-                return (
-                  <Collapsible
-                    key={item.title}
-                    asChild
-                    defaultOpen={isActive}
-                    className="group/collapsible"
-                  >
-                    <SidebarMenuItem>
-                      {isSingle ? (
-                        <SidebarMenuButton asChild tooltip={item.title}>
-                          <Link
-                            to={item.url}
-                            params={{ orgSlug, projSlug }}
-                            data-active={isActive}
-                            className="flex w-full items-center gap-2"
-                          >
-                            {item.icon && (
-                              <item.icon
-                                className={cn(isActive && "text-primary")}
-                                color="currentColor"
-                              />
-                            )}
-                            <span>{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      ) : (
-                        <>
-                          <CollapsibleTrigger asChild>
-                            <SidebarMenuButton
-                              tooltip={item.title}
-                              isActive={isActive}
-                            >
-                              {item.icon && <item.icon color="currentColor" />}
-
-                              <span>{item.title}</span>
-                              {item.items?.length && (
-                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                              )}
-                            </SidebarMenuButton>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <SidebarMenuSub>
-                              {item.items?.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.title}>
-                                  <SidebarMenuSubButton asChild>
-                                    <Link
-                                      to={subItem.url}
-                                      data-active={isActive}
-                                      className="flex w-full items-center"
-                                    >
-                                      {subItem.icon && (
-                                        <span className="mr-2">
-                                          <subItem.icon
-                                            className={cn(
-                                              "h-4 w-4 text-muted-foreground",
-                                              isActive && "text-primary"
-                                            )}
-                                          />
-                                        </span>
-                                      )}
-                                      <span>{subItem.title}</span>
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              ))}
-                            </SidebarMenuSub>
-                          </CollapsibleContent>
-                        </>
-                      )}
-                    </SidebarMenuItem>
-                  </Collapsible>
-                );
-              })}
+              {filteredMenu.resources.map((item) => (
+                <NavItemComponent
+                  key={item.title}
+                  item={item}
+                  orgSlug={orgSlug}
+                  projSlug={projSlug}
+                  pathname={pathname}
+                />
+              ))}
             </SidebarMenu>
           </SidebarGroup>
+
+          {/* Settings */}
           <SidebarGroup>
             <SidebarGroupLabel>Settings</SidebarGroupLabel>
             <SidebarMenu className="gap-1">
-              {filteredSettings.map((item) => {
-                const isSingle = item.isSingle !== false;
-                const isActive = isSingle
-                  ? isActiveRoute({ itemUrl: item.url, pathname })
-                  : item.items.some((item) =>
-                      isActiveRoute({ itemUrl: item.url, pathname })
-                    );
-
-                return (
-                  <Collapsible
-                    key={item.title}
-                    asChild
-                    defaultOpen={isActive}
-                    className="group/collapsible"
-                  >
-                    <SidebarMenuItem>
-                      {isSingle ? (
-                        <SidebarMenuButton asChild tooltip={item.title}>
-                          <Link
-                            to={item.url}
-                            params={{ orgSlug, projSlug }}
-                            data-active={isActive}
-                            className="flex w-full items-center gap-2"
-                          >
-                            {item.icon && (
-                              <item.icon
-                                className={cn(isActive && "text-primary")}
-                                color="currentColor"
-                              />
-                            )}
-                            <span>{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      ) : (
-                        <>
-                          <CollapsibleTrigger asChild>
-                            <SidebarMenuButton
-                              tooltip={item.title}
-                              isActive={isActive}
-                            >
-                              {item.icon && <item.icon color="currentColor" />}
-
-                              <span>{item.title}</span>
-                              {item.items?.length && (
-                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                              )}
-                            </SidebarMenuButton>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <SidebarMenuSub>
-                              {item.items?.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.title}>
-                                  <SidebarMenuSubButton asChild>
-                                    <Link
-                                      to={subItem.url}
-                                      params={{ orgSlug, projSlug }}
-                                      data-active={isActive}
-                                      className="flex w-full items-center"
-                                    >
-                                      {subItem.icon && (
-                                        <span className="mr-2">
-                                          <subItem.icon
-                                            className={cn(
-                                              "h-4 w-4 text-muted-foreground",
-                                              isActive && "text-primary"
-                                            )}
-                                          />
-                                        </span>
-                                      )}
-                                      <span>{subItem.title}</span>
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              ))}
-                            </SidebarMenuSub>
-                          </CollapsibleContent>
-                        </>
-                      )}
-                    </SidebarMenuItem>
-                  </Collapsible>
-                );
-              })}
+              {filteredMenu.settings.map((item) => (
+                <NavItemComponent
+                  key={item.title}
+                  item={item}
+                  orgSlug={orgSlug}
+                  projSlug={projSlug}
+                  pathname={pathname}
+                />
+              ))}
             </SidebarMenu>
           </SidebarGroup>
+
+          {/* Extra / Help */}
           <SidebarGroup className="group-data-[collapsible=icon]:hidden">
             <SidebarGroupLabel>Extra</SidebarGroupLabel>
             <SidebarMenu>
-              {help.map((item: ExternalLink) => (
+              {filteredMenu.help.map((item) => (
                 <SidebarMenuItem key={item.name}>
                   <SidebarMenuButton asChild>
                     <a
@@ -661,8 +551,10 @@ export function AppSidebar({ children }: Props) {
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
+
         <SidebarFooter>
           <SidebarMenu className="flex flex-col gap-2">
+            {/* Notifications */}
             <SidebarMenuItem className="group-data-[collapsible=icon]:-translate-x-0.5">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -671,7 +563,6 @@ export function AppSidebar({ children }: Props) {
                     size="icon"
                     className="relative h-8 w-8 p-1.5 mx-auto"
                   >
-                    {/*  */}
                     <Bell className="size-4" />
                     {invitations && invitations.length > 0 && (
                       <span className="absolute -top-0 -right-0 flex size-4 items-center justify-center rounded-full bg-blue-500 text-xs text-white">
@@ -682,7 +573,7 @@ export function AppSidebar({ children }: Props) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  side={"right"}
+                  side="right"
                   className="w-80"
                 >
                   <DropdownMenuLabel>Pending Invitations</DropdownMenuLabel>
@@ -746,7 +637,7 @@ export function AppSidebar({ children }: Props) {
               </DropdownMenu>
             </SidebarMenuItem>
             <SidebarTrigger className="group-data-[collapsible=]:translate-x-0.5" />
-            <SidebarMenuItem>
+            <SidebarMenuItem className="min-h-12 flex items-center">
               <UserNav />
             </SidebarMenuItem>
           </SidebarMenu>
@@ -754,7 +645,7 @@ export function AppSidebar({ children }: Props) {
         <SidebarRail />
       </Sidebar>
       <SidebarInset>
-        <div className="flex flex-col w-full grow p-4 pt-0">{children}</div>
+        <div className="flex flex-col w-full p-4 pt-0">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );
