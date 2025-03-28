@@ -1,6 +1,6 @@
 import { type ErrorResponse, type Opts, createClient } from "@/index";
 import { z } from "zod";
-import type { JsonValue, PaginatedResponse } from "@/types";
+import type { BaseChartSchema, JsonValue, PaginatedResponse } from "@/types";
 import {
   LOG_LEVELS,
   type LogLevel,
@@ -23,28 +23,11 @@ export interface AppLog {
   host: string | null;
 }
 
-export interface AppLogMetrics {
-  total: number;
-  by_level: {
-    level: string;
-    count: number;
-  }[];
-  by_service: {
-    service: string;
-    count: number;
-  }[];
-  by_environment: {
-    environment: string;
-    count: number;
-  }[];
-  by_time: {
-    timestamp: number;
-    count: number;
-  }[];
-}
+export type AppLogTimelineChart = (BaseChartSchema &
+  Record<LogLevel, number>)[];
 
 export const appLogFilterSchema = z.object({
-  level: z.enum(LOG_LEVELS).nullish(),
+  level: z.array(z.enum(LOG_LEVELS)).nullish(),
   service_name: z.string().nullish(),
   environment: z.string().nullish(),
 });
@@ -98,15 +81,15 @@ export const getAppMetricsSchema = baseMetricsSchema.extend(
 
 export type GetAppMetricsRequest = z.infer<typeof getAppMetricsSchema>;
 
-export async function getAppMetrics(
+export async function getAppTimelineChart(
   projectId: string,
   query: GetAppMetricsRequest,
   { $fetch, ...opts }: Opts
 ) {
   const client = $fetch ?? createClient();
 
-  return await client<AppLogMetrics, ErrorResponse>(
-    `/v1/projects/${projectId}/app/metrics`,
+  return await client<AppLogTimelineChart, ErrorResponse>(
+    `/v1/projects/${projectId}/app/charts/timeline`,
     {
       credentials: "include",
       query,

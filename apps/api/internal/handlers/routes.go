@@ -129,7 +129,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 			// App logs routes
 			projects.Get("/:id/app", appHandler.GetAppLogs)
 			projects.Delete("/:id/app/:logId", appHandler.DeleteAppLog, requireManagementMiddleware)
-			projects.Get("/:id/app/metrics", appHandler.GetMetrics)
+			projects.Get("/:id/app/stream", appHandler.StreamAppLogs)
+			projects.Get("/:id/app/charts/timeline", appHandler.GetTimelineChart)
 
 			// Request logs routes
 			projects.Get("/:id/request", requestsHandler.GetRequestLogs)

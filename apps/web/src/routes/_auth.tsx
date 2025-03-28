@@ -1,23 +1,23 @@
-import { userQueryKey } from "@/qc/auth/basic";
-import { userOrganizationsQueryKey } from "@/qc/teams/organizations";
-import { getUser } from "@/server/auth/basic";
-import { listUserOrganizationMemberships } from "@/server/teams/organizations";
+import { getUserQueryOptions } from "@/qc/auth/basic";
+import { listUserOrganizationMembershipsQueryOptions } from "@/qc/teams/organizations";
+import type { TeamMembershipWithOrganization, UserSession } from "@repo/api";
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_auth")({
 	beforeLoad: async ({ location, context }) => {
-		const { data: user, error } = await getUser();
+		let data: UserSession | null = null;
+		let userOrgs: TeamMembershipWithOrganization[] | null = null;
+		try {
+			data = await context.queryClient.ensureQueryData(getUserQueryOptions());
+			if (!data) return { user: null, userOrgs: [] };
+			userOrgs = await context.queryClient.ensureQueryData(
+				listUserOrganizationMembershipsQueryOptions(),
+			);
+		} catch (error) {
+			return { user: null, userOrgs: [] };
+		}
 
-		if (error || !user) return { user: null, userOrgs: [] };
-
-		void context.queryClient.setQueryData(userQueryKey, user);
-
-		const { data: userOrgs, error: userOrgsError } =
-			await listUserOrganizationMemberships();
-
-		if (userOrgsError) return Promise.reject(userOrgsError);
-
-		void context.queryClient.setQueryData(userOrganizationsQueryKey, userOrgs);
+		const { user } = data;
 
 		const defaultOrg = userOrgs?.[0].organization;
 
@@ -41,9 +41,10 @@ export const Route = createFileRoute("/_auth")({
 			},
 		});
 	},
-  component: AuthLayout,
+	component: AuthLayout,
 });
 
 function AuthLayout() {
-  return <Outlet />;
+	// No need to dehydrate here, because the _authd route will do that
+	return <Outlet />;
 }

@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation"
@@ -25,6 +26,24 @@ const (
 	LogLevelError   LogLevel = "error"
 	LogLevelFatal   LogLevel = "fatal"
 )
+
+func ValidateLogLevel(value interface{}) error {
+	// Convert the string value to LogLevel
+	strValue, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("invalid log level: %v", value)
+	}
+
+	level := LogLevel(strValue)
+
+	// Check if the level matches any of the defined log levels
+	switch level {
+	case LogLevelDebug, LogLevelInfo, LogLevelWarning, LogLevelError, LogLevelFatal:
+		return nil
+	default:
+		return fmt.Errorf("invalid log level: %v", level)
+	}
+}
 
 type AppLog struct {
 	ID        string `json:"id"`
@@ -186,7 +205,7 @@ func (a AppLogInput) ValidateAndCreate() (*AppLog, error) {
 		),
 		validation.Field(&a.Level,
 			validation.Required,
-			validation.In("info", "debug", "info", "warning", "error", "fatal"),
+			validation.By(ValidateLogLevel),
 		),
 		validation.Field(&a.Message,
 			validation.Required,

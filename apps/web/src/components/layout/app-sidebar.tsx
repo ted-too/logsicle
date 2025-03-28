@@ -5,6 +5,7 @@ import {
   BuildingIcon,
   ChevronRight,
   ChevronsUpDown,
+  KeyRoundIcon,
   LibraryBigIcon,
   Loader2,
   type LucideIcon,
@@ -153,6 +154,11 @@ const MENU: Menu = {
       icon: LibraryBigIcon,
       isEnabled: (userMembership) =>
         ["admin", "owner"].includes(userMembership.role),
+    },
+    {
+      title: "API Keys",
+      url: "/$orgSlug/$projSlug/settings/api-keys",
+      icon: KeyRoundIcon,
     },
   ],
 
@@ -645,7 +651,14 @@ export function AppSidebar({ children }: AppSidebarProps) {
         <SidebarRail />
       </Sidebar>
       <SidebarInset>
-        <div className="flex flex-col w-full p-4 pt-0">{children}</div>
+        <div
+          className="flex flex-col w-full pl-2 pt-4"
+          style={{
+            "--content-height": "calc(100svh - 1rem)",
+          } as React.CSSProperties}
+        >
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

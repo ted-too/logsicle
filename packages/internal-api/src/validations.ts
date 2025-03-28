@@ -4,20 +4,18 @@ import {
   addMinutes,
   eachHourOfInterval,
   addHours,
-  sub,
-  add,
 } from "date-fns";
 
 // Common log intervals used across different log types
 // These are short notations that get converted to PostgreSQL interval format on the server side
 // e.g. "1m" -> "1 minute", "5m" -> "5 minutes", "1h" -> "1 hour", etc.
 export const LOG_INTERVALS = [
-  "1m", // 1 minute
-  "5m", // 5 minutes
+  "1m",  // 1 minute - for detailed troubleshooting
+  "5m",  // 5 minutes
   "15m", // 15 minutes
   "30m", // 30 minutes
-  "1h", // 1 hour
-  "6h", // 6 hours
+  "1h",  // 1 hour
+  "6h",  // 6 hours
   "12h", // 12 hours
   "24h", // 24 hours (1 day)
 ] as const;
@@ -37,7 +35,13 @@ export const INTERVAL_TO_POSTGRES_FORMAT: Record<LogInterval, string> = {
 };
 
 // Common log levels
-export const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
+export const LOG_LEVELS = [
+  "debug",
+  "info",
+  "warning",
+  "error",
+  "fatal",
+] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 // Base pagination schema that's common across listing endpoints
@@ -46,26 +50,17 @@ export const basePaginationSchema = z.object({
   page: z.number().min(1).optional(),
 });
 
+const transformTimestamp = (val: number | string | Date | undefined) => {
+  if (val === undefined) return undefined;
+  if (typeof val === "number") return val;
+  // If it's a Date object or string, convert to timestamp
+  return new Date(val).getTime();
+};
+
 // Time range schema common to all time-based queries
 export const timeRangeSchema = z.object({
-  start: z.coerce
-    .number()
-    .transform((val) => {
-      // If it's already a timestamp, use it
-      if (typeof val === "number") return val;
-      // If it's a Date object or string, convert to timestamp
-      return new Date(val).getTime();
-    })
-    .catch(sub(new Date(), { hours: 1 }).getTime()),
-  end: z.coerce
-    .number()
-    .transform((val) => {
-      // If it's already a timestamp, use it
-      if (typeof val === "number") return val;
-      // If it's a Date object or string, convert to timestamp
-      return new Date(val).getTime();
-    })
-    .catch(add(new Date(), { hours: 1 }).getTime()),
+  start: z.coerce.number().optional().transform(transformTimestamp),
+  end: z.coerce.number().optional().transform(transformTimestamp),
 });
 
 // Common metrics schema with time range and interval
@@ -78,9 +73,9 @@ export function createTimeRangedPaginatedSchema<T extends z.ZodRawShape>(
   extraFields: T
 ) {
   return timeRangeSchema.extend({
-    id: z.string().optional().catch(undefined),
+    id: z.string().optional(),
     search: z.string().optional(),
-    sort: z.object({ id: z.string(), desc: z.boolean() }).optional().catch(undefined),
+    sort: z.array(z.string()).optional(), // will be in the format of <column_id>:<asc|desc>
     ...basePaginationSchema.shape,
     ...extraFields,
   });
@@ -155,3 +150,31 @@ export function eachIntervalOfRange(
       throw new Error(`Unsupported interval: ${interval}`);
   }
 }
+
+// get zod object keys recursively
+export const zodKeys = <T extends z.ZodTypeAny>(schema: T): string[] => {
+  // make sure schema is not null or undefined
+  if (schema === null || schema === undefined) return [];
+  // check if schema is nullable or optional
+  if (schema instanceof z.ZodNullable || schema instanceof z.ZodOptional)
+    return zodKeys(schema.unwrap());
+  // check if schema is an array
+  if (schema instanceof z.ZodArray) return zodKeys(schema.element);
+  // check if schema is an object
+  if (schema instanceof z.ZodObject) {
+    // get key/value pairs from schema
+    const entries = Object.entries(schema.shape);
+    // loop through key/value pairs
+    return entries.flatMap(([key, value]) => {
+      // get nested keys
+      const nested =
+        value instanceof z.ZodType
+          ? zodKeys(value).map((subKey) => `${key}.${subKey}`)
+          : [];
+      // return nested keys
+      return nested.length ? nested : key;
+    });
+  }
+  // return empty array
+  return [];
+};

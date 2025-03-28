@@ -11,13 +11,8 @@ import (
 	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
 
-type LogEvent struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
-}
-
-// StreamLogs streams app logs for a project in real-time
-func (h *AppLogsHandler) StreamLogs(c fiber.Ctx) error {
+// StreamAppLogs streams app logs for a project in real-time
+func (h *AppLogsHandler) StreamAppLogs(c fiber.Ctx) error {
 	projectID := c.Params("id")
 
 	c.Set("Content-Type", "text/event-stream")
@@ -26,7 +21,7 @@ func (h *AppLogsHandler) StreamLogs(c fiber.Ctx) error {
 	c.Set("Transfer-Encoding", "chunked")
 
 	ctx := c.Context()
-	channel := make(chan LogEvent)
+	channel := make(chan models.AppLog)
 
 	// Start Redis subscription in a goroutine
 	go h.subscribeToAppLogs(ctx, projectID, channel)
@@ -34,8 +29,8 @@ func (h *AppLogsHandler) StreamLogs(c fiber.Ctx) error {
 	c.SendStreamWriter(func(w *bufio.Writer) {
 		for {
 			select {
-			case event := <-channel:
-				jsonData, err := json.Marshal(event)
+			case appLog := <-channel:
+				jsonData, err := json.Marshal(appLog)
 				if err != nil {
 					continue
 				}
@@ -50,7 +45,7 @@ func (h *AppLogsHandler) StreamLogs(c fiber.Ctx) error {
 	return nil
 }
 
-func (h *AppLogsHandler) subscribeToAppLogs(ctx context.Context, projectID string, channel chan LogEvent) {
+func (h *AppLogsHandler) subscribeToAppLogs(ctx context.Context, projectID string, channel chan models.AppLog) {
 	// Subscribe only to app logs channel
 	appChannel := fmt.Sprintf("logs:%s:app", projectID)
 	pubsub := h.queue.Redis.Subscribe(ctx, appChannel)
@@ -68,9 +63,6 @@ func (h *AppLogsHandler) subscribeToAppLogs(ctx context.Context, projectID strin
 			continue
 		}
 
-		channel <- LogEvent{
-			Type: "app",
-			Data: appLog,
-		}
+		channel <- appLog
 	}
 }

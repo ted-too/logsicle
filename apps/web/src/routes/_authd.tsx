@@ -1,29 +1,28 @@
-import { userQueryKey } from "@/qc/auth/basic";
-import { userOrganizationsQueryKey } from "@/qc/teams/organizations";
-import { getUser } from "@/server/auth/basic";
-import { listUserOrganizationMemberships } from "@/server/teams/organizations";
+import { getUserQueryOptions } from "@/qc/auth/basic";
+import { listInvitationsQueryOptions } from "@/qc/teams/invitations";
+import { listUserOrganizationMembershipsQueryOptions } from "@/qc/teams/organizations";
+import type { TeamMembershipWithOrganization, UserSession } from "@repo/api";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authd")({
   beforeLoad: async ({ location, context }) => {
-    const { data, error } = await getUser();
-
-    if (error) {
+    let data: UserSession | null = null;
+    let userOrgs: TeamMembershipWithOrganization[] | null = null;
+    try {
+      data = await context.queryClient.ensureQueryData(getUserQueryOptions());
+      if (!data) throw new Error("User not found");
+      userOrgs = await context.queryClient.ensureQueryData(
+        listUserOrganizationMembershipsQueryOptions()
+      );
+    } catch (error) {
+      console.log(error);
       throw redirect({
         to: "/",
       });
     }
 
     const { user, session } = data;
-
-    void context.queryClient.setQueryData(userQueryKey, user);
-
-    const { data: userOrgs, error: userOrgsError } =
-      await listUserOrganizationMemberships();
-
-    if (userOrgsError) return Promise.reject(userOrgsError);
-
-    void context.queryClient.setQueryData(userOrganizationsQueryKey, userOrgs);
 
     if (!user.has_onboarded && !location.pathname.includes("/onboarding")) {
       throw redirect({
@@ -34,7 +33,10 @@ export const Route = createFileRoute("/_authd")({
       });
     }
 
+    await context.queryClient.prefetchQuery(listInvitationsQueryOptions());
+
     return {
+      dehydrated: dehydrate(context.queryClient),
       user,
       userOrgs,
       session,
@@ -44,5 +46,10 @@ export const Route = createFileRoute("/_authd")({
 });
 
 function AuthedLayout() {
-  return <Outlet />;
+  const { dehydrated } = Route.useRouteContext();
+  return (
+    <HydrationBoundary state={dehydrated}>
+      <Outlet />
+    </HydrationBoundary>
+  );
 }

@@ -62,7 +62,7 @@ export function DataTableFilterCheckbox<TData>({
 
   return (
     <div className="grid gap-2">
-      {options && options.length > 4 ? (
+      {options && options.length > 8 ? (
         <InputWithAddons
           placeholder="Search"
           leading={<Search className="mt-0.5 h-4 w-4" />}

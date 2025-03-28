@@ -20,11 +20,28 @@ type CommonLogQueryOptions struct {
 	Search *string `json:"search,omitempty"`
 }
 
+func (q *CommonLogQueryOptions) SetDefaults() {
+	if q.Start == 0 {
+		q.Start = 5
+	}
+	if q.End == 0 {
+		q.End = time.Now().UnixMilli()
+	}
+	if q.Limit == 0 {
+		q.Limit = 20
+	} else if q.Limit > 100 {
+		q.Limit = 100
+	}
+	if q.Page == 0 {
+		q.Page = 1
+	}
+}
+
 // Validate implements validation.Validatable
 func (q CommonLogQueryOptions) Validate() error {
 	return validation.ValidateStruct(&q,
-		validation.Field(&q.Start, validation.Required),
-		validation.Field(&q.End, validation.Required, validation.Min(q.Start)),
+		validation.Field(&q.Start, validation.Min(5)),
+		validation.Field(&q.End, validation.Min(q.Start)),
 		validation.Field(&q.Limit, validation.Required, validation.Min(1), validation.Max(100)),
 		validation.Field(&q.Page, validation.Required, validation.Min(1)),
 	)
@@ -45,6 +62,18 @@ type CommonMetricsQueryOptions struct {
 	Start    int64  `json:"start"` // Unix timestamp in milliseconds
 	End      int64  `json:"end"`   // Unix timestamp in milliseconds
 	Interval string `json:"interval,omitempty"`
+}
+
+func (q *CommonMetricsQueryOptions) SetDefaults() {
+	if q.Interval == "" {
+		q.Interval = "24h"
+	}
+	if q.Start == 0 {
+		q.Start = 5
+	}
+	if q.End == 0 {
+		q.End = time.Now().UnixMilli()
+	}
 }
 
 // Validate implements validation.Validatable

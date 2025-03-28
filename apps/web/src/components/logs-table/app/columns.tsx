@@ -11,7 +11,7 @@ import { getLevelColor } from "@/lib/request/level";
 
 export const appLogColumns: ColumnDef<AppLog>[] = [
   {
-    id: "level_level_label",
+    id: "level-label",
     accessorKey: "level",
     header: "",
     cell: ({ row }) => {
@@ -26,9 +26,9 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
     maxSize: 27,
     meta: {
       headerClassName:
-        "w-[--header-level-size] max-w-[--header-level-size] min-w-[--header-level-size]",
+        "w-(--header-level-label-size) max-w-(--header-level-label-size) min-w-(--header-level-label-size)",
       cellClassName:
-        "w-[--col-level-size] max-w-[--col-level-size] min-w-[--col-level-size]",
+        "w-(--col-level-label-size) max-w-(--col-level-label-size) min-w-(--col-level-label-size)",
     },
   },
   {
@@ -46,9 +46,9 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
     minSize: 200,
     meta: {
       headerClassName:
-        "w-[--header-timestamp-size] max-w-[--header-timestamp-size] min-w-[--header-timestamp-size]",
+        "w-(--header-timestamp-size) max-w-(--header-timestamp-size) min-w-(--header-timestamp-size)",
       cellClassName:
-        "font-mono w-[--col-timestamp-size] max-w-[--col-timestamp-size] min-w-[--col-timestamp-size]",
+        "font-mono w-(--col-timestamp-size) max-w-(--col-timestamp-size) min-w-(--col-timestamp-size)",
     },
   },
   {
@@ -66,9 +66,9 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
     meta: {
       label: "Log Id",
       cellClassName:
-        "font-mono w-[--col-id-size] max-w-[--col-id-size] min-w-[--col-id-size]",
+        "font-mono w-(--col-id-size) max-w-(--col-id-size) min-w-(--col-id-size)",
       headerClassName:
-        "min-w-[--header-id-size] w-[--header-id-size] max-w-[--header-id-size]",
+        "min-w-(--header-id-size) w-(--header-id-size) max-w-(--header-id-size)",
     },
   },
   {
@@ -91,9 +91,9 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
     minSize: 60,
     meta: {
       headerClassName:
-        "w-[--header-log_level-size] max-w-[--header-log_level-size] min-w-[--header-log_level-size]",
+        "w-(--header-level-size) max-w-(--header-level-size) min-w-(--header-level-size)",
       cellClassName:
-        "font-mono w-[--col-log_level-size] max-w-[--col-log_level-size] min-w-[--col-log_level-size]",
+        "font-mono w-(--col-level-size) max-w-(--col-level-size) min-w-(--col-level-size)",
     },
   },
   {
@@ -101,15 +101,19 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Message" />
     ),
+    cell: ({ row }) => {
+      const value = row.getValue("message") as string;
+      return <TextWithTooltip text={value} />;
+    },
     filterFn: "includesString",
     enableSorting: false,
-    size: 69,
-    minSize: 69,
+    size: 120,
+    minSize: 120,
     meta: {
       cellClassName:
-        "font-mono text-muted-foreground w-[--col-message-size] max-w-[--col-message-size] min-w-[--col-message-size]",
+        "font-mono text-muted-foreground w-(--col-message-size) max-w-(--col-message-size) min-w-(--col-message-size)",
       headerClassName:
-        "w-[--header-message-size] max-w-[--header-message-size] min-w-[--header-message-size]",
+        "w-(--header-message-size) max-w-(--header-message-size) min-w-(--header-message-size)",
     },
   },
   {
@@ -117,10 +121,7 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Body" />
     ),
-    cell: ({ row }) => {
-      const value = row.getValue("fields") as string;
-      return <span className="truncate font-mono">{value}</span>;
-    },
+    cell: ({ row }) => JSON.stringify(row.getValue("fields")),
     filterFn: "includesString",
     enableSorting: false,
 		enableResizing: true,
@@ -128,9 +129,9 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
     minSize: 256,
     meta: {
       cellClassName:
-        "font-mono text-muted-foreground w-[--col-fields-size] max-w-[--col-fields-size] min-w-[--col-fields-size]",
+        "font-mono text-muted-foreground w-(--col-fields-size) max-w-(--col-fields-size) min-w-(--col-fields-size)",
       headerClassName:
-        "w-[--header-fields-size] max-w-[--header-fields-size] min-w-[--header-fields-size]",
+        "w-(--header-fields-size) max-w-(--header-fields-size) min-w-(--header-fields-size)",
     },
   },
   {
@@ -143,9 +144,9 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
     minSize: 69,
     meta: {
       cellClassName:
-        "font-mono w-[--col-environment-size] max-w-[--col-environment-size]",
+        "font-mono w-(--col-environment-size) max-w-(--col-environment-size)",
       headerClassName:
-        "min-w-[--header-environment-size] w-[--header-environment-size]",
+        "min-w-(--header-environment-size) w-(--header-environment-size)",
     },
   },
 	{
@@ -155,6 +156,12 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
 		),
 		size: 69,
 		minSize: 69,
+    meta: {
+      cellClassName:
+        "font-mono w-(--col-function-size) max-w-(--col-function-size)",
+      headerClassName:
+        "w-(--header-function-size) max-w-(--header-function-size)",
+    },
 	},
 	{
 		accessorKey: "host",
@@ -163,6 +170,12 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
 		),
 		size: 69,
 		minSize: 69,
+    meta: {
+      cellClassName:
+        "font-mono w-(--col-host-size) max-w-(--col-host-size)",
+      headerClassName:
+        "w-(--header-host-size) max-w-(--header-host-size)",
+    },
 	},
 	{
 		accessorKey: "service_name", 
@@ -171,6 +184,12 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
 		),
 		size: 69,
 		minSize: 69,
+    meta: {
+      cellClassName:
+        "font-mono w-(--col-service-name-size) max-w-(--col-service-name-size)",
+      headerClassName:
+        "w-(--header-service-name-size) max-w-(--header-service-name-size)",
+    },
 	},
 	{
 		accessorKey: "caller",
@@ -179,6 +198,12 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
 		),
 		size: 69,
 		minSize: 69,
+    meta: {
+      cellClassName:
+        "font-mono w-(--col-caller-size) max-w-(--col-caller-size)",
+      headerClassName:
+        "w-(--header-caller-size) max-w-(--header-caller-size)",
+    },
 	},
 	{
 		accessorKey: "version",
@@ -187,5 +212,11 @@ export const appLogColumns: ColumnDef<AppLog>[] = [
 		),
 		size: 69,
 		minSize: 69,
+    meta: {
+      cellClassName:
+        "font-mono w-(--col-version-size) max-w-(--col-version-size)",
+      headerClassName:
+        "w-(--header-version-size) max-w-(--header-version-size)",
+    },
 	}
 ];

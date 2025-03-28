@@ -1,44 +1,83 @@
-import { listAppLogs, getAppMetrics } from "@/server/resources/app";
-import type { GetAppMetricsRequest, ListAppLogsRequest } from "@repo/api";
-import { queryOptions } from "@tanstack/react-query";
+import { listAppLogs, getAppTimelineChart } from "@/server/resources/app";
+import type {
+  AppLog,
+  GetAppMetricsRequest,
+  ListAppLogsRequest,
+  PaginatedResponse,
+} from "@repo/api";
+import {
+  infiniteQueryOptions,
+  keepPreviousData,
+  queryOptions,
+} from "@tanstack/react-query";
+import { getFacetsFromData, type InfiniteQueryResponse } from "../utils";
 
 export const appLogsQueryKey = (projectId: string) => [
-	"projects",
-	projectId,
-	"app-logs",
+  "projects",
+  projectId,
+  "app-logs",
 ];
 
-export const appMetricsQueryKey = (projectId: string) => [
-	"projects",
-	projectId,
-	"app-logs",
-	"metrics",
+export const appTimelineChartQueryKey = (projectId: string) => [
+  "projects",
+  projectId,
+  "app-logs",
+  "charts",
+  "timeline",
 ];
+
+export const transformAppLogData = (
+  data: PaginatedResponse<AppLog>
+): InfiniteQueryResponse<AppLog[]> => ({
+  data: data.data,
+  meta: {
+    pagination: data.meta,
+    facets: getFacetsFromData(data.data),
+  },
+});
 
 export const getAppLogsQueryOptions = (
-	projectId: string,
-	query: ListAppLogsRequest,
+  projectId: string,
+  query: ListAppLogsRequest
 ) =>
-	queryOptions({
-		queryKey: [...appLogsQueryKey(projectId), query],
-		queryFn: async () => {
-			const { data, error } = await listAppLogs({ data: { projectId, query } });
-			if (error) return Promise.reject(error);
-			return data;
-		},
-	});
+  infiniteQueryOptions({
+    queryKey: [...appLogsQueryKey(projectId), query],
+    queryFn: async ({ pageParam }) => {
+      const { data, error } = await listAppLogs({
+        data: {
+          projectId,
+          query: { ...query, page: pageParam },
+        },
+      });
+      if (error) return Promise.reject(error);
+      return transformAppLogData(data);
+    },
+    initialPageParam: 1,
+    getPreviousPageParam: ({ meta }) => {
+      if (!meta.pagination.prevPage) return null;
+      return meta.pagination.prevPage;
+    },
+    getNextPageParam: ({ meta }) => {
+      if (!meta.pagination.nextPage) return null;
+      return meta.pagination.nextPage;
+    },
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-export const getAppMetricsQueryOptions = (
-	projectId: string,
-	query: GetAppMetricsRequest,
+export const getAppTimelineChartQueryOptions = (
+  projectId: string,
+  query: GetAppMetricsRequest
 ) =>
-	queryOptions({
-		queryKey: [...appMetricsQueryKey(projectId), query],
-		queryFn: async () => {
-			const { data, error } = await getAppMetrics({
-				data: { projectId, query },
-			});
-			if (error) return Promise.reject(error);
-			return data;
-		},
-	});
+  queryOptions({
+    queryKey: [...appTimelineChartQueryKey(projectId), query],
+    queryFn: async () => {
+      const { data, error } = await getAppTimelineChart({
+        data: { projectId, query },
+      });
+      if (error) return Promise.reject(error);
+      return data;
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });

@@ -19,6 +19,7 @@ export const listInvitationsQueryOptions = () =>
       if (error) return Promise.reject(error);
       return data;
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
 /**
@@ -32,4 +33,4 @@ export const validateInvitationQueryOptions = (token: string) =>
       if (error) return Promise.reject(error);
       return data;
     },
-  }); 
+  });

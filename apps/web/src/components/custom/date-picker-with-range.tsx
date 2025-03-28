@@ -60,7 +60,7 @@ export function DatePickerWithRange({
       <Popover modal={true}>
         <PopoverTrigger asChild>
           <Button
-            id="date"
+            id="timestamp"
             variant="outline"
             size="sm"
             className={cn(

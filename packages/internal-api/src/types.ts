@@ -36,3 +36,7 @@ export type PaginatedResponse<T> = {
 export type RawJsonPrimitive = string | number | boolean | null;
 export type RawJsonValue = RawJsonPrimitive | { [key: string]: RawJsonValue };
 export type JsonValue = Record<string, RawJsonValue>;
+
+export type BaseChartSchema = {
+  timestamp: number;
+};

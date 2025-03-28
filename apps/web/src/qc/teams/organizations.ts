@@ -20,6 +20,7 @@ export const listUserOrganizationMembershipsQueryOptions = () =>
 			if (error) return Promise.reject(error);
 			return data;
 		},
+		staleTime: 15 * 60 * 1000, // 15 minutes
 	});
 
 export const listOrganizationMembersQueryOptions = (organizationId: string) =>

@@ -31,8 +31,8 @@ export const filterFields = [
 			// TODO: type `Option` with `options` values via Generics
 			const value = props.value as LogLevel;
 			return (
-				<div className="flex w-full items-center justify-between gap-2 max-w-28 font-mono">
-					<span className="capitalize text-foreground/70 group-hover:text-accent-foreground">
+				<div className="flex grow items-center gap-2 max-w-28 font-mono">
+					<span className="capitalize min-w-16 text-foreground/70 group-hover:text-accent-foreground">
 						{props.label}
 					</span>
 					<div className="flex items-center gap-2">

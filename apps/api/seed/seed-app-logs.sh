@@ -4,8 +4,8 @@
 ENVIRONMENT="development"
 SERVICE="test-service"
 COUNT=1
-API_KEY="lsk-v1-lnptybb7kmbcgydafr7mo4ebeuc2krfkr36cql3x4traf5tz2mfa"
-PROJECT_ID="proj_01jm05y003fy2vyqe34tmkdfgk"
+API_KEY="lsk-v1-neutmuwd4apotut3xgxxkiql4a6asvythvxmver77b22xsjcdfma"
+PROJECT_ID="proj_01jq4nmw4af57ayjaqrrtsbh4d"
 API_URL="http://localhost:3005"
 MAX_DAYS=0 # Set to 0 to disable
 

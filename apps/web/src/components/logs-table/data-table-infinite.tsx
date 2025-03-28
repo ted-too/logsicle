@@ -3,6 +3,7 @@
 import type {
   ColumnDef,
   ColumnFiltersState,
+  OnChangeFn,
   Row,
   RowSelectionState,
   SortingState,
@@ -16,8 +17,6 @@ import {
   getFacetedRowModel,
   getFacetedUniqueValues as getTTableFacetedUniqueValues,
   getFacetedMinMaxValues as getTTableFacetedMinMaxValues,
-  getFilteredRowModel,
-  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import * as React from "react";
@@ -29,7 +28,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/custom/table";
+} from "@/components/ui/table";
 import { DataTableFilterCommand } from "@/components/data-table/data-table-filter-command";
 import type {
   DataTableFilterField,
@@ -61,9 +60,12 @@ import {
   type AppLog,
   type RequestLog,
 } from "@repo/api";
-import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import { DataTableFilterControls } from "../data-table/data-table-filter-controls";
 import { ScrollArea } from "../ui/scroll-area";
+import { useControls } from "@/providers/controls";
+import { useTableSearchParams } from "./use-table-search-params";
+import { SelectInterval } from "./select-interval";
 
 type TableTypeToData = {
   app: AppLog;
@@ -134,7 +136,6 @@ export function DataTableInfinite<
   isFetching,
   isLoading,
   fetchNextPage,
-  fetchPreviousPage,
   refetch,
   totalRows = 0,
   filterRows = 0,
@@ -144,12 +145,101 @@ export function DataTableInfinite<
   meta,
   renderLiveRow,
 }: DataTableInfiniteProps<TType, TValue, TMeta>) {
-  const [columnFilters, setColumnFilters] =
-    React.useState<ColumnFiltersState>(defaultColumnFilters);
-  const [sorting, setSorting] =
-    React.useState<SortingState>(defaultColumnSorting);
-  const [rowSelection, setRowSelection] =
-    React.useState<RowSelectionState>(defaultRowSelection);
+  const { search, filterKeys, setSearch } = useTableSearchParams({ type });
+
+  const rowSelection: RowSelectionState = search.id
+    ? { [search.id]: true }
+    : {};
+  const setRowSelection: OnChangeFn<RowSelectionState> = (rowSelection) => {
+    let value: string | undefined;
+    if (typeof rowSelection === "function") {
+      value = Object.keys(rowSelection(defaultRowSelection))[0];
+    } else {
+      value = Object.keys(rowSelection)[0];
+    }
+
+    setSearch({ id: value });
+  };
+  const sorting: SortingState = search.sort
+    ? search.sort.map((sort) => {
+        const [id, desc] = sort.split(":");
+        return {
+          id,
+          desc: desc === "desc",
+        };
+      })
+    : defaultColumnSorting;
+  const setSorting: OnChangeFn<SortingState> = (sorting) => {
+    let value: SortingState | undefined;
+    if (typeof sorting === "function") {
+      value = sorting(defaultColumnSorting);
+    } else {
+      value = sorting;
+    }
+    if (value && value.length === 0) {
+      setSearch({
+        sort: undefined,
+      });
+      return;
+    }
+    setSearch({
+      sort: value?.map((sort) => `${sort.id}:${sort.desc ? "desc" : "asc"}`),
+    });
+  };
+
+  const columnFilters: ColumnFiltersState = filterKeys
+    .map((key) => {
+      if (key === "timestamp" && search.start && search.end) {
+        return {
+          id: key,
+          value: [new Date(search.start), new Date(search.end)],
+        };
+      }
+      const filterValue = search[key as keyof typeof search];
+      if (!filterValue) return { id: key, value: undefined };
+      return { id: key, value: filterValue };
+    })
+    .filter((filter) => filter.value !== undefined);
+  const setColumnFilters: OnChangeFn<ColumnFiltersState> = (columnFilters) => {
+    let value: ColumnFiltersState | undefined;
+    if (typeof columnFilters === "function") {
+      value = columnFilters(defaultColumnFilters);
+    } else {
+      value = columnFilters;
+    }
+
+    const search = filterKeys.reduce(
+      (prev, key) => {
+        const filter = value?.find((f) => f.id === key);
+        if (!filter || filter.value === undefined) {
+          prev[key] = undefined;
+        } else {
+          prev[key] = filter.value;
+        }
+        return prev;
+      },
+      {} as Record<string, unknown>
+    );
+
+    if (
+      search.timestamp &&
+      Array.isArray(search.timestamp) &&
+      search.timestamp[0] &&
+      search.timestamp[1]
+    ) {
+      const start = new Date(search.timestamp[0]).getTime();
+      const end = new Date(search.timestamp[1]).getTime();
+      search.timestamp = undefined;
+      search.start = start;
+      search.end = end;
+    } else if (search.timestamp === undefined) {
+      search.start = undefined;
+      search.end = undefined;
+    }
+
+    setSearch(search);
+  };
+
   const [columnOrder, setColumnOrder] = useLocalStorage<string[]>(
     "data-table-column-order",
     []
@@ -159,36 +249,10 @@ export function DataTableInfinite<
       "data-table-visibility",
       defaultColumnVisibility
     );
+
   const topBarRef = React.useRef<HTMLDivElement>(null);
   const tableRef = React.useRef<HTMLTableElement>(null);
   const [topBarHeight, setTopBarHeight] = React.useState(0);
-
-  const params = useParams({
-    from: "/_authd/$orgSlug/$projSlug/_dashboard",
-  });
-
-  const navigate = useNavigate();
-
-  const searchParams = useSearch({
-    from:
-      type === "app"
-        ? "/_authd/$orgSlug/$projSlug/_dashboard/app-logs"
-        : "/_authd/$orgSlug/$projSlug/_dashboard/request-logs",
-  });
-
-  const setSearch = (search: Record<string, unknown>) => {
-    navigate({
-      to:
-        type === "app"
-          ? "/$orgSlug/$projSlug/app-logs"
-          : "/$orgSlug/$projSlug/request-logs",
-      params,
-      search: {
-        ...searchParams,
-        ...search,
-      },
-    });
-  };
 
   const onScroll = React.useCallback(
     (e: React.UIEvent<HTMLElement>) => {
@@ -240,9 +304,9 @@ export function DataTableInfinite<
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnOrderChange: setColumnOrder,
-    getSortedRowModel: getSortedRowModel(),
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    manualFiltering: true,
+    manualSorting: true,
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getTTableFacetedUniqueValues(),
     getFacetedMinMaxValues: getTTableFacetedMinMaxValues(),
@@ -251,45 +315,6 @@ export function DataTableInfinite<
     meta: { getRowClassName },
   });
 
-  React.useEffect(() => {
-    const columnFiltersWithUndefined = filterFields.map((field) => {
-      const filterValue = columnFilters.find(
-        (filter) => filter.id === field.value
-      );
-      if (!filterValue) return { id: field.value, value: undefined };
-      return { id: field.value, value: filterValue.value };
-    });
-
-    const search = columnFiltersWithUndefined.reduce(
-      (prev, curr) => {
-        prev[curr.id as string] = curr.value;
-        return prev;
-      },
-      {} as Record<string, unknown>
-    );
-
-    if (
-      search.timestamp &&
-      Array.isArray(search.timestamp) &&
-      search.timestamp[0] &&
-      search.timestamp[1]
-    ) {
-      const start = new Date(search.timestamp[0]).getTime();
-      const end = new Date(search.timestamp[1]).getTime();
-      search.timestamp = undefined;
-      search.start = start;
-      search.end = end;
-    }
-
-    setSearch(search);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnFilters]);
-
-  React.useEffect(() => {
-    setSearch({ sort: sorting?.[0] || null });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sorting]);
-
   const selectedRow = React.useMemo(() => {
     if ((isLoading || isFetching) && !data.length) return;
     const selectedRowKey = Object.keys(rowSelection)?.[0];
@@ -297,20 +322,6 @@ export function DataTableInfinite<
       .getCoreRowModel()
       .flatRows.find((row) => row.id === selectedRowKey);
   }, [rowSelection, table, isLoading, isFetching, data]);
-
-  // TODO: can only share uuid within the first batch
-  React.useEffect(() => {
-    if (isLoading || isFetching) return;
-    if (Object.keys(rowSelection)?.length && !selectedRow) {
-      setSearch({ id: null });
-      setRowSelection({});
-      return;
-    }
-    if (Object.keys(rowSelection)?.[0]) {
-      setSearch({ id: Object.keys(rowSelection)?.[0] });
-      console.log("Set ID to", Object.keys(rowSelection)?.[0]);
-    }
-  }, [rowSelection, selectedRow, isLoading, isFetching]);
 
   /**
    * https://tanstack.com/table/v8/docs/guide/column-sizing#advanced-column-resizing-performance
@@ -398,7 +409,7 @@ export function DataTableInfinite<
           <div
             ref={topBarRef}
             className={cn(
-              "flex flex-col gap-4 bg-background p-2",
+              "flex flex-col gap-4 bg-background p-2 pr-4",
               "sticky top-0 z-10 pb-4"
             )}
           >
@@ -410,12 +421,9 @@ export function DataTableInfinite<
             {/* TBD: better flexibility with compound components? */}
             <DataTableToolbar
               renderActions={() => [
+                <SelectInterval type={type} key={`interval-${type}`} />,
                 <RefreshButton key="refresh" onClick={refetch} />,
-                <LiveButton
-                  type={type}
-                  key="live"
-                  fetchPreviousPage={fetchPreviousPage}
-                />,
+                <LiveButton type={type} key="live" />,
               ]}
             />
             <TimelineChart type={type} className="-mb-2" columnId="timestamp" />
@@ -428,54 +436,7 @@ export function DataTableInfinite<
               className="border-separate border-spacing-0"
               containerClassName="max-h-[calc(var(--content-height)_-_var(--top-bar-height))]"
             >
-              <TableHeader className={cn("sticky top-0 z-20 bg-background")}>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow
-                    key={headerGroup.id}
-                    className={cn(
-                      "bg-muted/50 hover:bg-muted/50",
-                      "[&>*]:border-t [&>:not(:last-child)]:border-r"
-                    )}
-                  >
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead
-                          key={header.id}
-                          className={cn(
-                            "relative select-none truncate border-b border-border [&>.cursor-col-resize]:last:opacity-0",
-                            header.column.columnDef.meta?.headerClassName
-                          )}
-                          aria-sort={
-                            header.column.getIsSorted() === "asc"
-                              ? "ascending"
-                              : header.column.getIsSorted() === "desc"
-                                ? "descending"
-                                : "none"
-                          }
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                          {header.column.getCanResize() && (
-                            <div
-                              onDoubleClick={() => header.column.resetSize()}
-                              onMouseDown={header.getResizeHandler()}
-                              onTouchStart={header.getResizeHandler()}
-                              className={cn(
-                                "user-select-none absolute -right-2 top-0 z-10 flex h-full w-4 cursor-col-resize touch-none justify-center",
-                                "before:absolute before:inset-y-0 before:w-px before:translate-x-px before:bg-border"
-                              )}
-                            />
-                          )}
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
+              <HeaderComponent table={table} />
               <TableBody
                 id="content"
                 tabIndex={-1}
@@ -486,17 +447,21 @@ export function DataTableInfinite<
                 }}
               >
                 {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    // REMINDER: if we want to add arrow navigation https://github.com/TanStack/table/discussions/2752#discussioncomment-192558
-                    <React.Fragment key={row.id}>
-                      {renderLiveRow?.({ row })}
-                      <MemoizedRow
-                        row={row}
-                        table={table}
-                        selected={row.getIsSelected()}
-                      />
-                    </React.Fragment>
-                  ))
+                  table
+                    .getRowModel()
+                    .rows.slice(0, 1)
+                    .map((row) => (
+                      // REMINDER: if we want to add arrow navigation https://github.com/TanStack/table/discussions/2752#discussioncomment-192558
+                      <React.Fragment key={row.id}>
+                        {renderLiveRow?.({ row })}
+                        <MemoizedRow
+                          row={row}
+                          table={table}
+                          selected={row.getIsSelected()}
+                          visibleColumns={columnVisibility}
+                        />
+                      </React.Fragment>
+                    ))
                 ) : (
                   <React.Fragment>
                     {renderLiveRow()}
@@ -588,8 +553,9 @@ function RowComponent<TData>({
 }: {
   row: Row<TData>;
   table: TTable<TData>;
-  // REMINDER: row.getIsSelected(); - just for memoization
+  // REMINDER: row.getIsSelected() and visibleColumns; - just for memoization
   selected?: boolean;
+  visibleColumns: VisibilityState;
 }) {
   // REMINDER: rerender the row when live mode is toggled - used to opacity the row
   // via the `getRowClassName` prop - but for some reasons it wil render the row on data fetch
@@ -611,7 +577,7 @@ function RowComponent<TData>({
       }}
       className={cn(
         "[&>:not(:last-child)]:border-r",
-        "outline-1 -outline-offset-1 outline-primary transition-colors focus-visible:bg-muted/50 focus-visible:outline data-[state=selected]:outline",
+        "-outline-offset-1 outline-primary/30 transition-colors focus-visible:bg-muted/50 focus-visible:outline data-[state=selected]:outline",
         table.options.meta?.getRowClassName?.(row)
       )}
     >
@@ -630,7 +596,73 @@ function RowComponent<TData>({
   );
 }
 
-const MemoizedRow = React.memo(
-  RowComponent,
-  (prev, next) => prev.row.id === next.row.id && prev.selected === next.selected
-) as typeof RowComponent;
+const MemoizedRow = React.memo(RowComponent, (prev, next) => {
+  // Check if row ID and selection state are the same
+  const basicPropsEqual =
+    prev.row.id === next.row.id && prev.selected === next.selected;
+
+  // Check if visible columns are the same
+  const prevVisibleColumnsKeys = Object.keys(prev.visibleColumns);
+  const nextVisibleColumnsKeys = Object.keys(next.visibleColumns);
+
+  const visibilityEqual =
+    prevVisibleColumnsKeys.length === nextVisibleColumnsKeys.length &&
+    prevVisibleColumnsKeys.every((colId) => nextVisibleColumnsKeys.includes(colId) && prev.visibleColumns[colId] === next.visibleColumns[colId]);
+
+  return basicPropsEqual && visibilityEqual;
+}) as typeof RowComponent;
+
+function HeaderComponent<TData>({ table }: { table: TTable<TData> }) {
+  const { open } = useControls();
+  return (
+    <TableHeader className={cn("sticky top-0 z-20 bg-background")}>
+      {table.getHeaderGroups().map((headerGroup) => (
+        <TableRow
+          key={headerGroup.id}
+          className={cn(
+            "bg-muted/50 hover:bg-muted/50",
+            "[&>*]:border-t [&>:not(:last-child)]:border-r"
+          )}
+        >
+          {headerGroup.headers.map((header) => {
+            return (
+              <TableHead
+                key={header.id}
+                className={cn(
+                  "relative select-none truncate border-b border-border [&>.cursor-col-resize]:last:opacity-0",
+                  !open && "first:border-l last:border-r",
+                  header.column.columnDef.meta?.headerClassName
+                )}
+                aria-sort={
+                  header.column.getIsSorted() === "asc"
+                    ? "ascending"
+                    : header.column.getIsSorted() === "desc"
+                      ? "descending"
+                      : "none"
+                }
+              >
+                {header.isPlaceholder
+                  ? null
+                  : flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+                {header.column.getCanResize() && (
+                  <div
+                    onDoubleClick={() => header.column.resetSize()}
+                    onMouseDown={header.getResizeHandler()}
+                    onTouchStart={header.getResizeHandler()}
+                    className={cn(
+                      "user-select-none absolute -right-2 top-0 z-10 flex h-full w-4 cursor-col-resize touch-none justify-center",
+                      "before:absolute before:inset-y-0 before:w-px before:translate-x-px before:bg-border"
+                    )}
+                  />
+                )}
+              </TableHead>
+            );
+          })}
+        </TableRow>
+      ))}
+    </TableHeader>
+  );
+}

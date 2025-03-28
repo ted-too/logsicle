@@ -1,97 +1,44 @@
-"use client";
-
-import * as React from "react";
-import type { FetchPreviousPageOptions } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CirclePlay, CirclePause } from "lucide-react";
 import { useDataTable } from "@/components/data-table/data-table-provider";
 import { useHotKey } from "@/hooks/use-hot-key";
-import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
-
-const REFRESH_INTERVAL = 4_000;
+import { useTableSearchParams } from "../use-table-search-params";
 
 interface LiveButtonProps {
 	type: "app" | "request";
-	fetchPreviousPage?: (
-		options?: FetchPreviousPageOptions | undefined,
-	) => Promise<unknown>;
 }
 
-export function LiveButton({ type, fetchPreviousPage }: LiveButtonProps) {
-	const { tail, timestamp, sort, ...rest } = useSearch({
-		from:
-			type === "app"
-				? "/_authd/$orgSlug/$projSlug/_dashboard/app-logs"
-				: "/_authd/$orgSlug/$projSlug/_dashboard/request-logs",
-	});
-	const params = useParams({
-		from:
-			type === "app"
-				? "/_authd/$orgSlug/$projSlug/_dashboard/app-logs"
-				: "/_authd/$orgSlug/$projSlug/_dashboard/request-logs",
-	});
-	const navigate = useNavigate();
-
-	const setSearch = (search: Record<string, unknown>) => {
-		navigate({
-			to:
-				type === "app"
-					? "/$orgSlug/$projSlug/app-logs"
-					: "/$orgSlug/$projSlug/request-logs",
-			search: { ...rest, ...search },
-			params,
-		});
-	};
+export function LiveButton({ type }: LiveButtonProps) {
+	const { search, setSearch } = useTableSearchParams({ type });
 
 	const { table } = useDataTable();
 	useHotKey(handleClick, "j");
 
-	React.useEffect(() => {
-		let timeoutId: NodeJS.Timeout;
-
-		async function fetchData() {
-			if (tail) {
-				await fetchPreviousPage?.();
-				timeoutId = setTimeout(fetchData, REFRESH_INTERVAL);
-			} else {
-				clearTimeout(timeoutId);
-			}
-		}
-
-		fetchData();
-
-		return () => {
-			clearTimeout(timeoutId);
-		};
-	}, [tail, fetchPreviousPage]);
-
-	// REMINDER: make sure to reset live when date is set
-	// TODO: test properly
-	React.useEffect(() => {
-		if ((timestamp || sort) && tail) {
-			setSearch({ ...rest, tail: null });
-		}
-	}, [timestamp, sort]);
-
 	function handleClick() {
+		// Toggle tail mode and reset other search parameters
+		const nextTail = !search.tail;
+
+		// If we're turning on tail mode and there's a sort parameter, reset it
+		if (nextTail) {
+			// Reset any active timestamp filters or sorting in the table
+			table.getColumn("timestamp")?.setFilterValue(undefined);
+			table.resetSorting();
+		}
+
 		setSearch({
-			live: !tail,
-			date: null,
-			sort: null,
+			tail: nextTail,
 		});
-		table.getColumn("date")?.setFilterValue(undefined);
-		table.resetSorting();
 	}
 
 	return (
 		<Button
-			className={cn(tail && "border-info text-info hover:text-info")}
+			className={cn(search.tail && "border-info text-info hover:text-info")}
 			onClick={handleClick}
 			variant="outline"
 			size="sm"
 		>
-			{tail ? (
+			{search.tail ? (
 				<CirclePause className="mr-2 h-4 w-4" />
 			) : (
 				<CirclePlay className="mr-2 h-4 w-4" />

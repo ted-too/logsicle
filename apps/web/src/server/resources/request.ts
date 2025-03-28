@@ -2,7 +2,7 @@ import { betterFetchMiddleware } from "@/middleware/better-fetch";
 import {
   listRequestLogs as apiListRequestLogs,
   deleteRequestLog as apiDeleteRequestLog,
-  getRequestMetrics as apiGetRequestMetrics,
+  getRequestTimelineChart as apiGetRequestTimelineChart,
   listRequestLogsSchema,
   getRequestMetricsSchema,
 } from "@repo/api";
@@ -24,9 +24,9 @@ export const deleteRequestLog = createServerFn({ method: "POST" })
     apiDeleteRequestLog(projectId, logId, { $fetch: context.$fetch }),
   );
 
-export const getRequestMetrics = createServerFn({ method: "GET" })
+export const getRequestTimelineChart = createServerFn({ method: "GET" })
   .middleware([betterFetchMiddleware])
   .validator(z.object({ projectId: z.string(), query: getRequestMetricsSchema }))
   .handler(async ({ context, data: { projectId, query } }) =>
-    apiGetRequestMetrics(projectId, query, { $fetch: context.$fetch }),
+    apiGetRequestTimelineChart(projectId, query, { $fetch: context.$fetch }),
   ); 

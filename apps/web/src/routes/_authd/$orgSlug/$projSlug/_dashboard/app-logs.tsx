@@ -1,23 +1,54 @@
 import { AppLogsTable } from "@/components/logs-table/app";
-import { appDataOptions } from "@/components/logs-table/query-options";
+import { getAppLogsQueryOptions, getAppTimelineChartQueryOptions } from "@/qc/resources/app";
 import { getAppMetricsSchema, listAppLogsSchema } from "@repo/api";
-import { createFileRoute } from "@tanstack/react-router";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
+const defaultValues = {
+  tail: false,
+};
+
 const validateSearch = listAppLogsSchema.merge(getAppMetricsSchema).extend({
-  tail: z.boolean().catch(false),
+  tail: z.coerce.boolean().catch(false),
 });
 
-type SearchParams = z.infer<typeof validateSearch>;
+export type SearchParams = z.infer<typeof validateSearch>;
 
 export const Route = createFileRoute(
   "/_authd/$orgSlug/$projSlug/_dashboard/app-logs"
 )({
   validateSearch,
   loader: async ({ context, location }) => {
+    const { tail: _, ...search } = location.search as SearchParams;
     await context.queryClient.prefetchInfiniteQuery(
-      appDataOptions(context.currentProject.id, location.search as SearchParams)
+      getAppLogsQueryOptions(
+        context.currentProject.id,
+        search
+      )
     );
+    await context.queryClient.prefetchQuery(
+      getAppTimelineChartQueryOptions(
+        context.currentProject.id,
+        search
+      )
+    );
+
+    return {
+      dehydrated: dehydrate(context.queryClient),
+    };
   },
-  component: AppLogsTable,
+  component: RouteComponent,
+  search: {
+    middlewares: [stripSearchParams(defaultValues)],
+  },
 });
+
+function RouteComponent() {
+  const { dehydrated } = Route.useLoaderData();
+  return (
+    <HydrationBoundary state={dehydrated}>
+      <AppLogsTable />
+    </HydrationBoundary>
+  );
+}

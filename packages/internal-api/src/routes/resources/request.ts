@@ -1,6 +1,6 @@
 import { type ErrorResponse, type Opts, createClient } from "@/index";
 import { z } from "zod";
-import type { JsonValue, PaginatedResponse } from "@/types";
+import type { BaseChartSchema, JsonValue, PaginatedResponse } from "@/types";
 import {
   createTimeRangedPaginatedSchema,
   baseMetricsSchema,
@@ -42,25 +42,8 @@ export interface RequestLog {
   timestamp: string;
 }
 
-export interface RequestLogMetrics {
-  total: number;
-  by_method: {
-    method: string;
-    count: number;
-  }[];
-  by_status_code: {
-    status_code: number;
-    count: number;
-  }[];
-  by_host: {
-    host: string;
-    count: number;
-  }[];
-  by_time: {
-    timestamp: number;
-    count: number;
-  }[];
-}
+export type RequestLogTimelineChart = (BaseChartSchema &
+  Record<RequestLevel, number>)[];
 
 export const requestLogFilterSchema = z.object({
   method: z.enum(HTTP_METHODS).optional(),
@@ -68,7 +51,6 @@ export const requestLogFilterSchema = z.object({
   pathPattern: z.string().optional(),
   host: z.string().optional(),
 });
-
 
 // List Request Logs
 export const listRequestLogsSchema = createTimeRangedPaginatedSchema({
@@ -80,7 +62,7 @@ export type ListRequestLogsRequest = z.infer<typeof listRequestLogsSchema>;
 export async function listRequestLogs(
   projectId: string,
   query: ListRequestLogsRequest,
-  { $fetch, ...opts }: Opts,
+  { $fetch, ...opts }: Opts
 ) {
   const client = $fetch ?? createClient();
 
@@ -90,7 +72,7 @@ export async function listRequestLogs(
       credentials: "include",
       query,
       ...opts,
-    },
+    }
   );
 }
 
@@ -98,7 +80,7 @@ export async function listRequestLogs(
 export async function deleteRequestLog(
   projectId: string,
   logId: string,
-  { $fetch, ...opts }: Opts,
+  { $fetch, ...opts }: Opts
 ) {
   const client = $fetch ?? createClient();
 
@@ -108,7 +90,7 @@ export async function deleteRequestLog(
       method: "DELETE",
       credentials: "include",
       ...opts,
-    },
+    }
   );
 }
 
@@ -121,20 +103,20 @@ export const getRequestMetricsSchema = baseMetricsSchema.extend({
 
 export type GetRequestMetricsRequest = z.infer<typeof getRequestMetricsSchema>;
 
-export async function getRequestMetrics(
+export async function getRequestTimelineChart(
   projectId: string,
   query: GetRequestMetricsRequest,
-  { $fetch, ...opts }: Opts,
+  { $fetch, ...opts }: Opts
 ) {
   const client = $fetch ?? createClient();
 
-  return await client<RequestLogMetrics, ErrorResponse>(
-    `/v1/projects/${projectId}/request/metrics`,
+  return await client<RequestLogTimelineChart, ErrorResponse>(
+    `/v1/projects/${projectId}/request/charts/timeline`,
     {
       credentials: "include",
       query,
       ...opts,
-    },
+    }
   );
 }
 
@@ -145,4 +127,4 @@ export function getRequestLogsStreamUrl(
 ): string {
   const url = new URL(`/v1/projects/${projectId}/request/stream`, baseUrl);
   return url.toString();
-} 
+}
