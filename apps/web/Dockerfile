@@ -5,7 +5,7 @@ RUN apk update
 RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
-RUN pnpm add turbo@^2.3.4 --global
+RUN npm install -g turbo@^2.3.4
 COPY . .
  
 RUN turbo prune @repo/web --docker
