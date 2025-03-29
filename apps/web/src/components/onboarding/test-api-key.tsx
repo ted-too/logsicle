@@ -24,7 +24,7 @@ import { useEventStream } from "@/hooks/stream/use-event-stream";
 const CURL_CODE = (params: {
 	apiKey: string;
 	projectId: string;
-}) => `curl --location '${import.meta.env.VITE_API_URL}/v1/ingest/event' \\
+}) => `curl --location '${import.meta.env.VITE_API_URL || process.env.VITE_API_URL}/v1/ingest/event' \\
 --header 'Content-Type: application/json' \\
 --header 'Authorization: Bearer ${params.apiKey}' \\
 --data '{
