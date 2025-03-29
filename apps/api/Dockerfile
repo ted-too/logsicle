@@ -16,16 +16,24 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o bin/api ./cmd/api
 # Run stage
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates
+# Install necessary packages
+RUN apk --no-cache add ca-certificates curl bash postgresql-client
+
+# Install Atlas CLI
+RUN curl -sSf https://atlasgo.sh | bash
 
 WORKDIR /app
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/bin/api .
+COPY --from=builder /app/internal/storage/migrations ./migrations
+
+# Make the startup script executable
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 # Expose the port
 EXPOSE 3005
 
-# Run the application
-CMD ["./api"]
+# Change the entrypoint to use our startup script
+ENTRYPOINT ["/app/start.sh"]

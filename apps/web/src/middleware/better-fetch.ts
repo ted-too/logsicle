@@ -70,7 +70,7 @@ export const betterFetchMiddleware = createMiddleware().server(
 		const pathname = "/";
 
 		const $fetch = createFetch({
-			baseURL: import.meta.env.VITE_API_URL,
+			baseURL: import.meta.env.VITE_API_URL || process.env.VITE_API_URL,
 			// @ts-expect-error headers are not typed
 			headers: {
 				"Content-Type": "application/json",
