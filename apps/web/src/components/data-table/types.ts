@@ -32,6 +32,7 @@ export type Slider = {
   type: "slider";
   min: number;
   max: number;
+  unit?: string;
   // if options is undefined, we will provide all the steps between min and max
   options?: Option[];
 };
@@ -53,6 +54,7 @@ export type Base<TData> = {
    * Defines if the command input is disabled for this field
    */
   commandDisabled?: boolean;
+  hideMetaLabel?: boolean;
 };
 
 export type DataTableCheckboxFilterField<TData> = Base<TData> & Checkbox;

@@ -4,6 +4,7 @@ import type { BaseChartSchema, JsonValue, PaginatedResponse } from "@/types";
 import {
   createTimeRangedPaginatedSchema,
   baseMetricsSchema,
+  ARRAY_DELIMITER
 } from "@/validations";
 
 export const REQUEST_LEVELS = ["success", "warning", "error", "info"] as const;
@@ -29,6 +30,7 @@ export interface RequestLog {
   method: HttpMethod;
   path: string;
   status_code: number;
+  level: RequestLevel;
   duration: number;
   request_body: JsonValue | null;
   response_body: JsonValue | null;
@@ -46,9 +48,46 @@ export type RequestLogTimelineChart = (BaseChartSchema &
   Record<RequestLevel, number>)[];
 
 export const requestLogFilterSchema = z.object({
-  method: z.enum(HTTP_METHODS).optional(),
-  statusCode: z.number().min(100).max(599).optional(),
-  pathPattern: z.string().optional(),
+  method: z.preprocess(
+    // Convert string to array using ARRAY_DELIMITER
+    (val) => {
+      if (typeof val === 'string') {
+        // Handle comma-separated values
+        if (val.includes(ARRAY_DELIMITER)) {
+          return val.split(ARRAY_DELIMITER);
+        }
+        // Single value becomes array with one item
+        return [val];
+      }
+      return val;
+    }, 
+    z.array(z.enum(HTTP_METHODS)).optional()
+  ),
+  level: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        if (val.includes(ARRAY_DELIMITER)) {
+          return val.split(ARRAY_DELIMITER);
+        }
+        return [val];
+      }
+      return val;
+    },
+    z.array(z.enum(['success', 'warning', 'error', 'info'])).optional()
+  ),
+  status_code: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        if (val.includes(ARRAY_DELIMITER)) {
+          return val.split(ARRAY_DELIMITER).map(Number);
+        }
+        return [Number(val)];
+      }
+      return val;
+    },
+    z.array(z.coerce.number().min(100).max(599)).optional()
+  ),
+  path_pattern: z.string().optional(),
   host: z.string().optional(),
 });
 
@@ -95,11 +134,7 @@ export async function deleteRequestLog(
 }
 
 // Get Request Log Metrics
-export const getRequestMetricsSchema = baseMetricsSchema.extend({
-  method: z.enum(HTTP_METHODS).optional(),
-  statusCode: z.number().min(100).max(599).optional(),
-  host: z.string().optional(),
-});
+export const getRequestMetricsSchema = baseMetricsSchema.extend(requestLogFilterSchema.shape);
 
 export type GetRequestMetricsRequest = z.infer<typeof getRequestMetricsSchema>;
 

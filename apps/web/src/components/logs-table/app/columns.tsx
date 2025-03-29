@@ -2,11 +2,11 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Minus } from "lucide-react";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { TextWithTooltip } from "@/components/custom/text-with-tooltip";
-import { HoverCardTimestamp } from "../_components/hover-card-timestamp";
+import { HoverCardTimestamp } from "../hover-card-timestamp";
 import type { AppLog, LogLevel, RequestLevel } from "@repo/api";
-import { LevelIndicator } from "../_components/level-indicator";
+import { LevelIndicator } from "../level-indicator";
 import { getLevelColor } from "@/lib/request/level";
 
 export const appLogColumns: ColumnDef<AppLog>[] = [

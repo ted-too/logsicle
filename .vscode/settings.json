@@ -6,5 +6,8 @@
 	],
 	"files.watcherExclude": {
 		"**/routeTree.gen.ts": true
-	}
+	},
+	"cSpell.words": [
+		"Timerange"
+	]
 }

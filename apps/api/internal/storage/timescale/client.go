@@ -221,18 +221,19 @@ func (c *TimescaleClient) BulkInsertRequestLogs(ctx context.Context, logs []*mod
 		batch.Queue(`
 					INSERT INTO request_logs (
 							id, project_id, method, path,
-							status_code, duration, request_body, response_body,
+							status_code, level, duration, request_body, response_body,
 							headers, query_params, user_agent, ip_address,
 							protocol, host, error, timestamp
 					) VALUES (
-							$1, $2, $3, $4, $5, $6, $7, $8,
-							$9, $10, $11, $12, $13, $14, $15, $16
+							$1, $2, $3, $4, $5, $6, $7, $8, $9,
+							$10, $11, $12, $13, $14, $15, $16, $17
 					)`,
 			log.ID,
 			log.ProjectID,
 			log.Method,
 			log.Path,
 			log.StatusCode,
+			log.Level,
 			log.Duration,
 			log.RequestBody,
 			log.ResponseBody,

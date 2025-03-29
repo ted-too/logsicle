@@ -28,9 +28,24 @@ export interface PaginationMeta {
   prevPage: number | null;
 }
 
+export type FacetRow = {
+  value: string | number | boolean;
+  total: number;
+};
+
+export type FacetMetadata = {
+  rows: FacetRow[];
+  total: number;
+  min?: number;
+  max?: number;
+};
+
+export type Facets = Record<string, FacetMetadata>;
+
 export type PaginatedResponse<T> = {
   data: T[];
   meta: PaginationMeta;
+  facets: Facets;
 };
 
 export type RawJsonPrimitive = string | number | boolean | null;

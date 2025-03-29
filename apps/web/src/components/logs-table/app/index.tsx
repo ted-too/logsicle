@@ -1,21 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { DataTableInfinite } from "../data-table-infinite";
+import { DataTableInfinite } from "@/components/data-table";
 import { filterFields as defaultFilterFields, sheetFields } from "./fields";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useResetFocus } from "@/hooks/use-hot-key";
 import { getLevelRowClassName } from "@/lib/request/level";
 import { cn } from "@/lib/utils";
-import { LiveRow } from "../_components/live-row";
+import { LiveRow } from "../live-row";
 import { useRouteContext, useSearch } from "@tanstack/react-router";
 import { appLogColumns } from "./columns";
 import { getAppLogsQueryOptions } from "@/qc/resources/app";
 import { getFacetedMinMaxValues } from "@/qc/utils";
 import { getFacetedUniqueValues } from "@/qc/utils";
 import { useAppLogStream } from "@/hooks/stream/use-app-log-stream";
-// import { useAppLogStream } from "@/hooks/stream/use-app-log-stream";
-// import { AppLog } from "@repo/api";
 
 export function AppLogsTable() {
 	// Don't pass tail to the query options
@@ -59,14 +57,12 @@ export function AppLogsTable() {
 	const { sort, start, limit, end, interval, page, ...filter } = searchParams;
 
 	// REMINDER: this is currently needed for the cmdk search
-	// TODO: auto search via API when the user changes the filter instead of hardcoded
 	const filterFields = React.useMemo(() => {
 		return defaultFilterFields.map((field) => {
 			const facetsField = facets?.[field.value];
 			if (!facetsField) return field;
 			if (field.options && field.options.length > 0) return field;
 
-			// REMINDER: if no options are set, we need to set them via the API
 			const options = facetsField.rows.map(({ value }) => {
 				return {
 					label: `${value}`,
@@ -95,7 +91,6 @@ export function AppLogsTable() {
 			defaultRowSelection={
 				searchParams.id ? { [searchParams.id]: true } : undefined
 			}
-			// FIXME: make it configurable - TODO: use `columnHidden: boolean` in `filterFields`
 			defaultColumnVisibility={{
 				id: false,
 				function: false,
@@ -103,8 +98,8 @@ export function AppLogsTable() {
 				service_name: false,
 				caller: false,
 				version: false,
+				environment: false,
 			}}
-			meta={{}}
 			filterFields={filterFields}
 			sheetFields={sheetFields}
 			isFetching={isFetching}

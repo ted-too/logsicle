@@ -2,6 +2,7 @@ package requests
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -10,32 +11,124 @@ import (
 	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
 
+type Filter struct {
+	Method      []string `json:"method,omitempty" query:"method"`
+	StatusCode  []int    `json:"status_code,omitempty" query:"status_code"`
+	PathPattern *string  `json:"path_pattern,omitempty" query:"path_pattern"`
+	Host        *string  `json:"host,omitempty" query:"host"`
+	Level       []string `json:"level,omitempty" query:"level"`
+}
+
+func (f Filter) ProcessLevels() []string {
+	var levels []string
+	if len(f.Level) > 0 {
+		for _, level := range f.Level {
+			split := strings.Split(level, ",")
+			for _, s := range split {
+				if trimmed := strings.TrimSpace(s); trimmed != "" {
+					levels = append(levels, trimmed)
+				}
+			}
+		}
+	}
+	return levels
+}
+
+func (f Filter) ProcessMethods() []string {
+	var methods []string
+	if len(f.Method) > 0 {
+		for _, method := range f.Method {
+			split := strings.Split(method, ",")
+			for _, s := range split {
+				if trimmed := strings.TrimSpace(s); trimmed != "" {
+					methods = append(methods, trimmed)
+				}
+			}
+		}
+	}
+	return methods
+}
+
+func (f Filter) ProcessStatusCodes() []int {
+	var codes []int
+	if len(f.StatusCode) >= 1 {
+		if len(f.StatusCode) >= 2 {
+			codes = []int{f.StatusCode[0], f.StatusCode[1]}
+		} else {
+			codes = []int{f.StatusCode[0], 599}
+		}
+	}
+	return codes
+}
+
+func (f Filter) Validate() error {
+	levels := f.ProcessLevels()
+	for _, level := range levels {
+		if err := models.ValidateRequestLevel(level); err != nil {
+			return err
+		}
+	}
+
+	methods := f.ProcessMethods()
+	for _, method := range methods {
+		if err := models.ValidateRequestMethod(method); err != nil {
+			return err
+		}
+	}
+
+	if len(f.StatusCode) >= 2 {
+		if f.StatusCode[0] < 100 || f.StatusCode[0] > 599 || f.StatusCode[1] < 100 || f.StatusCode[1] > 599 {
+			return validation.NewError("validation_status_code", "status code must be between 100 and 599")
+		}
+	}
+
+	return validation.ValidateStruct(&f,
+		validation.Field(&f.PathPattern),
+		validation.Field(&f.Host),
+	)
+}
+
 type GetRequestLogsQuery struct {
 	timescale.CommonLogQueryOptions
-	Method      *string `json:"method,omitempty" query:"method"`
-	StatusCode  *int    `json:"status_code,omitempty" query:"statusCode"`
-	PathPattern *string `json:"path_pattern,omitempty" query:"pathPattern"`
-	Host        *string `json:"host,omitempty" query:"host"`
+	Filter
 }
 
 // Validate implements validation.Validatable
-func (q GetRequestLogsQuery) Validate() error {
+func (q *GetRequestLogsQuery) Validate() error {
 	if err := q.CommonLogQueryOptions.Validate(); err != nil {
 		return err
 	}
 
-	validMethods := []interface{}{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD", "TRACE", "CONNECT"}
-	return validation.ValidateStruct(&q,
-		validation.Field(&q.Method, validation.In(validMethods...)),
-		validation.Field(&q.StatusCode, validation.Min(100), validation.Max(599)),
-		validation.Field(&q.PathPattern),
-		validation.Field(&q.Host),
-	)
+	// Process methods and levels before validation
+	q.Method = q.Filter.ProcessMethods()
+	q.Level = q.Filter.ProcessLevels()
+	q.StatusCode = q.Filter.ProcessStatusCodes()
+
+	return q.Filter.Validate()
+}
+
+// SetDefaults sets default values for query parameters
+func (q *GetRequestLogsQuery) SetDefaults() {
+	if q.Limit == 0 {
+		q.Limit = 20
+	} else if q.Limit > 100 {
+		q.Limit = 100
+	}
+	if q.Page == 0 {
+		q.Page = 1
+	}
+	if q.End == 0 {
+		q.End = time.Now().UnixMilli()
+	}
+	if q.Start == 0 {
+		q.Start = q.End - 24*time.Hour.Milliseconds()
+	}
 }
 
 type RequestLogResponse struct {
-	Data []models.RequestLog      `json:"data"`
-	Meta timescale.PaginationMeta `json:"meta"`
+	Data   []models.RequestLog      `json:"data"`
+	Meta   timescale.PaginationMeta `json:"meta"`
+	Facets models.Facets            `json:"facets"`
 }
 
 // GetRequestLogs returns paginated request logs with filtering
@@ -50,21 +143,7 @@ func (h *RequestLogsHandler) GetRequestLogs(c fiber.Ctx) error {
 		})
 	}
 
-	// Set defaults
-	if query.Limit == 0 {
-		query.Limit = 20
-	} else if query.Limit > 100 {
-		query.Limit = 100
-	}
-	if query.Page == 0 {
-		query.Page = 1
-	}
-	if query.End == 0 {
-		query.End = time.Now().UnixMilli()
-	}
-	if query.Start == 0 {
-		query.Start = query.End - 24*time.Hour.Milliseconds()
-	}
+	query.SetDefaults()
 
 	if err := query.Validate(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -92,15 +171,29 @@ func (h *RequestLogsHandler) GetRequestLogs(c fiber.Ctx) error {
 
 	// Apply additional filters
 	whereClause := ""
-	if query.Method != nil {
-		whereClause += fmt.Sprintf(" AND rl.method = $%d", paramCount)
-		baseParams = append(baseParams, *query.Method)
-		paramCount++
+	if len(query.Method) > 0 {
+		placeholders := make([]string, len(query.Method))
+		for i := range query.Method {
+			placeholders[i] = fmt.Sprintf("$%d", paramCount)
+			baseParams = append(baseParams, query.Method[i])
+			paramCount++
+		}
+		whereClause += fmt.Sprintf(" AND rl.method IN (%s)", strings.Join(placeholders, ", "))
 	}
-	if query.StatusCode != nil {
-		whereClause += fmt.Sprintf(" AND rl.status_code = $%d", paramCount)
-		baseParams = append(baseParams, *query.StatusCode)
-		paramCount++
+	if len(query.Level) > 0 {
+		placeholders := make([]string, len(query.Level))
+		for i := range query.Level {
+			placeholders[i] = fmt.Sprintf("$%d", paramCount)
+			baseParams = append(baseParams, query.Level[i])
+			paramCount++
+		}
+		whereClause += fmt.Sprintf(" AND rl.level IN (%s)", strings.Join(placeholders, ", "))
+	}
+
+	if len(query.StatusCode) >= 2 {
+		whereClause += fmt.Sprintf(" AND rl.status_code BETWEEN $%d AND $%d", paramCount, paramCount+1)
+		baseParams = append(baseParams, query.StatusCode[0], query.StatusCode[1])
+		paramCount += 2
 	}
 	if query.PathPattern != nil {
 		whereClause += fmt.Sprintf(" AND rl.path LIKE $%d", paramCount)
@@ -153,7 +246,7 @@ func (h *RequestLogsHandler) GetRequestLogs(c fiber.Ctx) error {
 	dataSQL := `
 		SELECT 
 			rl.id, rl.project_id, rl.method, rl.path, rl.status_code,
-			rl.duration, rl.request_body, rl.response_body, rl.headers, 
+			rl.level, rl.duration, rl.request_body, rl.response_body, rl.headers, 
 			rl.query_params, rl.user_agent, rl.ip_address, rl.protocol, 
 			rl.host, rl.error, rl.timestamp
 	` + baseQuery + whereClause + `
@@ -177,7 +270,7 @@ func (h *RequestLogsHandler) GetRequestLogs(c fiber.Ctx) error {
 		var log models.RequestLog
 		err := rows.Scan(
 			&log.ID, &log.ProjectID, &log.Method, &log.Path, &log.StatusCode,
-			&log.Duration, &log.RequestBody, &log.ResponseBody, &log.Headers,
+			&log.Level, &log.Duration, &log.RequestBody, &log.ResponseBody, &log.Headers,
 			&log.QueryParams, &log.UserAgent, &log.IPAddress, &log.Protocol,
 			&log.Host, &log.Error, &log.Timestamp,
 		)
@@ -213,263 +306,7 @@ func (h *RequestLogsHandler) GetRequestLogs(c fiber.Ctx) error {
 			NextPage:              nextPage,
 			PrevPage:              prevPage,
 		},
-	})
-}
-
-type GetMetricsQuery struct {
-	timescale.CommonMetricsQueryOptions
-	Method     *string `json:"method,omitempty" query:"method"`
-	StatusCode *int    `json:"status_code,omitempty" query:"statusCode"`
-	Host       *string `json:"host,omitempty" query:"host"`
-}
-
-// Validate implements validation.Validatable
-func (q GetMetricsQuery) Validate() error {
-	if err := q.CommonMetricsQueryOptions.Validate(); err != nil {
-		return err
-	}
-
-	validMethods := []interface{}{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD", "TRACE", "CONNECT"}
-	return validation.ValidateStruct(&q,
-		validation.Field(&q.Method, validation.In(validMethods...)),
-		validation.Field(&q.StatusCode, validation.Min(100), validation.Max(599)),
-		validation.Field(&q.Host),
-	)
-}
-
-// Define structs for metrics response
-type RequestLogMetricsResponse struct {
-	Total        int                    `json:"total"`
-	ByMethod     []MethodMetric         `json:"by_method"`
-	ByStatusCode []StatusCodeMetric     `json:"by_status_code"`
-	ByHost       []HostMetric           `json:"by_host"`
-	ByTime       []timescale.TimeMetric `json:"by_time"`
-}
-
-type MethodMetric struct {
-	Method string `json:"method"`
-	Count  int    `json:"count"`
-}
-
-type StatusCodeMetric struct {
-	StatusCode int `json:"status_code"`
-	Count      int `json:"count"`
-}
-
-type HostMetric struct {
-	Host  string `json:"host"`
-	Count int    `json:"count"`
-}
-
-// GetMetrics returns metrics for request logs
-func (h *RequestLogsHandler) GetMetrics(c fiber.Ctx) error {
-	projectID := c.Params("id")
-
-	query := new(GetMetricsQuery)
-	if err := c.Bind().Query(query); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":   "Invalid query parameters",
-			"message": err.Error(),
-		})
-	}
-
-	// Set defaults
-	if query.End == 0 {
-		query.End = time.Now().UnixMilli()
-	}
-	if query.Start == 0 {
-		query.Start = query.End - 24*time.Hour.Milliseconds()
-	}
-
-	if err := query.Validate(); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":   "Query parameters validation failed",
-			"message": err.Error(),
-		})
-	}
-
-	// Base query parameters
-	baseParams := []interface{}{
-		projectID,
-		timescale.UnixMsToTime(query.Start),
-		timescale.UnixMsToTime(query.End),
-	}
-
-	// Base where conditions
-	baseWhere := `
-		project_id = $1
-		AND timestamp >= $2
-		AND timestamp <= $3
-	`
-	paramCount := 4
-
-	// Additional filters
-	filters := ""
-	if query.Method != nil {
-		filters += fmt.Sprintf(" AND method = $%d", paramCount)
-		baseParams = append(baseParams, *query.Method)
-		paramCount++
-	}
-	if query.StatusCode != nil {
-		filters += fmt.Sprintf(" AND status_code = $%d", paramCount)
-		baseParams = append(baseParams, *query.StatusCode)
-		paramCount++
-	}
-	if query.Host != nil {
-		filters += fmt.Sprintf(" AND host = $%d", paramCount)
-		baseParams = append(baseParams, *query.Host)
-		paramCount++
-	}
-
-	// Get total count
-	totalSQL := fmt.Sprintf("SELECT COUNT(*) FROM request_logs WHERE %s", baseWhere+filters)
-	var total int
-	err := h.pool.QueryRow(c.Context(), totalSQL, baseParams...).Scan(&total)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to get total count",
-			"message": err.Error(),
-		})
-	}
-
-	// Get counts by method
-	byMethodSQL := fmt.Sprintf(`
-		SELECT method, COUNT(*) 
-		FROM request_logs 
-		WHERE %s 
-		GROUP BY method 
-		ORDER BY COUNT(*) DESC 
-		LIMIT 10
-	`, baseWhere+filters)
-
-	methodRows, err := h.pool.Query(c.Context(), byMethodSQL, baseParams...)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to get method metrics",
-			"message": err.Error(),
-		})
-	}
-	defer methodRows.Close()
-
-	byMethod := make([]MethodMetric, 0)
-	for methodRows.Next() {
-		var metric MethodMetric
-		if err := methodRows.Scan(&metric.Method, &metric.Count); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Failed to scan method metrics",
-				"message": err.Error(),
-			})
-		}
-		byMethod = append(byMethod, metric)
-	}
-
-	// Get counts by status code
-	byStatusCodeSQL := fmt.Sprintf(`
-		SELECT status_code, COUNT(*) 
-		FROM request_logs 
-		WHERE %s 
-		GROUP BY status_code 
-		ORDER BY COUNT(*) DESC 
-		LIMIT 10
-	`, baseWhere+filters)
-
-	statusRows, err := h.pool.Query(c.Context(), byStatusCodeSQL, baseParams...)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to get status code metrics",
-			"message": err.Error(),
-		})
-	}
-	defer statusRows.Close()
-
-	byStatusCode := make([]StatusCodeMetric, 0)
-	for statusRows.Next() {
-		var metric StatusCodeMetric
-		if err := statusRows.Scan(&metric.StatusCode, &metric.Count); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Failed to scan status code metrics",
-				"message": err.Error(),
-			})
-		}
-		byStatusCode = append(byStatusCode, metric)
-	}
-
-	// Get counts by host
-	byHostSQL := fmt.Sprintf(`
-		SELECT host, COUNT(*) 
-		FROM request_logs 
-		WHERE %s 
-		GROUP BY host 
-		ORDER BY COUNT(*) DESC 
-		LIMIT 10
-	`, baseWhere+filters)
-
-	hostRows, err := h.pool.Query(c.Context(), byHostSQL, baseParams...)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to get host metrics",
-			"message": err.Error(),
-		})
-	}
-	defer hostRows.Close()
-
-	byHost := make([]HostMetric, 0)
-	for hostRows.Next() {
-		var metric HostMetric
-		if err := hostRows.Scan(&metric.Host, &metric.Count); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Failed to scan host metrics",
-				"message": err.Error(),
-			})
-		}
-		byHost = append(byHost, metric)
-	}
-
-	// Get time series data
-	timeMetricsSQL := fmt.Sprintf(`
-		SELECT 
-			time_bucket($%d, timestamp) AS bucket,
-			COUNT(*) AS count
-		FROM request_logs
-		WHERE %s
-		GROUP BY bucket
-		ORDER BY bucket ASC
-	`, paramCount, baseWhere+filters)
-
-	baseParams = append(baseParams, timescale.ConvertIntervalToPostgresFormat(query.Interval))
-
-	timeRows, err := h.pool.Query(c.Context(), timeMetricsSQL, baseParams...)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to get time metrics",
-			"message": err.Error(),
-		})
-	}
-	defer timeRows.Close()
-
-	byTime := make([]timescale.TimeMetric, 0)
-	for timeRows.Next() {
-		var bucket time.Time
-		var count int
-		if err := timeRows.Scan(&bucket, &count); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Failed to scan time metrics",
-				"message": err.Error(),
-			})
-		}
-
-		byTime = append(byTime, timescale.TimeMetric{
-			Timestamp: bucket.UnixMilli(),
-			Count:     count,
-		})
-	}
-
-	return c.JSON(RequestLogMetricsResponse{
-		Total:        total,
-		ByMethod:     byMethod,
-		ByStatusCode: byStatusCode,
-		ByHost:       byHost,
-		ByTime:       byTime,
+		Facets: models.GetRequestFacets(logs),
 	})
 }
 

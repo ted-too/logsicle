@@ -11,11 +11,6 @@ import (
 	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
 
-type LogEvent struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
-}
-
 // StreamLogs streams request logs for a project in real-time
 func (h *RequestLogsHandler) StreamLogs(c fiber.Ctx) error {
 	projectID := c.Params("id")
@@ -26,7 +21,7 @@ func (h *RequestLogsHandler) StreamLogs(c fiber.Ctx) error {
 	c.Set("Transfer-Encoding", "chunked")
 
 	ctx := c.Context()
-	channel := make(chan LogEvent)
+	channel := make(chan models.RequestLog)
 
 	// Start Redis subscription in a goroutine
 	go h.subscribeToRequestLogs(ctx, projectID, channel)
@@ -34,8 +29,8 @@ func (h *RequestLogsHandler) StreamLogs(c fiber.Ctx) error {
 	c.SendStreamWriter(func(w *bufio.Writer) {
 		for {
 			select {
-			case event := <-channel:
-				jsonData, err := json.Marshal(event)
+			case requestLog := <-channel:
+				jsonData, err := json.Marshal(requestLog)
 				if err != nil {
 					continue
 				}
@@ -50,7 +45,7 @@ func (h *RequestLogsHandler) StreamLogs(c fiber.Ctx) error {
 	return nil
 }
 
-func (h *RequestLogsHandler) subscribeToRequestLogs(ctx context.Context, projectID string, channel chan LogEvent) {
+func (h *RequestLogsHandler) subscribeToRequestLogs(ctx context.Context, projectID string, channel chan models.RequestLog) {
 	// Subscribe only to request logs channel
 	requestChannel := fmt.Sprintf("logs:%s:request", projectID)
 	pubsub := h.queue.Redis.Subscribe(ctx, requestChannel)
@@ -68,9 +63,6 @@ func (h *RequestLogsHandler) subscribeToRequestLogs(ctx context.Context, project
 			continue
 		}
 
-		channel <- LogEvent{
-			Type: "request",
-			Data: requestLog,
-		}
+		channel <- requestLog
 	}
 }

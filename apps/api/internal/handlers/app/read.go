@@ -10,10 +10,16 @@ import (
 	"github.com/ted-too/logsicle/internal/storage/timescale/models"
 )
 
+// FIXME: Potential sql injection
+
 type Filter struct {
 	Level       []string `json:"level,omitempty" query:"level"`
 	ServiceName *string  `json:"service_name,omitempty" query:"serviceName"`
 	Environment *string  `json:"environment,omitempty" query:"environment"`
+	Host        *string  `json:"host,omitempty" query:"host"`
+	Caller      *string  `json:"caller,omitempty" query:"caller"`
+	Function    *string  `json:"function,omitempty" query:"function"`
+	Version     *string  `json:"version,omitempty" query:"version"`
 }
 
 // ProcessLevels splits comma-separated levels and returns the processed slice
@@ -65,8 +71,9 @@ func (q *GetAppLogsQuery) Validate() error {
 }
 
 type AppLogResponse struct {
-	Data []models.AppLog          `json:"data"`
-	Meta timescale.PaginationMeta `json:"meta"`
+	Data   []models.AppLog          `json:"data"`
+	Meta   timescale.PaginationMeta `json:"meta"`
+	Facets models.Facets            `json:"facets"`
 }
 
 // GetLogs returns paginated app logs with filtering
@@ -127,6 +134,26 @@ func (h *AppLogsHandler) GetAppLogs(c fiber.Ctx) error {
 	if query.Environment != nil {
 		whereClause += fmt.Sprintf(" AND al.environment = $%d", paramCount)
 		baseParams = append(baseParams, *query.Environment)
+		paramCount++
+	}
+	if query.Host != nil {
+		whereClause += fmt.Sprintf(" AND al.host = $%d", paramCount)
+		baseParams = append(baseParams, *query.Host)
+		paramCount++
+	}
+	if query.Caller != nil {
+		whereClause += fmt.Sprintf(" AND al.caller = $%d", paramCount)
+		baseParams = append(baseParams, *query.Caller)
+		paramCount++
+	}
+	if query.Function != nil {
+		whereClause += fmt.Sprintf(" AND al.function = $%d", paramCount)
+		baseParams = append(baseParams, *query.Function)
+		paramCount++
+	}
+	if query.Version != nil {
+		whereClause += fmt.Sprintf(" AND al.version = $%d", paramCount)
+		baseParams = append(baseParams, *query.Version)
 		paramCount++
 	}
 	if query.Search != nil {
@@ -230,6 +257,7 @@ func (h *AppLogsHandler) GetAppLogs(c fiber.Ctx) error {
 			NextPage:              nextPage,
 			PrevPage:              prevPage,
 		},
+		Facets: models.GetAppFacets(logs),
 	})
 }
 

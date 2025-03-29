@@ -1,4 +1,7 @@
-import { listRequestLogs, getRequestTimelineChart } from "@/server/resources/request";
+import {
+	listRequestLogs,
+	getRequestTimelineChart,
+} from "@/server/resources/request";
 import type {
 	GetRequestMetricsRequest,
 	ListRequestLogsRequest,
@@ -10,7 +13,6 @@ import {
 	queryOptions,
 } from "@tanstack/react-query";
 import type { InfiniteQueryResponse } from "../utils";
-import { getFacetsFromData } from "../utils";
 
 export const requestLogsQueryKey = (projectId: string) => [
 	"projects",
@@ -44,7 +46,7 @@ export const getRequestLogsQueryOptions = (
 				data: data.data,
 				meta: {
 					pagination: data.meta,
-					facets: getFacetsFromData(data.data),
+					facets: data.facets || {},
 				},
 			} as InfiniteQueryResponse<RequestLog[]>;
 		},

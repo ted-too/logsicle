@@ -6,6 +6,7 @@ import {
   type LogLevel,
   createTimeRangedPaginatedSchema,
   baseMetricsSchema,
+  ARRAY_DELIMITER
 } from "@/validations";
 
 export interface AppLog {
@@ -27,9 +28,22 @@ export type AppLogTimelineChart = (BaseChartSchema &
   Record<LogLevel, number>)[];
 
 export const appLogFilterSchema = z.object({
-  level: z.array(z.enum(LOG_LEVELS)).nullish(),
+  level: z.preprocess(
+    // Convert string to array using ARRAY_DELIMITER
+    (val) => {
+      if (typeof val === 'string') {
+        return val.split(ARRAY_DELIMITER);
+      }
+      return val;
+    }, 
+    z.array(z.enum(LOG_LEVELS)).nullish()
+  ),
   service_name: z.string().nullish(),
   environment: z.string().nullish(),
+  host: z.string().nullish(),
+  caller: z.string().nullish(),
+  function: z.string().nullish(),
+  version: z.string().nullish()
 });
 
 // List App Logs
@@ -74,7 +88,6 @@ export async function deleteAppLog(
   );
 }
 
-// Get App Log Metrics
 export const getAppMetricsSchema = baseMetricsSchema.extend(
   appLogFilterSchema.shape
 );

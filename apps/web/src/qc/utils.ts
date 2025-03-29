@@ -1,4 +1,4 @@
-import type { AppLog, PaginationMeta } from "@repo/api";
+import type { AppLog, Facets, PaginationMeta } from "@repo/api";
 import type { RequestLog } from "@repo/api";
 import type { Table as TTable } from "@tanstack/react-table";
 
@@ -13,13 +13,10 @@ export function getFacetedUniqueValues<TData>(
 }
 
 export type FacetMetadataSchema = {
+  rows: { value: any; total: number }[];
   total: number;
-  rows: {
-    total: number;
-    value?: any;
-  }[];
-  max?: number | undefined;
-  min?: number | undefined;
+  min?: number;
+  max?: number;
 };
 
 export function getFacetedMinMaxValues<TData>(
@@ -33,60 +30,6 @@ export function getFacetedMinMaxValues<TData>(
     if (max) return [max, max];
     return undefined;
   };
-}
-
-export interface Facets {
-  [k: string]: {
-    rows: {
-      value: any;
-      total: number;
-    }[];
-    total: number;
-    min: number | undefined;
-    max: number | undefined;
-  };
-}
-
-// TODO: Move to server
-export function getFacetsFromData(data: RequestLog[] | AppLog[]): Facets {
-  const valuesMap = data.reduce((prev, curr) => {
-    for (const [key, value] of Object.entries(curr)) {
-      if (key === "level" || key === "region" || key === "latency") {
-        // Convert array values (like regions) to string
-        const _value = Array.isArray(value) ? value.toString() : value;
-        const total = prev.get(key)?.get(_value) || 0;
-        if (prev.has(key) && _value) {
-          prev.get(key)?.set(_value, total + 1);
-        } else if (_value) {
-          prev.set(key, new Map([[_value, 1]]));
-        }
-      }
-    }
-    return prev;
-  }, new Map<string, Map<any, number>>());
-
-  const facets = Object.fromEntries(
-    Array.from(valuesMap.entries()).map(([key, valueMap]) => {
-      let min: number | undefined;
-      let max: number | undefined;
-      const rows = Array.from(valueMap.entries()).map(([value, total]) => {
-        if (typeof value === "number") {
-          if (!min) min = value;
-          else min = value < min ? value : min;
-          if (!max) max = value;
-          else max = value > max ? value : max;
-        }
-        return {
-          value,
-          total,
-        };
-      });
-      const total = Array.from(valueMap.values()).reduce((a, b) => a + b, 0);
-      return [key, { rows, total, min, max }];
-    })
-  );
-
-  return facets satisfies Record<string, FacetMetadataSchema>;
 }
 
 export function combineFacets(facets: Facets[]): Facets {

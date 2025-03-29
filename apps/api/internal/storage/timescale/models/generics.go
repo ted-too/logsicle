@@ -86,3 +86,20 @@ func (j *JSONB) UnmarshalJSON(data []byte) error {
 	*j = data
 	return nil
 }
+
+// FacetRow represents a unique value and its count
+type FacetRow struct {
+	Value interface{} `json:"value"`
+	Total int         `json:"total"`
+}
+
+// FacetMetadata represents metadata about a facet field
+type FacetMetadata struct {
+	Rows  []FacetRow  `json:"rows"`
+	Total int         `json:"total"`
+	Min   interface{} `json:"min,omitempty"`
+	Max   interface{} `json:"max,omitempty"`
+}
+
+// Facets is a map of field names to their facet metadata
+type Facets map[string]FacetMetadata

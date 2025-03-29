@@ -44,44 +44,6 @@ export function getLevelColor(
   }
 }
 
-// export function getLevelColor(
-//   value: RequestLevel | LogLevel
-// ): Record<"text" | "bg" | "border", string> {
-//   switch (value) {
-//     case "success":
-//       return {
-//         text: "text-muted",
-//         bg: "bg-muted",
-//         border: "border-muted",
-//       };
-//     case "warn":
-//     case "warning":
-//       return {
-//         text: "text-amber-500",
-//         bg: "bg-warning",
-//         border: "border-warning",
-//       };
-//     case "error":
-//       return {
-//         text: "text-red-500",
-//         bg: "bg-red-500",
-//         border: "border-error",
-//       };
-//     case "debug":
-//       return {
-//         text: "text-indigo-400",
-//         bg: "bg-indigo-200",
-//         border: "border-indigo-200",
-//       };
-//     default:
-//       return {
-//         text: "text-info",
-//         bg: "bg-info",
-//         border: "border-info",
-//       };
-//   }
-// }
-
 export function getLevelRowClassName(value: RequestLevel | LogLevel): string {
   switch (value) {
     case "success":

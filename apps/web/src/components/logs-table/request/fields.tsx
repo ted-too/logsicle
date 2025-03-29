@@ -8,17 +8,21 @@ import type {
 } from "@/components/data-table/types";
 import { getStatusColor } from "@/lib/request/status-code";
 import { METHODS } from "@/constants/method";
-import { flags, regions, REGIONS } from "@/constants/region";
-import { LEVELS } from "@/constants/levels";
 import { getLevelColor, getRequestLevelLabel } from "@/lib/request/level";
 import { format } from "date-fns";
 import { formatMilliseconds } from "@/lib/format";
-import { SheetTimingPhases } from "../_components/sheet-timing-phases";
-import { TabsObjectView } from "../_components/tabs-object-view";
-import CopyToClipboardContainer from "@/components/custom/copy-to-clipboard-container";
-import { PopoverPercentile } from "../_components/popover-percentile";
-import type { LogsMeta } from "../query-options";
-import type { RequestLog } from "@repo/api";
+import { TabsObjectView } from "../tabs-object-view";
+import CopyToClipboardContainer from "@/components/copy-to-clipboard-container";
+import type { RequestLog, RequestLevel } from "@repo/api";
+
+// Define our request levels constant
+const LEVELS: RequestLevel[] = ["success", "warning", "error", "info"];
+
+// Type for logs meta
+export type LogsMeta = {
+	currentPercentiles?: Record<string, number>;
+	filterRows?: number;
+};
 
 // instead of filterFields, maybe just 'fields' with a filterDisabled prop?
 // that way, we could have 'message' or 'headers' field with label and value as well as type!
@@ -38,10 +42,11 @@ export const filterFields = [
 		options: LEVELS.map((level) => ({ label: level, value: level })),
 		component: (props: Option) => {
 			// TODO: type `Option` with `options` values via Generics
-			const value = props.value as (typeof LEVELS)[number];
+			// TODO: make this a component
+			const value = props.value as RequestLevel;
 			return (
-				<div className="flex w-full items-center justify-between gap-2 max-w-28 font-mono">
-					<span className="capitalize text-foreground/70 group-hover:text-accent-foreground">
+				<div className="flex items-center justify-between gap-2 w-max font-mono">
+					<span className="capitalize text-foreground/70 w-16 group-hover:text-accent-foreground">
 						{props.label}
 					</span>
 					<div className="flex items-center gap-2">
@@ -65,45 +70,24 @@ export const filterFields = [
 		type: "input",
 	},
 	{
-		label: "Pathname",
+		label: "Path",
 		value: "path",
 		type: "input",
 	},
 	{
 		label: "Status Code",
 		value: "status_code",
-		type: "checkbox",
-		options: [
-			{ label: "200", value: 200 },
-			{ label: "400", value: 400 },
-			{ label: "404", value: 404 },
-			{ label: "500", value: 500 },
-		], // REMINDER: this is a placeholder to set the type in the client.tsx
-		component: (props: Option) => {
-			if (typeof props.value === "boolean") return null;
-			if (typeof props.value === "undefined") return null;
-			if (typeof props.value === "string") return null;
-			return (
-				<span className={cn("font-mono", getStatusColor(props.value).text)}>
-					{props.value}
-				</span>
-			);
-		},
+		type: "slider",
+		min: 100,
+		max: 599,
+		unit: "",
+		hideMetaLabel: true,
 	},
 	{
 		label: "Method",
 		value: "method",
 		type: "checkbox",
-		options: METHODS.map((region) => ({ label: region, value: region })),
-		component: (props: Option) => {
-			return <span className="font-mono">{props.value}</span>;
-		},
-	},
-	{
-		label: "Regions",
-		value: "regions",
-		type: "checkbox",
-		options: REGIONS.map((region) => ({ label: region, value: region })),
+		options: METHODS.map((method) => ({ label: method, value: method })),
 		component: (props: Option) => {
 			return <span className="font-mono">{props.value}</span>;
 		},
@@ -121,7 +105,7 @@ export const sheetFields = [
 		id: "timestamp",
 		label: "Date",
 		type: "timerange",
-		component: (props) => format(new Date(props.date), "LLL dd, y HH:mm:ss"),
+		component: (props) => format(new Date(props.timestamp), "LLL dd, y HH:mm:ss"),
 		skeletonClassName: "w-36",
 	},
 	{
@@ -154,81 +138,92 @@ export const sheetFields = [
 	},
 	{
 		id: "path",
-		label: "Pathname",
+		label: "Path",
 		type: "input",
 		skeletonClassName: "w-56",
 	},
 	{
-		id: "regions",
-		label: "Regions",
-		type: "checkbox",
-		skeletonClassName: "w-12",
-		component: (props) => (
-			<>
-				<span className="text-muted-foreground text-xs">
-					{flags[props.regions[0]]} {regions[props.regions[0]]}
-				</span>{" "}
-				{props.regions[0]}
-			</>
-		),
-	},
-	{
-		id: "latency",
-		label: "Latency",
+		id: "duration",
+		label: "Duration",
 		type: "slider",
 		component: (props) => (
 			<>
-				{formatMilliseconds(props.latency)}
+				{formatMilliseconds(props.duration)}
 				<span className="text-muted-foreground">ms</span>
 			</>
 		),
 		skeletonClassName: "w-16",
 	},
 	{
-		id: "percentile",
-		label: "Percentile",
-		type: "readonly",
-		component: (props) => {
-			return (
-				<PopoverPercentile
-					data={props}
-					percentiles={props.metadata?.currentPercentiles}
-					filterRows={props.metadata?.filterRows as number}
-					className="ml-auto"
-				/>
-			);
-		},
-		skeletonClassName: "w-12",
-	},
-	{
-		id: "timing.dns", // REMINDER: cannot be 'timing' as it is a property of the object
-		label: "Timing Phases",
-		type: "readonly",
-		component: (props) => (
-			<SheetTimingPhases latency={props.latency} timing={props} />
-		),
-		className: "flex-col items-start w-full gap-1",
-	},
-	{
 		id: "headers",
 		label: "Headers",
 		type: "readonly",
-		component: (props) => (
-			// REMINDER: negative margin to make it look like the header is on the same level of the tab triggers
-			<TabsObjectView data={props.headers} className="-mt-[22px]" />
-		),
+		component: (props) => {
+			if (!props.headers) return null;
+			return (
+				// REMINDER: negative margin to make it look like the header is on the same level of the tab triggers
+				<TabsObjectView data={props.headers} className="-mt-[22px]" />
+			);
+		},
 		className: "flex-col items-start w-full gap-1",
 	},
 	{
-		id: "message",
-		label: "Message",
+		id: "request_body",
+		label: "Request Body",
 		type: "readonly",
-		condition: (props) => props.message !== undefined,
-		component: (props) => (
-			<CopyToClipboardContainer className="rounded-md bg-destructive/30 border border-destructive/50 p-2 whitespace-pre-wrap break-all font-mono text-sm">
-				{JSON.stringify(props.message, null, 2)}
-			</CopyToClipboardContainer>
-		),
+		condition: (props) => !!props.request_body,
+		component: (props) => {
+			if (!props.request_body) return null;
+			return (
+				<CopyToClipboardContainer className="rounded-md bg-secondary/50 border border-border p-2 whitespace-pre-wrap break-all font-mono text-sm">
+					{JSON.stringify(props.request_body, null, 2)}
+				</CopyToClipboardContainer>
+			);
+		},
+		className: "flex-col items-start w-full gap-1",
+	},
+	{
+		id: "response_body",
+		label: "Response Body",
+		type: "readonly",
+		condition: (props) => !!props.response_body,
+		component: (props) => {
+			if (!props.response_body) return null;
+			return (
+				<CopyToClipboardContainer className="rounded-md bg-secondary/50 border border-border p-2 whitespace-pre-wrap break-all font-mono text-sm">
+					{JSON.stringify(props.response_body, null, 2)}
+				</CopyToClipboardContainer>
+			);
+		},
+		className: "flex-col items-start w-full gap-1",
+	},
+	{
+		id: "query_params",
+		label: "Query Parameters",
+		type: "readonly",
+		condition: (props) => !!props.query_params,
+		component: (props) => {
+			if (!props.query_params) return null;
+			return (
+				<TabsObjectView data={props.query_params} className="-mt-[22px]" />
+			);
+		},
+		className: "flex-col items-start w-full gap-1",
+	},
+	{
+		id: "error",
+		label: "Error",
+		type: "readonly",
+		condition: (props) => !!props.error,
+		component: (props) => {
+			if (!props.error) return null;
+			return (
+				<CopyToClipboardContainer className="rounded-md bg-destructive/30 border border-destructive/50 p-2 whitespace-pre-wrap break-all font-mono text-sm">
+					{props.error}
+				</CopyToClipboardContainer>
+			);
+		},
 		className: "flex-col items-start w-full gap-1",
 	},
 ] satisfies SheetField<RequestLog, LogsMeta>[];
+

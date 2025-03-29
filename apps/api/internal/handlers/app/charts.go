@@ -93,6 +93,26 @@ func (h *AppLogsHandler) GetTimelineChart(c fiber.Ctx) error {
 		baseParams = append(baseParams, *query.Environment)
 		paramCount++
 	}
+	if query.Host != nil {
+		filterClause += fmt.Sprintf(" AND host = $%d", paramCount)
+		baseParams = append(baseParams, *query.Host)
+		paramCount++
+	}
+	if query.Caller != nil {
+		filterClause += fmt.Sprintf(" AND caller = $%d", paramCount)
+		baseParams = append(baseParams, *query.Caller)
+		paramCount++
+	}
+	if query.Function != nil {
+		filterClause += fmt.Sprintf(" AND function = $%d", paramCount)
+		baseParams = append(baseParams, *query.Function)
+		paramCount++
+	}
+	if query.Version != nil {
+		filterClause += fmt.Sprintf(" AND version = $%d", paramCount)
+		baseParams = append(baseParams, *query.Version)
+		paramCount++
+	}
 	if len(query.Level) > 0 {
 		placeholders := make([]string, len(query.Level))
 		for i := range query.Level {

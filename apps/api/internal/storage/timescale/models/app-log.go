@@ -309,3 +309,108 @@ func (a AppLogInput) ValidateAndCreate() (*AppLog, error) {
 		Timestamp:   timestamp,
 	}, nil
 }
+
+// GetAppFacets generates facet data from a slice of AppLogs
+func GetAppFacets(logs []AppLog) Facets {
+	// Initialize facet counters
+	levelCounts := make(map[string]int)
+	serviceNameCounts := make(map[string]int)
+	environmentCounts := make(map[string]int)
+	hostCounts := make(map[string]int)
+
+	// Count occurrences of each value
+	for _, log := range logs {
+		// Level facet
+		levelCounts[string(log.Level)]++
+
+		// Service name facet
+		serviceNameCounts[log.ServiceName]++
+
+		// Environment facet
+		if log.Environment.Valid {
+			environmentCounts[log.Environment.String]++
+		}
+
+		// Host facet
+		if log.Host.Valid {
+			hostCounts[log.Host.String]++
+		}
+	}
+
+	// Build facet metadata
+	facets := Facets{}
+
+	// Level facet
+	if len(levelCounts) > 0 {
+		levelRows := make([]FacetRow, 0, len(levelCounts))
+		total := 0
+		for value, count := range levelCounts {
+			levelRows = append(levelRows, FacetRow{
+				Value: value,
+				Total: count,
+			})
+			total += count
+		}
+
+		facets["level"] = FacetMetadata{
+			Rows:  levelRows,
+			Total: total,
+		}
+	}
+
+	// Service name facet
+	if len(serviceNameCounts) > 0 {
+		serviceRows := make([]FacetRow, 0, len(serviceNameCounts))
+		total := 0
+		for value, count := range serviceNameCounts {
+			serviceRows = append(serviceRows, FacetRow{
+				Value: value,
+				Total: count,
+			})
+			total += count
+		}
+
+		facets["service_name"] = FacetMetadata{
+			Rows:  serviceRows,
+			Total: total,
+		}
+	}
+
+	// Environment facet
+	if len(environmentCounts) > 0 {
+		envRows := make([]FacetRow, 0, len(environmentCounts))
+		total := 0
+		for value, count := range environmentCounts {
+			envRows = append(envRows, FacetRow{
+				Value: value,
+				Total: count,
+			})
+			total += count
+		}
+
+		facets["environment"] = FacetMetadata{
+			Rows:  envRows,
+			Total: total,
+		}
+	}
+
+	// Host facet
+	if len(hostCounts) > 0 {
+		hostRows := make([]FacetRow, 0, len(hostCounts))
+		total := 0
+		for value, count := range hostCounts {
+			hostRows = append(hostRows, FacetRow{
+				Value: value,
+				Total: count,
+			})
+			total += count
+		}
+
+		facets["host"] = FacetMetadata{
+			Rows:  hostRows,
+			Total: total,
+		}
+	}
+
+	return facets
+}

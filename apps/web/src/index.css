@@ -48,11 +48,12 @@
   --debug: oklch(0.627 0.265 303.9);
   --info: oklch(0.704 0.14 182.503);
   --fatal: oklch(0.505 0.213 27.518);
-  --chart-warning: var(--chart-1);
+  --chart-warning: var(--warning);
   --chart-error: oklch(0.577 0.245 27.325);
   --chart-debug: oklch(0.558 0.288 302.321);
   --chart-info: var(--chart-2);
   --chart-fatal: oklch(0.444 0.177 26.899);
+  --chart-success: var(--success);
 }
 
 .dark {
@@ -97,11 +98,12 @@
   --debug: oklch(0.496 0.265 301.924);
   --info: oklch(0.511 0.096 186.391);
   --fatal: oklch(0.396 0.141 25.723);
-  --chart-warning: oklch(0.666 0.179 58.318);
+  --chart-warning: var(--warning);
   --chart-error: oklch(0.577 0.245 27.325);
   --chart-debug: oklch(0.491 0.27 292.581);
   --chart-info: oklch(0.6 0.118 184.704);
   --chart-fatal: oklch(0.258 0.092 26.042);
+  --chart-success: var(--success);
 }
 
 @theme inline {

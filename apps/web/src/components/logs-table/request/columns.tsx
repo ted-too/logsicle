@@ -3,25 +3,11 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Minus } from "lucide-react";
 import { getStatusColor } from "@/lib/request/status-code";
-import { regions } from "@/constants/region";
-import {
-	getTimingColor,
-	getTimingLabel,
-	getTimingPercentage,
-	timingPhases,
-} from "@/lib/request/timing";
-import { cn } from "@/lib/utils";
-import {
-	HoverCard,
-	HoverCardContent,
-	HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { TextWithTooltip } from "@/components/custom/text-with-tooltip";
-import { HoverCardTimestamp } from "../_components/hover-card-timestamp";
+import { HoverCardTimestamp } from "../hover-card-timestamp";
 import type { RequestLevel, RequestLog } from "@repo/api";
-import { HoverCardPortal } from "@radix-ui/react-hover-card";
-import { LevelIndicator } from "../_components/level-indicator";
+import { LevelIndicator } from "../level-indicator";
 
 export const requestLogColumns: ColumnDef<RequestLog>[] = [
 	{
@@ -45,12 +31,12 @@ export const requestLogColumns: ColumnDef<RequestLog>[] = [
 		},
 	},
 	{
-		accessorKey: "date",
+		accessorKey: "timestamp",
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Date" />
 		),
 		cell: ({ row }) => {
-			const date = new Date(row.getValue("date"));
+			const date = new Date(row.getValue("timestamp"));
 			return <HoverCardTimestamp date={date} />;
 		},
 		filterFn: "inDateRange",
@@ -65,11 +51,11 @@ export const requestLogColumns: ColumnDef<RequestLog>[] = [
 		},
 	},
 	{
-		id: "uuid",
-		accessorKey: "uuid",
+		id: "id",
+		accessorKey: "id",
 		header: "Request Id",
 		cell: ({ row }) => {
-			const value = row.getValue("uuid") as string;
+			const value = row.getValue("id") as string;
 			return <TextWithTooltip text={value} />;
 		},
 		size: 130,
@@ -83,10 +69,10 @@ export const requestLogColumns: ColumnDef<RequestLog>[] = [
 		},
 	},
 	{
-		accessorKey: "status",
+		accessorKey: "status_code",
 		header: "Status",
 		cell: ({ row }) => {
-			const value = row.getValue("status");
+			const value = row.getValue("status_code");
 			if (typeof value === "undefined") {
 				return <Minus className="h-4 w-4 text-muted-foreground/50" />;
 			}
@@ -108,7 +94,6 @@ export const requestLogColumns: ColumnDef<RequestLog>[] = [
 		},
 	},
 	{
-		// TODO: make it a type of MethodSchema!
 		accessorKey: "method",
 		header: "Method",
 		filterFn: "arrIncludesSome",
@@ -127,6 +112,7 @@ export const requestLogColumns: ColumnDef<RequestLog>[] = [
 		header: "Host",
 		cell: ({ row }) => {
 			const value = row.getValue("host") as string;
+			if (!value) return <Minus className="h-4 w-4 text-muted-foreground/50" />;
 			return <TextWithTooltip text={value} />;
 		},
 		size: 125,
@@ -137,10 +123,10 @@ export const requestLogColumns: ColumnDef<RequestLog>[] = [
 		},
 	},
 	{
-		accessorKey: "pathname",
-		header: "Pathname",
+		accessorKey: "path",
+		header: "Path",
 		cell: ({ row }) => {
-			const value = row.getValue("pathname") as string;
+			const value = row.getValue("path") as string;
 			return <TextWithTooltip text={value} />;
 		},
 		size: 130,
@@ -153,13 +139,12 @@ export const requestLogColumns: ColumnDef<RequestLog>[] = [
 		},
 	},
 	{
-		accessorKey: "latency",
-		// TODO: check if we can right align the table header/cell (makes is easier to read)
+		accessorKey: "duration",
 		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Latency" />
+			<DataTableColumnHeader column={column} title="Duration" />
 		),
 		cell: ({ row }) => {
-			const value = row.getValue("latency") as number;
+			const value = row.getValue("duration") as number;
 			return <LatencyDisplay value={value} />;
 		},
 		filterFn: "inNumberRange",
@@ -174,124 +159,18 @@ export const requestLogColumns: ColumnDef<RequestLog>[] = [
 		},
 	},
 	{
-		accessorKey: "regions",
-		header: "Region",
+		accessorKey: "error",
+		header: "Error",
 		cell: ({ row }) => {
-			const value = row.getValue("regions");
-			if (Array.isArray(value)) {
-				if (value.length > 1) {
-					return (
-						<div className="text-muted-foreground">{value.join(", ")}</div>
-					);
-				}
-					return (
-						<div className="whitespace-nowrap">
-							<span>{value}</span>{" "}
-							<span className="text-muted-foreground text-xs">
-								{`${regions[value[0]]}`}
-							</span>
-						</div>
-					);
-			}
-			if (typeof value === "string") {
-				return (
-					<div className="text-muted-foreground">{`${regions[value]}`}</div>
-				);
-			}
-			return <Minus className="h-4 w-4 text-muted-foreground/50" />;
+			const value = row.getValue("error") as string | null;
+			if (!value) return <Minus className="h-4 w-4 text-muted-foreground/50" />;
+			return <TextWithTooltip text={value} className="text-destructive" />;
 		},
-		filterFn: "arrIncludesSome",
-		enableResizing: false,
-		size: 163,
-		minSize: 163,
-		meta: {
-			headerClassName:
-				"w-[--header-regions-size] max-w-[--header-regions-size] min-w-[--header-regions-size]",
-			cellClassName:
-				"font-mono w-[--col-regions-size] max-w-[--col-regions-size] min-w-[--col-regions-size]",
-		},
-	},
-	{
-		accessorKey: "timing",
-		header: () => <div className="whitespace-nowrap">Timing Phases</div>,
-		cell: ({ row }) => {
-			const timing = {
-				"timing.dns": row.getValue("timing.dns") as number,
-				"timing.connection": row.getValue("timing.connection") as number,
-				"timing.tls": row.getValue("timing.tls") as number,
-				"timing.ttfb": row.getValue("timing.ttfb") as number,
-				"timing.transfer": row.getValue("timing.transfer") as number,
-			};
-			const latency = row.getValue("latency") as number;
-			const percentage = getTimingPercentage(timing, latency);
-			// TODO: create a separate component for this in _components
-			return (
-				<HoverCard openDelay={50} closeDelay={50}>
-					<HoverCardTrigger
-						className="opacity-70 data-[state=open]:opacity-100 hover:opacity-100"
-						asChild
-					>
-						<div className="flex">
-							{Object.entries(timing).map(([key, value]) => (
-								<div
-									key={key}
-									className={cn(
-										getTimingColor(key as keyof typeof timing),
-										"h-4",
-									)}
-									style={{ width: `${(value / latency) * 100}%` }}
-								/>
-							))}
-						</div>
-					</HoverCardTrigger>
-					{/* REMINDER: allows us to port the content to the document.body, which is helpful when using opacity-50 on the row element */}
-					<HoverCardPortal>
-						<HoverCardContent
-							side="bottom"
-							align="end"
-							className="p-2 w-auto z-10"
-						>
-							<div className="flex flex-col gap-1">
-								{timingPhases.map((phase) => {
-									const color = getTimingColor(phase);
-									const percentageValue = percentage[phase];
-									return (
-										<div key={phase} className="grid grid-cols-2 gap-4 text-xs">
-											<div className="flex items-center gap-2">
-												<div className={cn(color, "h-2 w-2 rounded-full")} />
-												<div className="uppercase font-mono text-accent-foreground">
-													{getTimingLabel(phase)}
-												</div>
-											</div>
-											<div className="flex items-center justify-between gap-4">
-												<div className="font-mono text-muted-foreground">
-													{percentageValue}
-												</div>
-												<div className="font-mono">
-													{new Intl.NumberFormat("en-US", {
-														maximumFractionDigits: 3,
-													}).format(timing[phase])}
-													<span className="text-muted-foreground">ms</span>
-												</div>
-											</div>
-										</div>
-									);
-								})}
-							</div>
-						</HoverCardContent>
-					</HoverCardPortal>
-				</HoverCard>
-			);
-		},
-		enableResizing: false,
 		size: 130,
 		minSize: 130,
 		meta: {
-			label: "Timing Phases",
-			headerClassName:
-				"w-[--header-timing-size] max-w-[--header-timing-size] min-w-[--header-timing-size]",
-			cellClassName:
-				"font-mono w-[--col-timing-size] max-w-[--col-timing-size] min-w-[--col-timing-size]",
+			cellClassName: "font-mono w-[--col-error-size] max-w-[--col-error-size]",
+			headerClassName: "min-w-[--header-error-size] w-[--header-error-size]",
 		},
 	},
 ];

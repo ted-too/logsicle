@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useTableSearchParams } from "./use-table-search-params";
+import { useTableSearchParams } from "../../hooks/use-table-search-params";
 import { LOG_INTERVALS, type LogInterval, INTERVAL_TO_POSTGRES_FORMAT } from "@repo/api";
 
 export function SelectInterval({ type }: { type: "app" | "request" }) {

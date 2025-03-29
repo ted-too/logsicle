@@ -1,5 +1,6 @@
-h1:yjR8QLIu1Y8ur3Fv0EF8ed75vL1gkc3W+u7lsLH0hl4=
+h1:ZNYB6Aao4wLiSUY89D+sOTc+x/G1rVVYxLPLozLyqoQ=
 20250213172855_init.sql h1:UimWV45dbUagyOFg84Mpu+zYkJhlUBYlW9nfMShTvbM=
 20250213172955_init_timescale.sql h1:ZCutKsJ9pZYyQ/NUnfUoFF43bKRnqGMQv1xrx0j2cAY=
 20250327151302_add_logos.sql h1:lxzQoCvHs2mHfm9oGZ4RNxi78ii5M45bXx4rOBX5tyQ=
 20250327163015_added_invitations.sql h1:GNbMqfT+MxsSydxrgbC1oPHOCT1YGkYKhXyfDBxQ70w=
+20250327173015_add_level_to_request.sql h1:RbIqh0tAD6Nhirpb9EPGPOA5w22Dt/uiOR5xxZm0hF0=
