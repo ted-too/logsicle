@@ -17,49 +17,44 @@ import { toast } from "../ui/sonner-wrapper";
 import { updateUser } from "@/server/auth/basic";
 import { userQueryKey } from "@/qc/auth/basic";
 import { getProjectsQueryOptions } from "@/qc/teams/projects";
-import { getSyntaxHighlight } from "@/server/syntax-highliter";
+import { getCodeSnippets } from "@/server/syntax-highliter";
 import { Skeleton } from "../ui/skeleton";
 import { useEventStream } from "@/hooks/stream/use-event-stream";
 
-const CURL_CODE = (params: {
-	apiKey: string;
-	projectId: string;
-}) => `curl --location '${import.meta.env.VITE_API_URL || process.env.VITE_API_URL}/v1/ingest/event' \\
---header 'Content-Type: application/json' \\
---header 'Authorization: Bearer ${params.apiKey}' \\
---data '{
-    "project_id": "${params.projectId}",
-    "name": "test_event"
-}'`;
-
-const TABS = [
-	{
-		label: "Try Locally",
-		value: "local",
-		language: "bash",
-		code: CURL_CODE,
-		Icon: TerminalIcon,
-	},
-	// {
-	//   label: "Javascript",
-	//   value: "js",
-	//   code: CURL_CODE,
-	//   Icon: TerminalIcon,
-	// },
-];
+// Define the tab icons mapping
+const IconComponents = {
+	TerminalIcon: TerminalIcon,
+	// Add more icon mappings as needed
+};
 
 export function TestAPIKey() {
 	const router = useRouter();
 	const queryClient = useQueryClient();
-  const { currentUserOrg } = useRouteContext({
-    from: "/_authd/$orgSlug/_onboarding/onboarding",
-  });
-  const { data: projects } = useQuery({
-    ...getProjectsQueryOptions(),
-    initialData: currentUserOrg.organization.projects,
-  });
-  const project = projects?.[0];
-  
+	const { currentUserOrg } = useRouteContext({
+		from: "/_authd/$orgSlug/_onboarding/onboarding",
+	});
+	const { data: projects } = useQuery({
+		...getProjectsQueryOptions(),
+		initialData: currentUserOrg.organization.projects,
+	});
+	const project = projects?.[0];
+	
+	// Get the temporary API key from storage
+	const tempApiKey = tempApiKeyStorage.get();
+	
+	// Fetch code snippets from server
+	const { data: codeSnippets, isPending: isCodeSnippetsPending } = useQuery({
+		queryKey: ["code-snippets", project?.id, tempApiKey],
+		queryFn: () => 
+			getCodeSnippets({
+				data: {
+					projectId: project.id,
+					apiKey: tempApiKey || "<your-api-key>",
+				},
+			}),
+		enabled: !!project?.id,
+	});
+
 	const { mutateAsync: setOnboarded, isPending } = useMutation({
 		mutationFn: async () => {
 			const { data, error } = await updateUser({
@@ -81,23 +76,6 @@ export function TestAPIKey() {
 				`${log.type.charAt(0).toUpperCase() + log.type.slice(1)} received`,
 			),
 	});
-	const { data: syntaxHighlight, isPending: isSyntaxHighlightPending } =
-		useQuery({
-			queryKey: ["syntax-highlight"],
-			queryFn: () =>
-				getSyntaxHighlight({
-					data: {
-						code: CURL_CODE({
-							projectId: project.id,
-							apiKey: tempApiKey || "<your-api-key>",
-						}),
-						language: "source.shell",
-					},
-				}),
-		});
-
-	// Get the temporary API key from storage
-	const tempApiKey = tempApiKeyStorage.get();
 
 	const handleCopy = (value: string) => {
 		navigator.clipboard.writeText(value);
@@ -122,35 +100,31 @@ export function TestAPIKey() {
 
 	return (
 		<div className="flex w-full flex-col gap-4">
-			<Tabs defaultValue={TABS[0].value} className="w-full">
+			<Tabs defaultValue={codeSnippets?.[0]?.value} className="w-full">
 				<TabsList className="h-max gap-4 bg-transparent p-0">
-					{TABS.map((tab) => (
+					{codeSnippets?.map((tab) => (
 						<TabsTrigger
 							key={tab.value}
 							value={tab.value}
 							className="h-10 gap-2 rounded-lg border text-xs font-bold data-[state=active]:border-primary/50 data-[state=active]:shadow-none"
 						>
-							<tab.Icon className="size-4" />
+							{tab.Icon in IconComponents && (
+								// @ts-ignore
+								<tab.Icon className="size-4" />
+							)}
 							{tab.label}
 						</TabsTrigger>
 					))}
 				</TabsList>
-				{TABS.map((tab) => (
-					<TabsContent key={tab.value} value={tab.value} className="mt-4">
-						{!isSyntaxHighlightPending ? (
+				{!isCodeSnippetsPending ? 
+					codeSnippets?.map((tab) => (
+						<TabsContent key={tab.value} value={tab.value} className="mt-4">
 							<div className="relative w-full rounded-xl bg-[#fafafa] p-4 font-mono text-xs">
 								<TooltipProvider delayDuration={0}>
 									<Tooltip>
 										<TooltipTrigger asChild>
 											<button
-												onClick={() =>
-													handleCopy(
-														tab.code({
-															projectId: project.id,
-															apiKey: tempApiKey || "<your-api-key>",
-														}),
-													)
-												}
+												onClick={() => handleCopy(tab.code)}
 												className="absolute right-1 top-2 flex h-max w-9 items-center justify-center rounded-e-lg border border-transparent text-muted-foreground/80 outline-offset-2 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none disabled:cursor-not-allowed"
 												aria-label={copied ? "Copied" : "Copy to clipboard"}
 												disabled={copied}
@@ -192,15 +166,15 @@ export function TestAPIKey() {
 									className="flex flex-col"
 									// biome-ignore lint/security/noDangerouslySetInnerHtml: this is safe
 									dangerouslySetInnerHTML={{
-										__html: syntaxHighlight || "",
+										__html: tab.highlightedCode || "",
 									}}
 								/>
 							</div>
-						) : (
-							<Skeleton key={tab.value} className="h-20 w-full" />
-						)}
-					</TabsContent>
-				))}
+						</TabsContent>
+					)) : (
+						<Skeleton className="h-20 w-full mt-4" />
+					)
+				}
 			</Tabs>
 			{logs.length > 0 ? (
 				<div className="flex flex-wrap gap-4">
