@@ -12,5 +12,5 @@ dist/
 !.vscode/extensions.json
 .idea
 
-# .vinxi
-# .output
+.vinxi
+.output

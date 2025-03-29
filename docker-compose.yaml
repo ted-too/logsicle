@@ -8,6 +8,8 @@ services:
       - 3005
     environment:
       - PORT=3005
+      - API_URL=${API_URL:-http://localhost:3005}
+      - WEB_URL=${WEB_URL:-http://localhost:3000}
       - DB_DSN=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-logsicle}?sslmode=disable
       - DB_MAX_OPEN_CONNS=25
       - DB_MAX_IDLE_CONNS=25
@@ -15,14 +17,8 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - REDIS_QUEUE_URL=redis://redis:6379/1
       - REDIS_SESSION_URL=redis://redis:6379/2
-      - CORS_ALLOWED_ORIGINS=${WEB_URL}
+      - CORS_ALLOWED_ORIGINS=${WEB_URL:-http://localhost:3000}
       - CORS_COOKIE_DOMAIN=${SERVICE_COOKIE_DOMAIN}
-      - AUTH_ENDPOINT=${AUTH_ENDPOINT}
-      - AUTH_APP_ID=${AUTH_APP_ID}
-      - AUTH_APP_SECRET=${AUTH_APP_SECRET}
-      - AUTH_SIGN_IN_URL=${API_URL}/v1/auth/sign-in
-      - AUTH_REDIRECT_URL=${API_URL}/v1/auth/callback
-      - AUTH_FRONTEND_URL=${WEB_URL}
       - DEV=${DEV:-false}
     depends_on:
       migrations:
@@ -37,7 +33,7 @@ services:
       context: .
       dockerfile: ./apps/web/Dockerfile
       args:
-        - PUBLIC_API_URL=${API_URL}
+        - VITE_API_URL=${API_URL:-http://localhost:3005}
     container_name: logsicle-web
     expose:
       - 3000
@@ -68,8 +64,6 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-logsicle}
-    # ports:
-    #   - "5432:5432"
     volumes:
       - logsicle_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -83,8 +77,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: logsicle-redis
-    # ports:
-    #   - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
