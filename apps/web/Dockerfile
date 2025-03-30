@@ -25,9 +25,6 @@ COPY --from=builder /app/out/full/ .
 
 ENV NODE_ENV=production
 
-ARG VITE_PUBLIC_API_URL
-ENV VITE_PUBLIC_API_URL=${VITE_PUBLIC_API_URL}
-
 RUN pnpm turbo run build
 
 RUN cp apps/web/node_modules/vscode-oniguruma/release/onig.wasm apps/web/.output/server/node_modules/vscode-oniguruma/release/onig.wasm
@@ -43,8 +40,6 @@ USER tanstack
 # Set runtime env variables
 ENV PORT=3000
 ENV NODE_ENV=production
-ARG VITE_PUBLIC_API_URL
-ENV VITE_PUBLIC_API_URL=${VITE_PUBLIC_API_URL}
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing

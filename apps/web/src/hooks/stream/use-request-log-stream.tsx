@@ -28,7 +28,7 @@ export function useRequestLogStream(
 		if (!enabled) return;
 
 		const url = new URL(
-			`${import.meta.env.VITE_PUBLIC_API_URL}/v1/projects/${projectId}/request/stream`,
+			`${import.meta.env.VITE_PUBLIC_API_URL || "https://api.logsicle.app"}/v1/projects/${projectId}/request/stream`,
 		);
 
 		const eventSource = new EventSource(url.toString(), {
