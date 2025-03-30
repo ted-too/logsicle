@@ -48,8 +48,6 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootComponent() {
-  console.log(import.meta.env);
-
   return (
     <RootDocument>
       <Outlet />
