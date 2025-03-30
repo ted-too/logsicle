@@ -2,6 +2,8 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "@tanstack/react-start/config";
 import tsConfigPaths from "vite-tsconfig-paths";
 
+console.log(process.env);
+
 export default defineConfig({
 	tsr: {
 		appDirectory: "src",
@@ -13,5 +15,8 @@ export default defineConfig({
 			}),
 			tailwindcss(),
 		],
+		define: {
+			"import.meta.env.VITE_PUBLIC_API_URL": JSON.stringify(process.env.VITE_PUBLIC_API_URL),
+		}
 	},
 });
