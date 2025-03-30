@@ -23,10 +23,6 @@ RUN pnpm install --frozen-lockfile
 
 COPY --from=builder /app/out/full/ .
 
-# Add build args for env variables
-ARG VITE_API_URL
-ENV VITE_API_URL=${VITE_API_URL}
-
 RUN pnpm turbo run build
 
 FROM base AS runner
@@ -39,7 +35,6 @@ USER tanstack
 
 # Set runtime env variables
 ENV PORT=3000
-ENV VITE_API_URL=${VITE_API_URL}
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
