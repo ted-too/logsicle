@@ -20,7 +20,7 @@ export function useEventStream(
     if (!enabled) return;
 
     const url = new URL(
-      `${import.meta.env.VITE_API_URL}/v1/projects/${projectId}/events/stream`
+      `${import.meta.env.VITE_PUBLIC_API_URL}/v1/projects/${projectId}/events/stream`
     );
 
     const eventSource = new EventSource(url.toString(), {

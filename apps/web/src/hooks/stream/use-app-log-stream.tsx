@@ -28,7 +28,7 @@ export function useAppLogStream(
 		if (!enabled) return;
 
 		const url = new URL(
-			`${import.meta.env.VITE_API_URL}/v1/projects/${projectId}/app/stream`,
+			`${import.meta.env.VITE_PUBLIC_API_URL}/v1/projects/${projectId}/app/stream`,
 		);
 
 		const eventSource = new EventSource(url.toString(), {
