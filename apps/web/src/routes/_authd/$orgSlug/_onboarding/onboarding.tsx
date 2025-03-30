@@ -65,9 +65,6 @@ export function MainOnboardingForm() {
 		setCurrentStep((prev) => (prev - 1 >= 0 ? prev - 1 : prev));
 	};
 
-	console.log(import.meta.env)
-	console.log(process.env)
-
 	return (
 		<div className="mt-8 mb-16 flex flex-col gap-8">
 			<div className="relative mx-3.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-[#E1FF80]/40 text-pink/40 after:absolute after:top-[calc(100%+1px)] after:h-8 after:w-px after:bg-[hsl(74,100%,40%)]">
