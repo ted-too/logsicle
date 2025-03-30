@@ -25,6 +25,8 @@ COPY --from=builder /app/out/full/ .
 
 RUN pnpm turbo run build
 
+RUN cp apps/web/node_modules/vscode-oniguruma/release/onig.wasm apps/web/.output/server/node_modules/vscode-oniguruma/release/onig.wasm
+
 FROM base AS runner
 WORKDIR /app
 
