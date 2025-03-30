@@ -23,6 +23,13 @@ RUN pnpm install --frozen-lockfile
 
 COPY --from=builder /app/out/full/ .
 
+ENV NODE_ENV=production
+
+# FIXME: This is a hack to get the API URL to work on client side
+# Find a better way to do this probably when start gets nitro support
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
+
 RUN pnpm turbo run build
 
 RUN cp apps/web/node_modules/vscode-oniguruma/release/onig.wasm apps/web/.output/server/node_modules/vscode-oniguruma/release/onig.wasm
