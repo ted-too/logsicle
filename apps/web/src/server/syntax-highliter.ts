@@ -3,6 +3,7 @@ import sourceShell from "@wooorm/starry-night/source.shell";
 import { z } from "zod";
 import { createStarryNight } from "@wooorm/starry-night";
 import { toHtml } from "hast-util-to-html";
+import { BASE_URL } from "@repo/api";
 
 /**
  * @import {ElementContent, Element, RootContent, Root} from 'hast'
@@ -104,7 +105,7 @@ function createLine(children: any, line: any) {
 
 // Define code generation functions on the server
 const generateCurlCode = (params: { apiKey: string; projectId: string }) => {
-  const apiUrl = process.env.VITE_API_URL || import.meta.env.VITE_API_URL;
+  const apiUrl = BASE_URL;
   return `curl --location '${apiUrl}/v1/ingest/event' \\
 --header 'Content-Type: application/json' \\
 --header 'Authorization: Bearer ${params.apiKey}' \\
