@@ -1,0 +1,72 @@
+{
+  "name": "@logsicle/client",
+  "version": "0.1.1",
+  "description": "Browser and Node.js client for the Logsicle logging platform",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.esm.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs.js"
+      }
+    },
+    "./node": {
+      "import": {
+        "types": "./dist/node.d.mts",
+        "default": "./dist/node.esm.js"
+      },
+      "require": {
+        "types": "./dist/node.d.ts",
+        "default": "./dist/node.cjs.js"
+      }
+    },
+    "./browser": {
+      "import": {
+        "types": "./dist/browser.d.mts",
+        "default": "./dist/browser.esm.js"
+      },
+      "require": {
+        "types": "./dist/browser.d.ts",
+        "default": "./dist/browser.cjs.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "pack": "bunx --yes @arethetypeswrong/cli --pack --profile node16 .",
+    "dev": "tsup --watch",
+    "test": "jest"
+  },
+  "keywords": [
+    "logging",
+    "events",
+    "monitoring",
+    "traces",
+    "opentelemetry"
+  ],
+  "author": "Ted Too <ted@2labs.io>",
+  "license": "MIT",
+  "dependencies": {
+    "@better-fetch/fetch": "^1.1.15"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "homepage": "https://github.com/ted-too/logsicle-sdk/blob/main/packages/node/README.md",
+  "publishConfig": {
+    "access": "public"
+  }
+}
