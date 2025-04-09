@@ -87,6 +87,7 @@ type NavItem = {
   url: string;
   icon?: Icon;
   isEnabled?: (userMembership: TeamMembership) => boolean;
+  isAvailable?: boolean;
   items?: NavItem[]; // For grouped items
 };
 
@@ -96,6 +97,7 @@ type ExternalLink = {
   url: string;
   icon: React.ComponentType<{ className?: string }>;
   isEnabled?: (userMembership: TeamMembership) => boolean;
+  isAvailable?: boolean;
 };
 
 // Complete menu structure
@@ -127,11 +129,13 @@ const MENU: Menu = {
       title: "Metrics",
       url: "/$orgSlug/$projSlug/metrics",
       icon: TestTubesIcon,
+      isAvailable: false,
     },
     {
       title: "Traces",
       url: "/$orgSlug/$projSlug/traces",
       icon: TracesIcon,
+      isAvailable: false,
     },
   ],
 
@@ -140,6 +144,7 @@ const MENU: Menu = {
       title: "Alerts",
       url: "/$orgSlug/$projSlug/alerts",
       icon: Warning2,
+      isAvailable: false,
     },
     {
       title: "Organization Settings",
@@ -147,6 +152,7 @@ const MENU: Menu = {
       icon: BuildingIcon,
       isEnabled: (userMembership) =>
         ["admin", "owner"].includes(userMembership.role),
+      isAvailable: false,
     },
     {
       title: "Project Settings",
@@ -154,6 +160,7 @@ const MENU: Menu = {
       icon: LibraryBigIcon,
       isEnabled: (userMembership) =>
         ["admin", "owner"].includes(userMembership.role),
+      isAvailable: false,
     },
     {
       title: "API Keys",
@@ -167,6 +174,7 @@ const MENU: Menu = {
       name: "Documentation",
       url: "https://logsicle.app/docs",
       icon: BookIcon,
+      isAvailable: false,
     },
   ],
 };
@@ -376,7 +384,11 @@ function NavItemComponent({
     >
       <SidebarMenuItem>
         {!hasSubitems ? (
-          <SidebarMenuButton asChild tooltip={item.title}>
+          <SidebarMenuButton
+            isAvailable={item.isAvailable}
+            asChild
+            tooltip={item.title}
+          >
             <Link
               to={item.url}
               params={{ orgSlug, projSlug }}
@@ -395,7 +407,11 @@ function NavItemComponent({
         ) : (
           <>
             <CollapsibleTrigger asChild>
-              <SidebarMenuButton tooltip={item.title} isActive={isActive}>
+              <SidebarMenuButton
+                isAvailable={item.isAvailable}
+                tooltip={item.title}
+                isActive={isActive}
+              >
                 {item.icon && <item.icon color="currentColor" />}
 
                 <span>{item.title}</span>
@@ -484,7 +500,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           {/* Dashboard Link */}
           <SidebarGroup>
             <SidebarMenu>
-              <SidebarMenuButton asChild tooltip="Dashboard">
+              <SidebarMenuButton isAvailable={false} asChild tooltip="Dashboard">
                 <Link
                   to="/$orgSlug/$projSlug"
                   data-active={isActiveRoute(
@@ -539,7 +555,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
             <SidebarMenu>
               {filteredMenu.help.map((item) => (
                 <SidebarMenuItem key={item.name}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton isAvailable={item.isAvailable} asChild>
                     <a
                       href={item.url}
                       target="_blank"
@@ -653,9 +669,11 @@ export function AppSidebar({ children }: AppSidebarProps) {
       <SidebarInset>
         <div
           className="flex flex-col w-full pl-2 pt-4"
-          style={{
-            "--content-height": "calc(100svh - 1rem)",
-          } as React.CSSProperties}
+          style={
+            {
+              "--content-height": "calc(100svh - 1rem)",
+            } as React.CSSProperties
+          }
         >
           {children}
         </div>

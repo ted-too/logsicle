@@ -1,7 +1,9 @@
 import { AppLogsTable } from "@/components/logs-table/app";
-import { getAppLogsQueryOptions, getAppTimelineChartQueryOptions } from "@/qc/resources/app";
+import {
+  getAppLogsQueryOptions,
+  getAppTimelineChartQueryOptions,
+} from "@/qc/resources/app";
 import { getAppMetricsSchema, listAppLogsSchema } from "@repo/api";
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -21,22 +23,12 @@ export const Route = createFileRoute(
   validateSearch,
   loader: async ({ context, location }) => {
     const { tail: _, ...search } = location.search as SearchParams;
-    await context.queryClient.prefetchInfiniteQuery(
-      getAppLogsQueryOptions(
-        context.currentProject.id,
-        search
-      )
+    void context.queryClient.prefetchInfiniteQuery(
+      getAppLogsQueryOptions(context.currentProject.id, search)
     );
-    await context.queryClient.prefetchQuery(
-      getAppTimelineChartQueryOptions(
-        context.currentProject.id,
-        search
-      )
+    void context.queryClient.prefetchQuery(
+      getAppTimelineChartQueryOptions(context.currentProject.id, search)
     );
-
-    return {
-      dehydrated: dehydrate(context.queryClient),
-    };
   },
   component: RouteComponent,
   search: {
@@ -45,10 +37,5 @@ export const Route = createFileRoute(
 });
 
 function RouteComponent() {
-  const { dehydrated } = Route.useLoaderData();
-  return (
-    <HydrationBoundary state={dehydrated}>
-      <AppLogsTable />
-    </HydrationBoundary>
-  );
+  return <AppLogsTable />;
 }

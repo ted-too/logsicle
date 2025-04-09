@@ -375,7 +375,10 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sidebar-group"
       data-sidebar="group"
-      className={cn("relative flex w-full min-w-0 flex-col p-2 overflow-x-hidden", className)}
+      className={cn(
+        "relative flex w-full min-w-0 flex-col p-2 overflow-x-hidden",
+        className
+      )}
       {...props}
     />
   );
@@ -486,6 +489,7 @@ const sidebarMenuButtonVariants = cva(
 function SidebarMenuButton({
   asChild = false,
   isActive = false,
+  isAvailable = true,
   variant = "default",
   size = "default",
   tooltip,
@@ -495,6 +499,7 @@ function SidebarMenuButton({
   asChild?: boolean;
   isActive?: boolean;
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+  isAvailable?: boolean;
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot : "button";
   const { isMobile, state } = useSidebar();
@@ -505,12 +510,14 @@ function SidebarMenuButton({
       data-sidebar="menu-button"
       data-size={size}
       data-active={isActive}
+      disabled={!isAvailable}
+      aria-disabled={!isAvailable}
       className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
       {...props}
     />
   );
 
-  if (!tooltip) {
+  if (!tooltip && isAvailable) {
     return button;
   }
 
@@ -520,13 +527,25 @@ function SidebarMenuButton({
     };
   }
 
+  if (!isAvailable) {
+    tooltip = {
+      children: "Coming soon",
+    };
+  }
+
   return (
     <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipTrigger asChild>
+        {!isAvailable ? (
+          <span className="text-sidebar-foreground/50">{button}</span>
+        ) : (
+          button
+        )}
+      </TooltipTrigger>
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
+        hidden={!isAvailable ? false : state !== "collapsed" || isMobile}
         {...tooltip}
       />
     </Tooltip>

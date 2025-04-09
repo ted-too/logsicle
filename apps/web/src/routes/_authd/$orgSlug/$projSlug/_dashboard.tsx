@@ -13,9 +13,6 @@ const getSidebarStates = createServerFn().handler(async () => {
   let sidebarState = getCookie(SIDEBAR_COOKIE_NAME);
   let secondarySidebarState = getCookie(SECONDARY_SIDEBAR_COOKIE_NAME);
 
-  console.log("sidebarState", sidebarState);
-  console.log("secondarySidebarState", secondarySidebarState);
-
   if (sidebarState === undefined) {
     sidebarState = "true";
     setCookie(SIDEBAR_COOKIE_NAME, sidebarState, {

@@ -28,7 +28,12 @@ const STEPS = [
 	  label: "Generate API Key",
 	  description:
 	    "Setup your credentials for your project. You can create more or edit this one later",
-	  Component: GenAPIKey,
+	  Component: (props: { steps: { next: () => void; prev: () => void } }) => (
+		<GenAPIKey 
+			showNextButton={true}
+			onNext={props.steps.next}
+		/>
+	  ),
 	},
 	{
 	  label: "Send your first event",
