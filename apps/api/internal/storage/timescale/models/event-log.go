@@ -92,14 +92,14 @@ func (l *EventLog) UnmarshalJSON(data []byte) error {
 
 type EventLogInput struct {
 	ProjectID   string         `json:"project_id"`
+	ChannelSlug *string        `json:"channel"`
 	Name        string         `json:"name"`
 	Description string         `json:"description,omitempty"`
 	Parser      string         `json:"parser,omitempty"`
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	Tags        []string       `json:"tags,omitempty"`
+	Timestamp   interface{}    `json:"timestamp,omitempty"`
 }
-
-// TODO: Allow timestamp to be part of input
 
 func (e EventLogInput) ValidateAndCreate(channelIDInput string) (*EventLog, error) {
 	if err := validation.ValidateStruct(&e,
@@ -119,6 +119,10 @@ func (e EventLogInput) ValidateAndCreate(channelIDInput string) (*EventLog, erro
 		validation.Field(&e.Metadata),
 		validation.Field(&e.Tags,
 			validation.Each(validation.Length(1, 50)),
+		),
+		// We are only validating the slug here, the channel_id should be available in the context
+		validation.Field(&e.ChannelSlug,
+			validation.Length(0, 255),
 		),
 	); err != nil {
 		return nil, err
@@ -145,6 +149,11 @@ func (e EventLogInput) ValidateAndCreate(channelIDInput string) (*EventLog, erro
 		}
 	}
 
+	timestamp, err := ParseTimestamp(e.Timestamp)
+	if err != nil {
+		return nil, err
+	}
+
 	return &EventLog{
 		ID:          id.String(),
 		ProjectID:   e.ProjectID,
@@ -154,6 +163,6 @@ func (e EventLogInput) ValidateAndCreate(channelIDInput string) (*EventLog, erro
 		Parser:      e.Parser,
 		Metadata:    metadataJSON,
 		Tags:        tagsJSON,
-		Timestamp:   time.Now(),
+		Timestamp:   timestamp,
 	}, nil
 }

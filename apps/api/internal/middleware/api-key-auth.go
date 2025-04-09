@@ -13,7 +13,7 @@ import (
 
 type BasicBody struct {
 	ProjectID   string  `json:"project_id"`
-	ChannelName *string `json:"channel"`
+	ChannelSlug *string `json:"channel"`
 }
 
 func (b BasicBody) Validate() error {
@@ -72,7 +72,7 @@ func validateOrigin(c fiber.Ctx, db *gorm.DB) (string, *string, error) {
 
 	origin := c.Get("Origin")
 	if origin == "" {
-		return project.ID, body.ChannelName, nil
+		return project.ID, body.ChannelSlug, nil
 	}
 
 	// Check if origin matches any allowed origins
@@ -81,7 +81,7 @@ func validateOrigin(c fiber.Ctx, db *gorm.DB) (string, *string, error) {
 			c.Set("Access-Control-Allow-Origin", origin)
 			c.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			c.Set("Access-Control-Allow-Methods", "POST")
-			return project.ID, body.ChannelName, nil
+			return project.ID, body.ChannelSlug, nil
 		}
 	}
 
@@ -89,7 +89,7 @@ func validateOrigin(c fiber.Ctx, db *gorm.DB) (string, *string, error) {
 }
 
 // validateAPIKey validates the API key and its permissions
-func validateAPIKey(c fiber.Ctx, db *gorm.DB, projectID string, channelName *string) (*models.APIKey, string, error) {
+func validateAPIKey(c fiber.Ctx, db *gorm.DB, projectID string, channelSlug *string) (*models.APIKey, string, error) {
 	authHeader := c.Get("Authorization")
 	if authHeader == "" {
 		return nil, "", fiber.NewError(fiber.StatusUnauthorized, "Missing API key")
@@ -113,9 +113,9 @@ func validateAPIKey(c fiber.Ctx, db *gorm.DB, projectID string, channelName *str
 
 	var channelID string
 	var err error
-	if channelName != nil && resource == "event" {
+	if channelSlug != nil && resource == "event" {
 		var channel models.EventChannel
-		err = db.Where("name = ? AND project_id = ?", *channelName, projectID).First(&channel).Error
+		err = db.Where("slug = ? AND project_id = ?", *channelSlug, projectID).First(&channel).Error
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return nil, "", fiber.NewError(fiber.StatusForbidden, "event channel not found or access denied")
@@ -153,7 +153,7 @@ func APIAuth(db *gorm.DB) fiber.Handler {
 
 		// TODO: Potentially do allowed ip checks here
 		// Validate origin and get project ID
-		projectID, channelName, err := validateOrigin(c, db)
+		projectID, channelSlug, err := validateOrigin(c, db)
 		if err != nil {
 			return c.Status(err.(*fiber.Error).Code).JSON(fiber.Map{
 				"error": err.Error(),
@@ -161,7 +161,7 @@ func APIAuth(db *gorm.DB) fiber.Handler {
 		}
 
 		// Validate API key
-		apiKey, channelID, err := validateAPIKey(c, db, projectID, channelName)
+		apiKey, channelID, err := validateAPIKey(c, db, projectID, channelSlug)
 		if err != nil {
 			return c.Status(err.(*fiber.Error).Code).JSON(fiber.Map{
 				"error": err.Error(),

@@ -38,10 +38,15 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, pool *pgxpool.Pool, processor *que
 	v1Ingest := app.Group("/v1/ingest", middleware.APIAuth(db))
 	{
 		v1Ingest.Post("/event", eventsHandler.IngestEvent)
+		v1Ingest.Post("/event/batch", eventsHandler.IngestBatchEvent)
 		v1Ingest.Post("/app", appHandler.IngestLog)
+		v1Ingest.Post("/app/batch", appHandler.IngestBatchLog)
 		v1Ingest.Post("/request", requestsHandler.IngestRequestLog)
+		v1Ingest.Post("/request/batch", requestsHandler.IngestBatchRequestLog)
 		v1Ingest.Post("/metric", metricsHandler.IngestMetric)
+		v1Ingest.Post("/metric/batch", metricsHandler.IngestBatchMetric)
 		v1Ingest.Post("/trace", tracesHandler.IngestTrace)
+		v1Ingest.Post("/trace/batch", tracesHandler.IngestBatchTrace)
 	}
 
 	// FIXME: Make super authd middleware
