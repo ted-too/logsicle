@@ -42,7 +42,7 @@
   ],
   "scripts": {
     "build": "tsup",
-    "pack": "bunx --yes @arethetypeswrong/cli --pack --profile node16 .",
+    "pack": "pnpm dlx --yes @arethetypeswrong/cli --pack --profile node16 .",
     "dev": "tsup --watch",
     "test": "jest"
   },
