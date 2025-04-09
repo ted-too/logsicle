@@ -6,6 +6,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
 	Form,
 	FormControl,
@@ -15,13 +16,14 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/react-hook-form";
-import { Input } from "@/components/ui/input";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { channelsQueryKey } from "@/qc/resources/events";
+import { updateChannel } from "@/server/resources/events";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	RadioGroup,
@@ -48,8 +50,6 @@ import {
 	SelectValue,
 } from "../ui/select";
 import { toast } from "../ui/sonner-wrapper";
-import { channelsQueryKey } from "@/qc/resources/events";
-import { updateChannel } from "@/server/resources/events";
 
 export function EditChannel({ channel }: { channel: EventChannel }) {
 	const [open, setOpen] = useState(false);

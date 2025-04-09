@@ -1,9 +1,9 @@
-import { useAppForm } from "@/components/ui/form";
-import { register } from "@/server/auth/basic";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { type RegisterRequest, registerSchema } from "@repo/api";
+import { useAppForm } from "@/components/ui/form";
 import { OptimizedImage } from "@/components/ui/image";
+import { register } from "@/server/auth/basic";
+import { type RegisterRequest, registerSchema } from "@repo/api";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_auth/sign-up")({

@@ -1,9 +1,9 @@
-import { useNavigate } from "@tanstack/react-router";
-import { useSearch } from "@tanstack/react-router";
 import type { SearchParams as AppLogSearchParams } from "@/routes/_authd/$orgSlug/$projSlug/_dashboard/app-logs";
 import type { SearchParams as RequestLogSearchParams } from "@/routes/_authd/$orgSlug/$projSlug/_dashboard/request-logs";
 import { appLogFilterSchema, requestLogFilterSchema } from "@repo/api";
 import { zodKeys } from "@repo/api";
+import { useNavigate } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import { useCallback } from "react";
 
 export function useTableSearchParams({ type }: { type: "app" | "request" }) {

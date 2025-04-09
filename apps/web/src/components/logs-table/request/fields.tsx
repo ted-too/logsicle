@@ -1,19 +1,19 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import CopyToClipboardContainer from "@/components/copy-to-clipboard-container";
 import type {
 	DataTableFilterField,
 	Option,
 	SheetField,
 } from "@/components/data-table/types";
-import { getStatusColor } from "@/lib/request/status-code";
 import { METHODS } from "@/constants/method";
-import { getLevelColor, getRequestLevelLabel } from "@/lib/request/level";
-import { format } from "date-fns";
 import { formatMilliseconds } from "@/lib/format";
+import { getLevelColor, getRequestLevelLabel } from "@/lib/request/level";
+import { getStatusColor } from "@/lib/request/status-code";
+import { cn } from "@/lib/utils";
+import type { RequestLevel, RequestLog } from "@repo/api";
+import { format } from "date-fns";
 import { TabsObjectView } from "../tabs-object-view";
-import CopyToClipboardContainer from "@/components/copy-to-clipboard-container";
-import type { RequestLog, RequestLevel } from "@repo/api";
 
 // Define our request levels constant
 const LEVELS: RequestLevel[] = ["success", "warning", "error", "info"];
@@ -105,7 +105,8 @@ export const sheetFields = [
 		id: "timestamp",
 		label: "Date",
 		type: "timerange",
-		component: (props) => format(new Date(props.timestamp), "LLL dd, y HH:mm:ss"),
+		component: (props) =>
+			format(new Date(props.timestamp), "LLL dd, y HH:mm:ss"),
 		skeletonClassName: "w-36",
 	},
 	{
@@ -114,7 +115,9 @@ export const sheetFields = [
 		type: "checkbox",
 		component: (props) => {
 			return (
-				<span className={cn("font-mono", getStatusColor(props.status_code).text)}>
+				<span
+					className={cn("font-mono", getStatusColor(props.status_code).text)}
+				>
 					{props.status_code}
 				</span>
 			);
@@ -226,4 +229,3 @@ export const sheetFields = [
 		className: "flex-col items-start w-full gap-1",
 	},
 ] satisfies SheetField<RequestLog, LogsMeta>[];
-

@@ -1,5 +1,6 @@
 import { GenAPIKey } from "@/components/onboarding/gen-api-key";
 import { SetupProject } from "@/components/onboarding/setup-project";
+import { TestAPIKey } from "@/components/onboarding/test-api-key";
 import {
 	Accordion,
 	AccordionContent,
@@ -7,7 +8,6 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import { TestAPIKey } from "@/components/onboarding/test-api-key";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { ZapIcon } from "lucide-react";
 import { useState } from "react";
@@ -25,21 +25,18 @@ const STEPS = [
 		Component: SetupProject,
 	},
 	{
-	  label: "Generate API Key",
-	  description:
-	    "Setup your credentials for your project. You can create more or edit this one later",
-	  Component: (props: { steps: { next: () => void; prev: () => void } }) => (
-		<GenAPIKey 
-			showNextButton={true}
-			onNext={props.steps.next}
-		/>
-	  ),
+		label: "Generate API Key",
+		description:
+			"Setup your credentials for your project. You can create more or edit this one later",
+		Component: (props: { steps: { next: () => void; prev: () => void } }) => (
+			<GenAPIKey showNextButton={true} onNext={props.steps.next} />
+		),
 	},
 	{
-	  label: "Send your first event",
-	  description:
-	    "Let's test out your setup by sending your first event to your project",
-	  Component: TestAPIKey,
+		label: "Send your first event",
+		description:
+			"Let's test out your setup by sending your first event to your project",
+		Component: TestAPIKey,
 	},
 ];
 

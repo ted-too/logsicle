@@ -1,10 +1,10 @@
 import { Braces } from "lucide-react";
 
+import CopyToClipboardContainer from "@/components/copy-to-clipboard-container";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { JsonValue } from "@repo/api";
 import { TableProperties } from "lucide-react";
 import { KeyValueTable } from "./key-value-table";
-import CopyToClipboardContainer from "@/components/copy-to-clipboard-container";
-import type { JsonValue } from "@repo/api";
 
 interface TabsObjectViewProps {
 	data: Record<string, string>;

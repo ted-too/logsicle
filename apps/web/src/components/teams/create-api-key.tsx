@@ -1,3 +1,5 @@
+import { CreatedAPIKey, GenAPIKey } from "@/components/onboarding/gen-api-key";
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,21 +8,21 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import type { APIKey } from "@repo/api";
+import { useRouteContext } from "@tanstack/react-router";
 import { KeyIcon } from "lucide-react";
 import { useState } from "react";
-import { useRouteContext } from "@tanstack/react-router";
-import { GenAPIKey, CreatedAPIKey } from "@/components/onboarding/gen-api-key";
-import type { APIKey } from "@repo/api";
 
-export function CreateApiKey({ triggerButton }: { triggerButton?: React.ReactNode }) {
+export function CreateApiKey({
+	triggerButton,
+}: { triggerButton?: React.ReactNode }) {
 	const [open, setOpen] = useState(false);
 	const [createdApiKey, setCreatedApiKey] = useState<APIKey | null>(null);
-	
+
 	const { currentProject } = useRouteContext({
 		from: "/_authd/$orgSlug/$projSlug/_dashboard",
 	});
-	
+
 	const handleDone = () => {
 		setCreatedApiKey(null);
 		setOpen(false);
@@ -34,16 +36,17 @@ export function CreateApiKey({ triggerButton }: { triggerButton?: React.ReactNod
 	);
 
 	return (
-		<Dialog open={open} onOpenChange={(newOpen) => {
-			// Reset state when dialog closes
-			if (!newOpen) {
-				setCreatedApiKey(null);
-			}
-			setOpen(newOpen);
-		}}>
-			<DialogTrigger asChild>
-				{triggerButton || defaultTrigger}
-			</DialogTrigger>
+		<Dialog
+			open={open}
+			onOpenChange={(newOpen) => {
+				// Reset state when dialog closes
+				if (!newOpen) {
+					setCreatedApiKey(null);
+				}
+				setOpen(newOpen);
+			}}
+		>
+			<DialogTrigger asChild>{triggerButton || defaultTrigger}</DialogTrigger>
 			<DialogContent className="sm:max-w-2xl @container">
 				<DialogHeader>
 					<DialogTitle>
@@ -57,12 +60,9 @@ export function CreateApiKey({ triggerButton }: { triggerButton?: React.ReactNod
 				</DialogHeader>
 
 				{createdApiKey ? (
-					<CreatedAPIKey 
-						apiKey={createdApiKey} 
-						onDone={handleDone} 
-					/>
+					<CreatedAPIKey apiKey={createdApiKey} onDone={handleDone} />
 				) : (
-					<GenAPIKey 
+					<GenAPIKey
 						projectId={currentProject.id}
 						onCreated={setCreatedApiKey}
 					/>

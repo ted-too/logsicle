@@ -1,4 +1,4 @@
-import { listAppLogs, getAppTimelineChart } from "@/server/resources/app";
+import { getAppTimelineChart, listAppLogs } from "@/server/resources/app";
 import type {
 	AppLog,
 	GetAppMetricsRequest,

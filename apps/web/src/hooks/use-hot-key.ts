@@ -52,38 +52,47 @@ export function useHotKey(
 
 			// For a single key shortcut (not an array), meta or ctrl is required but no other modifiers
 			const isSingleKey = !Array.isArray(key);
-			
+
 			// For single key shortcuts - they need meta/ctrl but NO other modifiers (unless it's the "." reset key)
-			const singleKeyValid = isSingleKey && 
-				(e.metaKey || e.ctrlKey) && 
-				(!e.shiftKey || keys[0] === ".") && 
+			const singleKeyValid =
+				isSingleKey &&
+				(e.metaKey || e.ctrlKey) &&
+				(!e.shiftKey || keys[0] === ".") &&
 				!e.altKey;
-				
+
 			// Get non-modifier keys (the actual letter keys to press)
-			const nonModifierKeys = keys.filter(k => !['meta', 'ctrl', 'shift', 'alt'].includes(k));
-			
+			const nonModifierKeys = keys.filter(
+				(k) => !["meta", "ctrl", "shift", "alt"].includes(k),
+			);
+
 			// Check if all required non-modifier keys are pressed
-			const allNonModifiersPressed = nonModifierKeys.every(k => pressedKeys.has(k));
+			const allNonModifiersPressed = nonModifierKeys.every((k) =>
+				pressedKeys.has(k),
+			);
 
 			// For array combinations, adjust the logic:
 			// 1. All required modifiers MUST be pressed
 			// 2. Additional modifiers are allowed
-			const requiredModifiersPressed = 
+			const requiredModifiersPressed =
 				(!requiredModifiers.meta || modifierMap.meta) &&
 				(!requiredModifiers.ctrl || modifierMap.ctrl) &&
 				(!requiredModifiers.shift || modifierMap.shift) &&
 				(!requiredModifiers.alt || modifierMap.alt);
-				
+
 			// Meta or Ctrl is always needed for key combinations (unless already specified)
 			const hasMetaOrCtrl = modifierMap.meta || modifierMap.ctrl;
-			const needsMetaOrCtrl = !requiredModifiers.meta && !requiredModifiers.ctrl;
-			const modifierRequirementMet = 
+			const needsMetaOrCtrl =
+				!requiredModifiers.meta && !requiredModifiers.ctrl;
+			const modifierRequirementMet =
 				(needsMetaOrCtrl && hasMetaOrCtrl) || !needsMetaOrCtrl;
-			
+
 			// Valid trigger conditions
-			const isHotkeyTriggered = 
-				(isSingleKey && singleKeyValid && pressedKeys.has(keys[0])) || 
-				(!isSingleKey && requiredModifiersPressed && modifierRequirementMet && allNonModifiersPressed);
+			const isHotkeyTriggered =
+				(isSingleKey && singleKeyValid && pressedKeys.has(keys[0])) ||
+				(!isSingleKey &&
+					requiredModifiersPressed &&
+					modifierRequirementMet &&
+					allNonModifiersPressed);
 
 			if (isHotkeyTriggered) {
 				if (preventDefaultRef.current) {
@@ -98,7 +107,7 @@ export function useHotKey(
 			pressedKeys.delete(releasedKey);
 
 			// Special handling for modifier keys
-			if (['meta', 'control', 'shift', 'alt'].includes(releasedKey)) {
+			if (["meta", "control", "shift", "alt"].includes(releasedKey)) {
 				// When modifier is released, clear all tracked keys to avoid stuck states
 				pressedKeys.clear();
 			}

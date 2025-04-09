@@ -1,6 +1,6 @@
 import {
-	listRequestLogs,
 	getRequestTimelineChart,
+	listRequestLogs,
 } from "@/server/resources/request";
 import type {
 	GetRequestMetricsRequest,

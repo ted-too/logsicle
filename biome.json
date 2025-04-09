@@ -24,26 +24,26 @@
 	"organizeImports": {
 		"enabled": true
 	},
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "a11y": {
-        "noSvgWithoutTitle": "off",
-        "useSemanticElements": "off",
-        "useButtonType": "off"
-      },
-      "correctness": {
-        "noUnusedImports": "error",
-        "noChildrenProp": "off",
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"a11y": {
+				"noSvgWithoutTitle": "off",
+				"useSemanticElements": "off",
+				"useButtonType": "off"
+			},
+			"correctness": {
+				"noUnusedImports": "error",
+				"noChildrenProp": "off",
 				"useExhaustiveDependencies": "off"
-      },
-      "suspicious": {
-        "noArrayIndexKey": "off",
+			},
+			"suspicious": {
+				"noArrayIndexKey": "off",
 				"noExplicitAny": "off"
-      }
-    }
-  },
+			}
+		}
+	},
 	"javascript": {
 		"formatter": {
 			"quoteStyle": "double"

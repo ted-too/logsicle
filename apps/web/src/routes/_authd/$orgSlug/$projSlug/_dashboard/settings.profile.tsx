@@ -1,13 +1,13 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute(
-  '/_authd/$orgSlug/$projSlug/_dashboard/settings/profile',
+	"/_authd/$orgSlug/$projSlug/_dashboard/settings/profile",
 )({
-  component: RouteComponent,
-})
+	component: RouteComponent,
+});
 
 function RouteComponent() {
-  return (
-    <div>Hello "/_authd/$orgSlug/$projSlug/_dashboard/settings/profile"!</div>
-  )
+	return (
+		<div>Hello "/_authd/$orgSlug/$projSlug/_dashboard/settings/profile"!</div>
+	);
 }

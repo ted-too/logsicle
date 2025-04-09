@@ -1,19 +1,19 @@
 "use client";
 
-import * as React from "react";
 import { DataTableInfinite } from "@/components/data-table";
-import { filterFields as defaultFilterFields, sheetFields } from "./fields";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useRequestLogStream } from "@/hooks/stream/use-request-log-stream";
 import { useResetFocus } from "@/hooks/use-hot-key";
 import { getLevelRowClassName } from "@/lib/request/level";
 import { cn } from "@/lib/utils";
-import { LiveRow } from "../live-row";
-import { useRouteContext, useSearch } from "@tanstack/react-router";
-import { requestLogColumns } from "./columns";
 import { getRequestLogsQueryOptions } from "@/qc/resources/request";
 import { getFacetedMinMaxValues } from "@/qc/utils";
 import { getFacetedUniqueValues } from "@/qc/utils";
-import { useRequestLogStream } from "@/hooks/stream/use-request-log-stream";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useRouteContext, useSearch } from "@tanstack/react-router";
+import * as React from "react";
+import { LiveRow } from "../live-row";
+import { requestLogColumns } from "./columns";
+import { filterFields as defaultFilterFields, sheetFields } from "./fields";
 
 export function RequestLogsTable() {
 	// Don't pass tail to the query options

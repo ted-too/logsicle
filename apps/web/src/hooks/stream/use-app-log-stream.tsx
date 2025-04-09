@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
 import type { AppLog, ListAppLogsRequest } from "@repo/api";
+import { useEffect, useRef, useState } from "react";
 
 export function useAppLogStream(
 	projectId: string,

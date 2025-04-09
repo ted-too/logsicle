@@ -1,12 +1,12 @@
 "use client";
 
+import { TextWithTooltip } from "@/components/custom/text-with-tooltip";
+import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { getStatusColor } from "@/lib/request/status-code";
+import type { RequestLevel, RequestLog } from "@repo/api";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Minus } from "lucide-react";
-import { getStatusColor } from "@/lib/request/status-code";
-import { DataTableColumnHeader } from "@/components/data-table/column-header";
-import { TextWithTooltip } from "@/components/custom/text-with-tooltip";
 import { HoverCardTimestamp } from "../hover-card-timestamp";
-import type { RequestLevel, RequestLog } from "@repo/api";
 import { LevelIndicator } from "../level-indicator";
 
 export const requestLogColumns: ColumnDef<RequestLog>[] = [

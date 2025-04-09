@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { useRouteContext, useSearch } from "@tanstack/react-router";
+import { format } from "date-fns";
+import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ReferenceArea, XAxis } from "recharts";
 import type { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 
+import { useDataTable } from "@/components/data-table/provider";
 import {
 	type ChartConfig,
 	ChartContainer,
@@ -14,10 +15,14 @@ import {
 	ChartTooltipContent,
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
-import { useDataTable } from "@/components/data-table/provider";
-import type { AppLogTimelineChart, GetAppMetricsRequest, GetRequestMetricsRequest, RequestLogTimelineChart } from "@repo/api";
 import { getAppTimelineChartQueryOptions } from "@/qc/resources/app";
 import { getRequestTimelineChartQueryOptions } from "@/qc/resources/request";
+import type {
+	AppLogTimelineChart,
+	GetAppMetricsRequest,
+	GetRequestMetricsRequest,
+	RequestLogTimelineChart,
+} from "@repo/api";
 import { Skeleton } from "../ui/skeleton";
 
 // Time constants in milliseconds
@@ -128,8 +133,14 @@ export function TimelineChart({
 	const queryOptions = useMemo(
 		() =>
 			type === "app"
-				? getAppTimelineChartQueryOptions(currentProject.id, searchParams as GetAppMetricsRequest)
-				: getRequestTimelineChartQueryOptions(currentProject.id, searchParams as GetRequestMetricsRequest),
+				? getAppTimelineChartQueryOptions(
+						currentProject.id,
+						searchParams as GetAppMetricsRequest,
+					)
+				: getRequestTimelineChartQueryOptions(
+						currentProject.id,
+						searchParams as GetRequestMetricsRequest,
+					),
 		[type, currentProject.id, searchParams],
 	);
 

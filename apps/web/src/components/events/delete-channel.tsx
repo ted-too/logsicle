@@ -14,17 +14,17 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { channelsQueryKey } from "@/qc/resources/events";
+import { deleteChannel } from "@/server/resources/events";
 import type { EventChannel } from "@repo/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { toast } from "../ui/sonner-wrapper";
-import { deleteChannel } from "@/server/resources/events";
-import { channelsQueryKey } from "@/qc/resources/events";
 
 export function DeleteChannel({ channel }: { channel: EventChannel }) {
 	const navigate = useNavigate();

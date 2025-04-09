@@ -1,6 +1,6 @@
+import { isArrayOfDates } from "@/lib/is-array";
 import type { FilterFn } from "@tanstack/react-table";
 import { isAfter, isBefore, isSameDay } from "date-fns";
-import { isArrayOfDates } from "@/lib/is-array";
 
 export const inDateRange: FilterFn<any> = (row, columnId, value) => {
 	const date = new Date(row.getValue(columnId));

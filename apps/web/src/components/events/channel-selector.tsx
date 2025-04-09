@@ -6,6 +6,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
 	Form,
 	FormControl,
@@ -15,8 +16,9 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/react-hook-form";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { getChannelsQueryOptions } from "@/qc/resources/events";
+import { createChannel } from "@/server/resources/events";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	RadioGroup,
@@ -50,8 +52,6 @@ import {
 } from "../ui/select";
 import { Separator } from "../ui/separator";
 import { toast } from "../ui/sonner-wrapper";
-import { getChannelsQueryOptions } from "@/qc/resources/events";
-import { createChannel } from "@/server/resources/events";
 
 // FIXME: Add pending state
 function InternalChannelSelector() {

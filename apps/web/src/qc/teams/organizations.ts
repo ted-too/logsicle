@@ -1,6 +1,6 @@
 import {
-	listUserOrganizationMemberships,
 	listOrganizationMembers,
+	listUserOrganizationMemberships,
 } from "@/server/teams/organizations";
 import { queryOptions } from "@tanstack/react-query";
 

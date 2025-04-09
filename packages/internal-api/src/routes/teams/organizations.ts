@@ -1,8 +1,4 @@
-import {
-	type ErrorResponse,
-	type Opts,
-	createClient,
-} from "@/index";
+import { type ErrorResponse, type Opts, createClient } from "@/index";
 import type { OtherUser } from "@/routes/auth/basic";
 import type { Project } from "@/routes/teams/projects";
 import { z } from "zod";
@@ -55,15 +51,12 @@ export async function createOrganization(
 ) {
 	const client = $fetch ?? createClient();
 
-	return await client<Organization, ErrorResponse>(
-		"/v1/organizations",
-		{
-			method: "POST",
-			body: JSON.stringify(body),
-			credentials: "include",
-			...opts,
-		},
-	);
+	return await client<Organization, ErrorResponse>("/v1/organizations", {
+		method: "POST",
+		body: JSON.stringify(body),
+		credentials: "include",
+		...opts,
+	});
 }
 
 export async function deleteOrganization(
@@ -94,7 +87,10 @@ export async function listOrganizationMembers({ $fetch, ...opts }: Opts) {
 	);
 }
 
-export async function listUserOrganizationMemberships({ $fetch, ...opts }: Opts) {
+export async function listUserOrganizationMemberships({
+	$fetch,
+	...opts
+}: Opts) {
 	const client = $fetch ?? createClient();
 
 	return await client<TeamMembershipWithOrganization[], ErrorResponse>(

@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import type { RequestLog, ListRequestLogsRequest } from "@repo/api";
+import type { ListRequestLogsRequest, RequestLog } from "@repo/api";
+import { useEffect, useRef, useState } from "react";
 
 export function useRequestLogStream(
 	projectId: string,
@@ -59,4 +59,3 @@ export function useRequestLogStream(
 
 	return { logs };
 }
-

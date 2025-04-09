@@ -1,13 +1,16 @@
 "use client";
 
-import * as React from "react";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
+import * as React from "react";
 import type { DateRange } from "react-day-picker";
 
-import { cn } from "@/lib/utils";
+import { kbdVariants } from "@/components/custom/kbd";
+import type { DatePreset } from "@/components/data-table/types";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
 	Popover,
 	PopoverContent,
@@ -23,11 +26,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { kbdVariants } from "@/components/custom/kbd";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { presets as defaultPresets } from "@/constants/date-preset";
-import type { DatePreset } from "@/components/data-table/types";
+import { cn } from "@/lib/utils";
 
 interface DatePickerWithRangeProps
 	extends React.HTMLAttributes<HTMLDivElement> {
@@ -44,18 +44,20 @@ export function DatePickerWithRange({
 }: DatePickerWithRangeProps) {
 	React.useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
-			const matchingPreset = presets.find(preset => preset.shortcut === e.key);
+			const matchingPreset = presets.find(
+				(preset) => preset.shortcut === e.key,
+			);
 			if (matchingPreset) {
 				setDate({ from: matchingPreset.from, to: matchingPreset.to });
 			}
 		};
-		
+
 		// Add event listener
-		document.addEventListener('keydown', handleKeyDown);
-		
+		document.addEventListener("keydown", handleKeyDown);
+
 		// Cleanup
 		return () => {
-			document.removeEventListener('keydown', handleKeyDown);
+			document.removeEventListener("keydown", handleKeyDown);
 		};
 	}, [presets, setDate]);
 
@@ -221,36 +223,47 @@ function CustomDateRange({
 	onSelect: (date: DateRange | undefined) => void;
 }) {
 	// Format date for input value
-	const formatDateForInput = React.useCallback((date: Date | undefined): string => {
-		if (!date) return "";
-		const utcDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-		return utcDate.toISOString().slice(0, 16);
-	}, []);
+	const formatDateForInput = React.useCallback(
+		(date: Date | undefined): string => {
+			if (!date) return "";
+			const utcDate = new Date(
+				date.getTime() - date.getTimezoneOffset() * 60000,
+			);
+			return utcDate.toISOString().slice(0, 16);
+		},
+		[],
+	);
 
 	// Handle direct input changes
-	const handleFromChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-		const newDate = new Date(e.target.value);
-		if (Number.isNaN(newDate.getTime())) return;
-		
-		// Create new range with the updated from date
-		onSelect({ 
-			from: newDate, 
-			to: selected?.to 
-		});
-	}, [onSelect, selected?.to]);
+	const handleFromChange = React.useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			const newDate = new Date(e.target.value);
+			if (Number.isNaN(newDate.getTime())) return;
 
-	const handleToChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-		const newDate = new Date(e.target.value);
-		if (Number.isNaN(newDate.getTime())) return;
-		
-		// Only update if we have a from date
-		if (selected?.from) {
-			onSelect({ 
-				from: selected.from, 
-				to: newDate 
+			// Create new range with the updated from date
+			onSelect({
+				from: newDate,
+				to: selected?.to,
 			});
-		}
-	}, [onSelect, selected?.from]);
+		},
+		[onSelect, selected?.to],
+	);
+
+	const handleToChange = React.useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			const newDate = new Date(e.target.value);
+			if (Number.isNaN(newDate.getTime())) return;
+
+			// Only update if we have a from date
+			if (selected?.from) {
+				onSelect({
+					from: selected.from,
+					to: newDate,
+				});
+			}
+		},
+		[onSelect, selected?.from],
+	);
 
 	return (
 		<div className="flex flex-col gap-2 p-3">

@@ -1,8 +1,8 @@
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { CirclePlay, CirclePause } from "lucide-react";
 import { useDataTable } from "@/components/data-table/provider";
+import { Button } from "@/components/ui/button";
 import { useHotKey } from "@/hooks/use-hot-key";
+import { cn } from "@/lib/utils";
+import { CirclePause, CirclePlay } from "lucide-react";
 import { useTableSearchParams } from "../../hooks/use-table-search-params";
 
 interface LiveButtonProps {

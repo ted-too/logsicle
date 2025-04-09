@@ -1,6 +1,6 @@
+import type { SheetField } from "@/components/data-table/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { SheetField } from "@/components/data-table/types";
 
 interface SheetDetailsContentSkeletonProps<TData, TMeta> {
 	fields: SheetField<TData, TMeta>[];

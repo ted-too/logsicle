@@ -1,8 +1,8 @@
 import {
-	listEvents,
+	getChannel,
 	getEventMetrics,
 	listChannels,
-	getChannel,
+	listEvents,
 } from "@/server/resources/events";
 import type { GetEventMetricsRequest, ListEventsRequest } from "@repo/api";
 import { queryOptions } from "@tanstack/react-query";

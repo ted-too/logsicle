@@ -49,6 +49,7 @@ function BreadcrumbLink({ asChild, className, ...props }: BreadcrumbLinkProps) {
 
 function BreadcrumbPage({ className, ...props }: React.ComponentProps<"span">) {
 	return (
+		// biome-ignore lint/a11y/useFocusableInteractive: does not need to be focusable
 		<span
 			role="link"
 			aria-disabled="true"

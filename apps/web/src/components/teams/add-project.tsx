@@ -9,15 +9,15 @@ import {
 } from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAppForm } from "@/components/ui/form";
+import { toast } from "@/components/ui/sonner-wrapper";
+import { listUserOrganizationMembershipsQueryOptions } from "@/qc/teams/organizations";
+import { projectsQueryKey } from "@/qc/teams/projects";
 import { createProject } from "@/server/teams/projects";
 import { LOG_RETENTION_DAYS } from "@repo/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { toast } from "@/components/ui/sonner-wrapper";
 import { AllowedOrigins } from "./allowed-origins";
-import { useQueryClient } from "@tanstack/react-query";
-import { projectsQueryKey } from "@/qc/teams/projects";
-import { listUserOrganizationMembershipsQueryOptions } from "@/qc/teams/organizations";
 
 export function AddProject() {
 	const [open, setOpen] = useState(false);
@@ -38,7 +38,9 @@ export function AddProject() {
 				return;
 			}
 			await queryClient.invalidateQueries({ queryKey: projectsQueryKey });
-			await queryClient.invalidateQueries({ queryKey: listUserOrganizationMembershipsQueryOptions().queryKey });
+			await queryClient.invalidateQueries({
+				queryKey: listUserOrganizationMembershipsQueryOptions().queryKey,
+			});
 			form.reset();
 			toast.success("Project created successfully");
 			setOpen(false);

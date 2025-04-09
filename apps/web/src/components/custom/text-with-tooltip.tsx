@@ -1,4 +1,3 @@
-import { useState, useRef, useEffect } from "react";
 import {
 	Tooltip,
 	TooltipContent,
@@ -7,6 +6,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { TooltipPortal } from "@radix-ui/react-tooltip";
+import { useEffect, useRef, useState } from "react";
 
 interface TextWithTooltipProps {
 	text: string | number;

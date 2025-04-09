@@ -1,8 +1,4 @@
-import {
-	type ErrorResponse,
-	type Opts,
-	createClient,
-} from "@/index";
+import { type ErrorResponse, type Opts, createClient } from "@/index";
 import type { OtherUser } from "@/routes/auth/basic";
 import type { Organization } from "@/routes/teams/organizations";
 import { z } from "zod";
@@ -120,15 +116,15 @@ export async function acceptInvitation(
 ) {
 	const client = $fetch ?? createClient();
 
-	return await client<{ message: string; organization: Organization }, ErrorResponse>(
-		"/v1/invitations/accept",
-		{
-			method: "POST",
-			body: JSON.stringify(body),
-			credentials: "include",
-			...opts,
-		},
-	);
+	return await client<
+		{ message: string; organization: Organization },
+		ErrorResponse
+	>("/v1/invitations/accept", {
+		method: "POST",
+		body: JSON.stringify(body),
+		credentials: "include",
+		...opts,
+	});
 }
 
 export const acceptInvitationWithRegistrationSchema = z.object({
@@ -156,4 +152,4 @@ export async function acceptInvitationWithRegistration(
 			...opts,
 		},
 	);
-} 
+}

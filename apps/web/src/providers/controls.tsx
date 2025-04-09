@@ -1,49 +1,49 @@
 import { setSidebarStates } from "@/routes/_authd/$orgSlug/$projSlug/_dashboard";
 import { useRouteContext } from "@tanstack/react-router";
-import { createContext, useContext, useCallback, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 
 interface ControlsContextType {
-  open: boolean;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+	open: boolean;
+	setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const ControlsContext = createContext<ControlsContextType | null>(null);
 
 export function ControlsProvider({ children }: { children: React.ReactNode }) {
-  const { sidebarStates } = useRouteContext({
-    from: "/_authd/$orgSlug/$projSlug/_dashboard",
-  });
-  const [open, _setOpen] = useState(sidebarStates.secondarySidebarState);
+	const { sidebarStates } = useRouteContext({
+		from: "/_authd/$orgSlug/$projSlug/_dashboard",
+	});
+	const [open, _setOpen] = useState(sidebarStates.secondarySidebarState);
 
-  const setOpen = useCallback(
-    (value: boolean | ((value: boolean) => boolean)) => {
-      const openState = typeof value === "function" ? value(open) : value;
-      _setOpen(openState);
-      setSidebarStates({ data: { secondarySidebarState: openState } });
-    },
-    [open]
-  );
+	const setOpen = useCallback(
+		(value: boolean | ((value: boolean) => boolean)) => {
+			const openState = typeof value === "function" ? value(open) : value;
+			_setOpen(openState);
+			setSidebarStates({ data: { secondarySidebarState: openState } });
+		},
+		[open],
+	);
 
-  return (
-    <ControlsContext.Provider value={{ open, setOpen }}>
-      <div
-        // REMINDER: access the data-expanded state with tailwind via `group-data-[expanded=true]/controls:block`
-        // In tailwindcss v4, we could even use `group-data-expanded/controls:block`
-        className="group/controls"
-        data-expanded={open}
-      >
-        {children}
-      </div>
-    </ControlsContext.Provider>
-  );
+	return (
+		<ControlsContext.Provider value={{ open, setOpen }}>
+			<div
+				// REMINDER: access the data-expanded state with tailwind via `group-data-[expanded=true]/controls:block`
+				// In tailwindcss v4, we could even use `group-data-expanded/controls:block`
+				className="group/controls"
+				data-expanded={open}
+			>
+				{children}
+			</div>
+		</ControlsContext.Provider>
+	);
 }
 
 export function useControls() {
-  const context = useContext(ControlsContext);
+	const context = useContext(ControlsContext);
 
-  if (!context) {
-    throw new Error("useControls must be used within a ControlsProvider");
-  }
+	if (!context) {
+		throw new Error("useControls must be used within a ControlsProvider");
+	}
 
-  return context as ControlsContextType;
+	return context as ControlsContextType;
 }

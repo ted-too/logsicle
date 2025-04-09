@@ -1,4 +1,4 @@
-import { listProjects, getProject } from "@/server/teams/projects";
+import { getProject, listProjects } from "@/server/teams/projects";
 import { queryOptions } from "@tanstack/react-query";
 
 export const projectsQueryKey = ["projects"];

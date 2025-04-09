@@ -7,19 +7,19 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useEventStream } from "@/hooks/stream/use-event-stream";
 import { cn, tempApiKeyStorage } from "@/lib/utils";
+import { userQueryKey } from "@/qc/auth/basic";
+import { getProjectsQueryOptions } from "@/qc/teams/projects";
+import { updateUser } from "@/server/auth/basic";
+import { getCodeSnippets } from "@/server/syntax-highliter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouteContext, useRouter } from "@tanstack/react-router";
 import { Crown1 } from "iconsax-react";
 import { Check, Copy, TerminalIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "../ui/sonner-wrapper";
-import { updateUser } from "@/server/auth/basic";
-import { userQueryKey } from "@/qc/auth/basic";
-import { getProjectsQueryOptions } from "@/qc/teams/projects";
-import { getCodeSnippets } from "@/server/syntax-highliter";
 import { Skeleton } from "../ui/skeleton";
-import { useEventStream } from "@/hooks/stream/use-event-stream";
+import { toast } from "../ui/sonner-wrapper";
 
 // Define the tab icons mapping
 const IconComponents = {
@@ -38,14 +38,14 @@ export function TestAPIKey() {
 		initialData: currentUserOrg.organization.projects,
 	});
 	const project = projects?.[0];
-	
+
 	// Get the temporary API key from storage
 	const tempApiKey = tempApiKeyStorage.get();
-	
+
 	// Fetch code snippets from server
 	const { data: codeSnippets, isPending: isCodeSnippetsPending } = useQuery({
 		queryKey: ["code-snippets", project?.id, tempApiKey],
-		queryFn: () => 
+		queryFn: () =>
 			getCodeSnippets({
 				data: {
 					projectId: project.id,
@@ -116,7 +116,7 @@ export function TestAPIKey() {
 						</TabsTrigger>
 					))}
 				</TabsList>
-				{!isCodeSnippetsPending ? 
+				{!isCodeSnippetsPending ? (
 					codeSnippets?.map((tab) => (
 						<TabsContent key={tab.value} value={tab.value} className="mt-4">
 							<div className="relative w-full rounded-xl bg-[#fafafa] p-4 font-mono text-xs">
@@ -171,10 +171,10 @@ export function TestAPIKey() {
 								/>
 							</div>
 						</TabsContent>
-					)) : (
-						<Skeleton className="h-20 w-full mt-4" />
-					)
-				}
+					))
+				) : (
+					<Skeleton className="h-20 w-full mt-4" />
+				)}
 			</Tabs>
 			{logs.length > 0 ? (
 				<div className="flex flex-wrap gap-4">
