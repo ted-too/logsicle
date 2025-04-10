@@ -1,68 +1,54 @@
-import type { LogsicleClient } from "@/client";
-import type { AppLogOptions } from "@/types";
+import type { AppLogPayload, AppLogPayloadNoLevel, Client } from "@/types";
 
 export class AppStructuredLogTransport {
-	private client: LogsicleClient;
+	private client: Client;
 
-	constructor(client: LogsicleClient) {
+	constructor(client: Client) {
 		this.client = client;
 	}
 
-	async log(message: string, options: AppLogOptions = {}): Promise<void> {
+	async log(message: string, options?: Partial<AppLogPayload>): Promise<void> {
 		const config = this.client.getConfig();
 
-		const payload = {
-			project_id: config.projectId,
-			level: options.level || "info",
+		const payload: AppLogPayload = {
+			...options,
+			service_name: options?.service_name || config.serviceName || "unknown",
+			level: options?.level || "info",
 			message,
-			fields: options.fields || {},
-			caller: options.caller,
-			function: options.function,
-			service_name: config.serviceName,
-			version: config.version,
-			environment: config.environment,
-			host: options.host || this.getHostname(),
-			timestamp: options.timestamp
-				? options.timestamp.toISOString()
-				: new Date().toISOString(),
+			host: options?.host || this.getHostname(),
+			timestamp: (options?.timestamp
+				? new Date(options.timestamp)
+				: new Date()
+			).toISOString(),
 		};
 
-		await this.client.sendToApi("/v1/ingest/app", payload);
+		this.client.enqueue({
+			type: "app",
+			payload: {
+				project_id: config.projectId,
+				...payload,
+			},
+		});
 	}
 
 	// Convenience methods for different log levels
-	async debug(
-		message: string,
-		options: Omit<AppLogOptions, "level"> = {},
-	): Promise<void> {
+	async debug(message: string, options: AppLogPayloadNoLevel): Promise<void> {
 		return this.log(message, { ...options, level: "debug" });
 	}
 
-	async info(
-		message: string,
-		options: Omit<AppLogOptions, "level"> = {},
-	): Promise<void> {
+	async info(message: string, options: AppLogPayloadNoLevel): Promise<void> {
 		return this.log(message, { ...options, level: "info" });
 	}
 
-	async warning(
-		message: string,
-		options: Omit<AppLogOptions, "level"> = {},
-	): Promise<void> {
+	async warning(message: string, options: AppLogPayloadNoLevel): Promise<void> {
 		return this.log(message, { ...options, level: "warning" });
 	}
 
-	async error(
-		message: string,
-		options: Omit<AppLogOptions, "level"> = {},
-	): Promise<void> {
+	async error(message: string, options: AppLogPayloadNoLevel): Promise<void> {
 		return this.log(message, { ...options, level: "error" });
 	}
 
-	async fatal(
-		message: string,
-		options: Omit<AppLogOptions, "level"> = {},
-	): Promise<void> {
+	async fatal(message: string, options: AppLogPayloadNoLevel): Promise<void> {
 		return this.log(message, { ...options, level: "fatal" });
 	}
 

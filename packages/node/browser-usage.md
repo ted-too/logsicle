@@ -361,4 +361,81 @@ document.getElementById("logout-button").addEventListener("click", async () => {
 });
 ```
 
+## Web Worker Configuration
+
+For optimal performance in browser environments, Logsicle uses Web Workers to handle log processing in a separate thread. This prevents logging operations from blocking the main thread and impacting your application's performance.
+
+### Basic Setup
+
+By default, Logsicle will look for the worker script at `/logsicle-worker.js`. The worker script is included in the package and should be copied to your public directory.
+
+```typescript
+import { LogsicleClient } from "@logsicle/client/browser";
+import { copyFileSync } from "fs";
+import { join } from "path";
+
+// In your build script, copy the worker file to your public directory
+copyFileSync(
+  require.resolve("@logsicle/client/dist/logsicle-worker.js"),
+  join(process.cwd(), "public", "logsicle-worker.js")
+);
+
+// Then initialize the client normally
+const logsicle = new LogsicleClient({
+  apiKey: "your-api-key",
+  projectId: "your-project-id",
+});
+```
+
+### Custom Worker URL
+
+If you need to place the worker script in a different location, you can specify the URL:
+
+```typescript
+const logsicle = new LogsicleClient({
+  apiKey: "your-api-key",
+  projectId: "your-project-id",
+  queueOptions: {
+    workerUrl: "/assets/js/logsicle-worker.js",
+  },
+});
+```
+
+### Next.js Integration
+
+For Next.js applications, place the worker in the `public` directory:
+
+```typescript
+// In your build script or next.config.js
+const { copyFileSync } = require("fs");
+const { join } = require("path");
+
+copyFileSync(
+  require.resolve("@logsicle/client/dist/logsicle-worker.js"),
+  join(process.cwd(), "public", "logsicle-worker.js")
+);
+```
+
+### Vite/React Integration
+
+For Vite applications, place the worker in the `public` directory:
+
+```typescript
+// vite.config.js
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { copyFileSync } from "fs";
+import { join } from "path";
+
+// Copy worker file to public directory
+copyFileSync(
+  require.resolve("@logsicle/client/dist/logsicle-worker.js"),
+  join(process.cwd(), "public", "logsicle-worker.js")
+);
+
+export default defineConfig({
+  plugins: [react()],
+});
+```
+
 These examples demonstrate how to use the Logsicle client in various browser scenarios, from basic logging to advanced integrations with frameworks like React, error tracking, performance monitoring, and session management.

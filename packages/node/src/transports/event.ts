@@ -1,32 +1,30 @@
-import type { LogsicleClient } from "@/client";
-import type { EventLogOptions } from "@/types";
+import type { Client, EventLogPayload } from "@/types";
 
 export class EventTransport {
-	private client: LogsicleClient;
+	private client: Client;
 
-	constructor(client: LogsicleClient) {
+	constructor(client: Client) {
 		this.client = client;
 	}
 
-	async send(name: string, options: EventLogOptions = {}): Promise<void> {
+	async send(name: string, options: Partial<EventLogPayload>): Promise<void> {
 		const config = this.client.getConfig();
 
-		if (!options.channelId && !options.channelName) {
-			throw new Error("Either channelId or channelName must be provided");
-		}
-
-		const payload = {
-			project_id: config.projectId,
-			channel: options.channelName,
-			channel_id: options.channelId,
+		const payload: EventLogPayload = {
+			...options,
 			name,
-			tags: options.tags || [],
-			metadata: options.metadata || {},
-			timestamp: options.timestamp
-				? options.timestamp.toISOString()
-				: new Date().toISOString(),
+			timestamp: (options?.timestamp
+				? new Date(options.timestamp)
+				: new Date()
+			).toISOString(),
 		};
 
-		await this.client.sendToApi("/v1/ingest/event", payload);
+		this.client.enqueue({
+			type: "event",
+			payload: {
+				project_id: config.projectId,
+				...payload,
+			},
+		});
 	}
 }

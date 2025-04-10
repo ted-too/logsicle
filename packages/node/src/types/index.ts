@@ -1,3 +1,8 @@
+import type { BrowserLogsicleClient } from "@/browser";
+import type { NodeLogsicleClient } from "@/server";
+import type { AppLogPayloadWithProject } from "./app";
+import type { EventLogPayloadWithProject } from "./event";
+
 export interface LogsicleConfig {
 	apiKey: string;
 	projectId: string;
@@ -47,69 +52,51 @@ export interface LogsicleConfig {
 		 * Default: true
 		 */
 		useBeacon?: boolean;
+		/**
+		 * URL to the web worker script for browser environments
+		 * Default: '/logsicle-worker.js'
+		 */
+		workerUrl?: string;
 	};
 }
 
-export interface AppLogOptions {
-	/**
-	 * The severity level of the log
-	 * Default: "info"
-	 */
-	level?: LogLevel;
-	/**
-	 * Additional structured data to include with the log
-	 */
-	fields?: Record<string, unknown>;
-	/**
-	 * The name of the file or module that generated the log
-	 */
-	caller?: string;
-	/**
-	 * The function or method name that generated the log
-	 */
-	function?: string;
-	/**
-	 * The hostname of the machine generating the log
-	 */
-	host?: string;
-	/**
-	 * Custom timestamp for the log entry
-	 * Default: current time
-	 */
-	timestamp?: Date;
+export interface QueueItem {
+	data: ResourceData;
+	addedAt: number;
+	retries?: number;
+	id?: string; // Optional unique identifier for tracking retries
 }
 
-/**
- * Log severity levels from least to most severe
- */
-export type LogLevel =
-	| "debug"
-	| "info"
-	| "warning"
-	| "error"
-	| "fatal"
-	| "trace";
-
-export interface EventLogOptions {
-	/**
-	 * Unique identifier for the event channel
-	 */
-	channelId?: string;
-	/**
-	 * Human-readable name for the event channel
-	 */
-	channelName?: string;
-	/**
-	 * List of tags to categorize the event
-	 */
-	tags?: string[];
-	/**
-	 * Additional structured data associated with the event
-	 */
-	metadata?: Record<string, unknown>;
-	/**
-	 * Custom timestamp for the event
-	 * Default: current time
-	 */
-	timestamp?: Date;
+export interface ItemDroppedPayload {
+	type: string;
+	reason?: "max-retries" | "bad-request";
+	id: string; // Hash ID of the dropped item
 }
+
+export type AppResourceData = {
+	type: "app";
+	payload: AppLogPayloadWithProject;
+};
+
+export type EventResourceData = {
+	type: "event";
+	payload: EventLogPayloadWithProject;
+};
+
+export type ResourceData = AppResourceData | EventResourceData;
+
+export type BatchFailedItem = {
+	input: ResourceData;
+	code: number;
+	message: string;
+};
+
+export type BatchResponse = {
+	processed: number;
+	failed: BatchFailedItem[];
+};
+
+export type Client = BrowserLogsicleClient | NodeLogsicleClient;
+
+export * from "./app";
+export * from "./event";
