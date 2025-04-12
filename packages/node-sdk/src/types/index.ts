@@ -2,6 +2,7 @@ import type { BrowserLogsicleClient } from "@/browser";
 import type { NodeLogsicleClient } from "@/server";
 import type { AppLogPayloadWithProject } from "./app";
 import type { EventLogPayloadWithProject } from "./event";
+import type { RequestLogPayloadWithProject } from "./request";
 
 export interface LogsicleConfig {
 	apiKey: string;
@@ -48,11 +49,6 @@ export interface LogsicleConfig {
 	 */
 	browserOptions?: {
 		/**
-		 * Whether to use the Navigator.sendBeacon API for sending logs during page unload
-		 * Default: true
-		 */
-		useBeacon?: boolean;
-		/**
 		 * URL to the web worker script for browser environments
 		 * Default: '/logsicle-worker.js'
 		 */
@@ -83,7 +79,12 @@ export type EventResourceData = {
 	payload: EventLogPayloadWithProject;
 };
 
-export type ResourceData = AppResourceData | EventResourceData;
+export type RequestResourceData = {
+	type: "request";
+	payload: RequestLogPayloadWithProject;
+};
+
+export type ResourceData = AppResourceData | EventResourceData | RequestResourceData;
 
 export type BatchFailedItem = {
 	id: string;
@@ -101,3 +102,4 @@ export type Client = BrowserLogsicleClient | NodeLogsicleClient;
 
 export * from "./app";
 export * from "./event";
+export * from "./request";

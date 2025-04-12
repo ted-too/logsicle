@@ -10,7 +10,7 @@ export class BrowserLogsicleClient {
 
     this.queueManager = new BrowserQueueManager({
       config,
-      workerUrl: config.browserOptions?.workerUrl || "/worker.js",
+      workerUrl: config.browserOptions?.workerUrl || "/logsicle-worker.js",
     });
 
     this.queueManager.on("error", (error) => {

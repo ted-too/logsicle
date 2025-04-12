@@ -13,6 +13,16 @@
         "default": "./dist/server/index.js"
       }
     },
+    "./middleware": {
+      "import": {
+        "types": "./dist/middleware/index.d.mts",
+        "default": "./dist/middleware/index.mjs"
+      },
+      "require": {
+        "types": "./dist/middleware/index.d.ts",
+        "default": "./dist/middleware/index.js"
+      }
+    },
     "./browser": {
       "import": {
         "types": "./dist/browser/index.d.mts",
@@ -52,5 +62,8 @@
   },
   "dependencies": {
     "@better-fetch/fetch": "^1.1.15"
+  },
+  "optionalDependencies": {
+    "hono": "*"
   }
 }

@@ -106,7 +106,6 @@ func ValidateRequestLevel(value interface{}) error {
 }
 
 // TODO: Implement JSON marshalling and unmarshaling
-// TODO: Allow timestamp to be part of input
 
 type RequestLogInput struct {
 	ProjectID    string         `json:"project_id"`
@@ -123,6 +122,7 @@ type RequestLogInput struct {
 	Protocol     string         `json:"protocol,omitempty"`
 	Host         string         `json:"host,omitempty"`
 	Error        string         `json:"error,omitempty"`
+	Timestamp    interface{}    `json:"timestamp,omitempty"`
 }
 
 func (r RequestLogInput) ValidateAndCreate() (*RequestLog, error) {
@@ -168,6 +168,7 @@ func (r RequestLogInput) ValidateAndCreate() (*RequestLog, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// Determine level based on status code
 	var level RequestLevel
 	switch {
@@ -179,6 +180,11 @@ func (r RequestLogInput) ValidateAndCreate() (*RequestLog, error) {
 		level = RequestLevelError
 	default: // 1xx and 3xx
 		level = RequestLevelInfo
+	}
+
+	timestamp, err := ParseTimestamp(r.Timestamp)
+	if err != nil {
+		return nil, err
 	}
 
 	return &RequestLog{
@@ -198,7 +204,7 @@ func (r RequestLogInput) ValidateAndCreate() (*RequestLog, error) {
 		Protocol:     r.Protocol,
 		Host:         r.Host,
 		Error:        r.Error,
-		Timestamp:    time.Now(),
+		Timestamp:    timestamp,
 	}, nil
 }
 

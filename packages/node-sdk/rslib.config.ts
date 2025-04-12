@@ -3,6 +3,44 @@ import { pluginNodePolyfill } from "@rsbuild/plugin-node-polyfill";
 
 export default defineConfig({
   lib: [
+    // Middleware
+    {
+      format: "esm",
+      syntax: "es2021",
+      bundle: true,
+      dts: {
+        bundle: true,
+        autoExtension: true,
+      },
+      source: {
+        entry: { index: "./src/middleware/index.ts" },
+      },
+      output: {
+        distPath: {
+          root: "./dist/middleware",
+        },
+        target: "node",
+      },
+    },
+    {
+      format: "cjs",
+      syntax: "es2021",
+      bundle: true,
+      dts: {
+        bundle: true,
+        autoExtension: true,
+      },
+      source: {
+        entry: { index: "./src/middleware/index.ts" },
+      },
+      output: {
+        distPath: {
+          root: "./dist/middleware",
+        },
+        target: "node",
+      },
+    },
+    // Server
     {
       format: "esm",
       syntax: "es2021",
@@ -50,7 +88,7 @@ export default defineConfig({
           root: "./dist/server",
         },
         filename: {
-          js: "worker.js",
+          js: "logsicle-worker.js",
         },
         target: "node",
       },
@@ -105,7 +143,7 @@ export default defineConfig({
           root: "./dist/browser",
         },
         filename: {
-          js: "worker.js",
+          js: "logsicle-worker.js",
         },
         target: "web",
       },

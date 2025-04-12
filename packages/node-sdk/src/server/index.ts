@@ -10,7 +10,7 @@ export class NodeLogsicleClient {
 
 		this.queueManager = new NodeQueueManager({
 			config,
-			workerUrl: "./worker.js",
+			workerUrl: "./logsicle-worker.js",
 		});
 
 		this.queueManager.on("error", (error) => {
