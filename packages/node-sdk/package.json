@@ -39,6 +39,7 @@
   ],
   "scripts": {
     "build": "rslib build",
+    "pack": "pnpm dlx --yes @arethetypeswrong/cli --pack --profile node16 .",
     "dev": "rslib build --watch",
     "test": "vitest run"
   },
