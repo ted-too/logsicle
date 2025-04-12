@@ -100,6 +100,7 @@ export type BatchResponse = {
 
 export type Client = BrowserLogsicleClient | NodeLogsicleClient;
 
-export * from "./app";
-export * from "./event";
-export * from "./request";
+export type * from "./app";
+export type * from "./event";
+export type * from "./request";
+export type * from "../middleware";
