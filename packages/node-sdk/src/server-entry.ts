@@ -27,5 +27,3 @@ export class LogsicleClient extends NodeLogsicleClient {
     this.console = new AppConsoleTransport(this.app);
   }
 }
-
-export type * from "@/types";

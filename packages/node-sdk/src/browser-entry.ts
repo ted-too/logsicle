@@ -26,5 +26,3 @@ export class LogsicleClient extends BrowserLogsicleClient {
     this.request = new RequestTransport(this);
   }
 }
-
-export type * from "@/types";

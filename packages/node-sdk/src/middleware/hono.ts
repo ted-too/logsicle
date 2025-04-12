@@ -1,8 +1,10 @@
 import type { MiddlewareHandler } from "hono";
-import type { LogsicleClient } from "@/server-entry";
 import { defaultOptions } from ".";
 import type { LogsicleMiddlewareOptions } from ".";
+import type { LogsicleClient as BrowserLogsicleClient } from "@/browser-entry";
+import type { LogsicleClient as NodeLogsicleClient } from "@/server-entry";
 
+type LogsicleClient = BrowserLogsicleClient | NodeLogsicleClient;
 /**
  * Logsicle middleware for Hono
  *

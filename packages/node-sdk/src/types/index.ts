@@ -1,5 +1,3 @@
-import type { BrowserLogsicleClient } from "@/browser";
-import type { NodeLogsicleClient } from "@/server";
 import type { AppLogPayloadWithProject } from "./app";
 import type { EventLogPayloadWithProject } from "./event";
 import type { RequestLogPayloadWithProject } from "./request";
@@ -97,8 +95,6 @@ export type BatchResponse = {
 	processed: number;
 	failed: BatchFailedItem[] | null;
 };
-
-export type Client = BrowserLogsicleClient | NodeLogsicleClient;
 
 export type * from "./app";
 export type * from "./event";

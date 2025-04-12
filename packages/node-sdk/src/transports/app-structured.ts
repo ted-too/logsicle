@@ -1,9 +1,13 @@
-import type { AppLogPayload, AppLogInput, Client, AppLogInputWithLevel } from "@/types";
+import type { AppLogPayload, AppLogInput, AppLogInputWithLevel } from "@/types";
+import type { LogsicleClient as BrowserLogsicleClient } from "@/browser-entry";
+import type { LogsicleClient as NodeLogsicleClient } from "@/server-entry";
+
+type LogsicleClient = BrowserLogsicleClient | NodeLogsicleClient;
 
 export class AppStructuredLogTransport {
-	private client: Client;
+	private client: LogsicleClient;
 
-	constructor(client: Client) {
+	constructor(client: LogsicleClient) {
 		this.client = client;
 	}
 

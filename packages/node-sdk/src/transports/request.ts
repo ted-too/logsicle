@@ -1,9 +1,13 @@
-import type { Client, RequestLogPayload, RequestLogInput } from "@/types";
+import type { RequestLogPayload, RequestLogInput } from "@/types";
+import type { LogsicleClient as BrowserLogsicleClient } from "@/browser-entry";
+import type { LogsicleClient as NodeLogsicleClient } from "@/server-entry";
+
+type LogsicleClient = BrowserLogsicleClient | NodeLogsicleClient;
 
 export class RequestTransport {
-  private client: Client;
+  private client: LogsicleClient;
 
-  constructor(client: Client) {
+  constructor(client: LogsicleClient) {
     this.client = client;
   }
 
