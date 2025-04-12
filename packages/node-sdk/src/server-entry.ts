@@ -22,8 +22,8 @@ export class LogsicleClient extends NodeLogsicleClient {
     super(config);
 
     this.app = new NodeAppLogTransport(this);
+    this.console = new AppConsoleTransport(this.app);
     this.event = new EventTransport(this);
     this.request = new RequestTransport(this);
-    this.console = new AppConsoleTransport(this.app);
   }
 }

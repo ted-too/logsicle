@@ -99,4 +99,3 @@ export type BatchResponse = {
 export type * from "./app";
 export type * from "./event";
 export type * from "./request";
-export type * from "../middleware";
