@@ -1,6 +1,6 @@
 {
   "name": "@logsicle/client",
-  "version": "0.1.2",
+  "version": "0.1.21",
   "description": "Browser and Node.js client for the Logsicle logging platform",
   "exports": {
     "./server": {
