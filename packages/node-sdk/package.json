@@ -51,6 +51,10 @@
     "opentelemetry"
   ],
   "author": "Ted Too <ted@2labs.io>",
+  "homepage": "https://github.com/ted-too/logsicle/blob/main/packages/node-sdk/README.md",
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
   "devDependencies": {
     "@microsoft/api-extractor": "^7.52.3",
