@@ -1,35 +1,35 @@
 {
   "name": "@logsicle/client",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "description": "Browser and Node.js client for the Logsicle logging platform",
   "exports": {
     "./server": {
       "import": {
-        "types": "./dist/types/index.d.mts",
+        "types": "./dist/types/esm/server-entry.d.mts",
         "default": "./dist/server/index.mjs"
       },
       "require": {
-        "types": "./dist/types/index.d.ts",
+        "types": "./dist/types/cjs/server-entry.d.ts",
         "default": "./dist/server/index.js"
       }
     },
     "./middleware": {
       "import": {
-        "types": "./dist/types/index.d.mts",
+        "types": "./dist/types/esm/middleware/index.d.mts",
         "default": "./dist/middleware/index.mjs"
       },
       "require": {
-        "types": "./dist/types/index.d.ts",
+        "types": "./dist/types/cjs/middleware/index.d.ts",
         "default": "./dist/middleware/index.js"
       }
     },
     "./browser": {
       "import": {
-        "types": "./dist/types/index.d.mts",
+        "types": "./dist/types/esm/browser-entry.d.mts",
         "default": "./dist/browser/index.mjs"
       },
       "require": {
-        "types": "./dist/types/index.d.ts",
+        "types": "./dist/types/cjs/browser-entry.d.ts",
         "default": "./dist/browser/index.js"
       }
     }

@@ -9,7 +9,7 @@ export default defineConfig({
       syntax: "es2021",
       bundle: true,
       dts: {
-        bundle: true,
+        bundle: false,
         autoExtension: true,
       },
       source: {
@@ -17,7 +17,7 @@ export default defineConfig({
       },
       output: {
         distPath: {
-          root: "./dist/types",
+          root: "./dist/types/esm",
         },
       },
     },
@@ -26,7 +26,7 @@ export default defineConfig({
       syntax: "es2021",
       bundle: true,
       dts: {
-        bundle: true,
+        bundle: false,
         autoExtension: true,
       },
       source: {
@@ -34,7 +34,7 @@ export default defineConfig({
       },
       output: {
         distPath: {
-          root: "./dist/types",
+          root: "./dist/types/cjs",
         },
       },
     },
