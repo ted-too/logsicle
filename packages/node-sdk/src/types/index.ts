@@ -86,6 +86,7 @@ export type EventResourceData = {
 export type ResourceData = AppResourceData | EventResourceData;
 
 export type BatchFailedItem = {
+	id: string;
 	input: ResourceData;
 	code: number;
 	message: string;
@@ -93,7 +94,7 @@ export type BatchFailedItem = {
 
 export type BatchResponse = {
 	processed: number;
-	failed: BatchFailedItem[];
+	failed: BatchFailedItem[] | null;
 };
 
 export type Client = BrowserLogsicleClient | NodeLogsicleClient;

@@ -60,4 +60,11 @@ export interface AppLogPayloadWithProject {
 
 export type AppLogPayload = Omit<AppLogPayloadWithProject, "project_id">;
 
-export type AppLogPayloadNoLevel = Omit<AppLogPayload, "level">;
+export interface AppLogInput
+  extends Omit<AppLogPayloadWithProject, "project_id" | "level" | "message" | "service_name"> {
+  service_name?: string;
+}
+
+export interface AppLogInputWithLevel extends AppLogInput {
+  level: LogLevel;
+}

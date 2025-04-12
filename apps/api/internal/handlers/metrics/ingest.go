@@ -25,24 +25,35 @@ func (h *MetricsHandler) IngestMetric(c fiber.Ctx) error {
 }
 
 type IngestBatchMetricErrorResponse struct {
+	Id    string             `json:"id"`
 	Input models.MetricInput `json:"input"`
 	server.ErrorResponse
 }
 
+type IngestBatchMetricData struct {
+	Id   string             `json:"id"`
+	Data models.MetricInput `json:"data"`
+}
+
+type IngestBatchMetricBody struct {
+	Data []IngestBatchMetricData `json:"data"`
+}
+
 func (h *MetricsHandler) IngestBatchMetric(c fiber.Ctx) error {
-	var inputs []models.MetricInput
-	if err := c.Bind().JSON(&inputs); err != nil {
+	input := new(IngestBatchMetricBody)
+	if err := c.Bind().JSON(input); err != nil {
 		return server.SendError(c, err)
 	}
 
 	processed := 0
 	var failed []IngestBatchMetricErrorResponse
 
-	for _, input := range inputs {
-		metric, err := input.ValidateAndCreate()
+	for _, input := range input.Data {
+		metric, err := input.Data.ValidateAndCreate()
 		if err != nil {
 			failed = append(failed, IngestBatchMetricErrorResponse{
-				Input: input,
+				Id:    input.Id,
+				Input: input.Data,
 				ErrorResponse: server.ErrorResponse{
 					Message: err.Error(),
 					Code:    fiber.StatusBadRequest,
@@ -53,7 +64,8 @@ func (h *MetricsHandler) IngestBatchMetric(c fiber.Ctx) error {
 
 		if err := h.queue.EnqueueMetric(c.Context(), metric); err != nil {
 			failed = append(failed, IngestBatchMetricErrorResponse{
-				Input: input,
+				Id:    input.Id,
+				Input: input.Data,
 				ErrorResponse: server.ErrorResponse{
 					Message: err.Error(),
 					Code:    fiber.StatusInternalServerError,

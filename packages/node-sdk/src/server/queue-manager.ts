@@ -76,11 +76,11 @@ export class NodeQueueManager extends EventEmitter {
       });
 
       this.worker.on("error", (error) => {
-        console.error("Worker thread error:", error);
+        console.error("[Logsicle] Worker thread error:", error);
         this.emit("error", error);
       });
     } catch (error) {
-      console.error("Failed to initialize worker thread:", error);
+      console.error("[Logsicle] Failed to initialize worker thread:", error);
     }
   }
 
@@ -105,11 +105,11 @@ export class NodeQueueManager extends EventEmitter {
         this.initializeWorker();
       }
 
-      // Emit an error event - we couldn't enqueue the item
-      this.emit(
-        "error",
-        new Error("Worker is not initialized. Item could not be enqueued.")
-      );
+      if (this.config.debug) {
+        console.warn(
+          "[Logsicle] Worker is not initialized. Item could not be enqueued."
+        );
+      }
       return;
     }
 
@@ -151,4 +151,4 @@ export class NodeQueueManager extends EventEmitter {
     this.worker = null;
     this.isInitialized = false;
   }
-} 
+}

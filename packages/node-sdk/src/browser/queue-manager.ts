@@ -36,7 +36,9 @@ export class BrowserQueueManager extends EventEmitter {
 
   private initializeWorker(): void {
     if (typeof window === "undefined" || typeof Worker === "undefined") {
-      console.error("Web Workers are not supported in this environment");
+      console.error(
+        "[Logsicle] Web Workers are not supported in this environment"
+      );
       return;
     }
 
@@ -75,11 +77,11 @@ export class BrowserQueueManager extends EventEmitter {
       };
 
       this.worker.onerror = (error) => {
-        console.error("Web Worker error:", error);
+        console.error("[Logsicle] Web Worker error:", error);
         this.emit("error", error);
       };
     } catch (error) {
-      console.error("Failed to initialize Web Worker:", error);
+      console.error("[Logsicle] Failed to initialize Web Worker:", error);
     }
   }
 
@@ -104,11 +106,11 @@ export class BrowserQueueManager extends EventEmitter {
         this.initializeWorker();
       }
 
-      // Emit an error event - we couldn't enqueue the item
-      this.emit(
-        "error",
-        new Error("Worker is not initialized. Item could not be enqueued.")
-      );
+      if (this.config.debug) {
+        console.warn(
+          "[Logsicle] Worker is not initialized. Item could not be enqueued."
+        );
+      }
       return;
     }
 

@@ -1,4 +1,4 @@
-import type { AppLogPayload, AppLogPayloadNoLevel, Client } from "@/types";
+import type { AppLogPayload, AppLogInput, Client, AppLogInputWithLevel } from "@/types";
 
 export class AppStructuredLogTransport {
 	private client: Client;
@@ -7,7 +7,7 @@ export class AppStructuredLogTransport {
 		this.client = client;
 	}
 
-	async log(message: string, options?: Partial<AppLogPayload>): Promise<void> {
+	async log(message: string, options?: AppLogInputWithLevel): Promise<void> {
 		const config = this.client.getConfig();
 
 		const payload: AppLogPayload = {
@@ -32,23 +32,23 @@ export class AppStructuredLogTransport {
 	}
 
 	// Convenience methods for different log levels
-	async debug(message: string, options: AppLogPayloadNoLevel): Promise<void> {
+	async debug(message: string, options: AppLogInput): Promise<void> {
 		return this.log(message, { ...options, level: "debug" });
 	}
 
-	async info(message: string, options: AppLogPayloadNoLevel): Promise<void> {
+	async info(message: string, options: AppLogInput): Promise<void> {
 		return this.log(message, { ...options, level: "info" });
 	}
 
-	async warning(message: string, options: AppLogPayloadNoLevel): Promise<void> {
+	async warning(message: string, options: AppLogInput): Promise<void> {
 		return this.log(message, { ...options, level: "warning" });
 	}
 
-	async error(message: string, options: AppLogPayloadNoLevel): Promise<void> {
+	async error(message: string, options: AppLogInput): Promise<void> {
 		return this.log(message, { ...options, level: "error" });
 	}
 
-	async fatal(message: string, options: AppLogPayloadNoLevel): Promise<void> {
+	async fatal(message: string, options: AppLogInput): Promise<void> {
 		return this.log(message, { ...options, level: "fatal" });
 	}
 

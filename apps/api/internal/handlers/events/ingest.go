@@ -30,13 +30,23 @@ func (h *EventsHandler) IngestEvent(c fiber.Ctx) error {
 }
 
 type IngestBatchEventErrorResponse struct {
+	Id    string               `json:"id"`
 	Input models.EventLogInput `json:"input"`
 	server.ErrorResponse
 }
 
+type IngestBatchEventData struct {
+	Id   string               `json:"id"`
+	Data models.EventLogInput `json:"data"`
+}
+
+type IngestBatchEventBody struct {
+	Data []IngestBatchEventData `json:"data"`
+}
+
 func (h *EventsHandler) IngestBatchEvent(c fiber.Ctx) error {
-	var inputs []models.EventLogInput
-	if err := c.Bind().JSON(&inputs); err != nil {
+	input := new(IngestBatchEventBody)
+	if err := c.Bind().JSON(input); err != nil {
 		return server.SendError(c, err)
 	}
 
@@ -48,11 +58,12 @@ func (h *EventsHandler) IngestBatchEvent(c fiber.Ctx) error {
 	processed := 0
 	var failed []IngestBatchEventErrorResponse
 
-	for _, input := range inputs {
-		log, err := input.ValidateAndCreate(channelID)
+	for _, input := range input.Data {
+		log, err := input.Data.ValidateAndCreate(channelID)
 		if err != nil {
 			failed = append(failed, IngestBatchEventErrorResponse{
-				Input: input,
+				Id:    input.Id,
+				Input: input.Data,
 				ErrorResponse: server.ErrorResponse{
 					Message: err.Error(),
 					Code:    fiber.StatusBadRequest,
@@ -63,7 +74,8 @@ func (h *EventsHandler) IngestBatchEvent(c fiber.Ctx) error {
 
 		if err := h.qs.EnqueueEventLog(c.Context(), log); err != nil {
 			failed = append(failed, IngestBatchEventErrorResponse{
-				Input: input,
+				Id:    input.Id,
+				Input: input.Data,
 				ErrorResponse: server.ErrorResponse{
 					Message: err.Error(),
 					Code:    fiber.StatusInternalServerError,

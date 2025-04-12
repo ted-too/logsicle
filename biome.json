@@ -41,6 +41,9 @@
 			"suspicious": {
 				"noArrayIndexKey": "off",
 				"noExplicitAny": "off"
+			},
+			"complexity": {
+				"noBannedTypes": "off"
 			}
 		}
 	},

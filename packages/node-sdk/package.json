@@ -1,0 +1,56 @@
+{
+  "name": "@logsicle/client",
+  "version": "0.1.2",
+  "description": "Browser and Node.js client for the Logsicle logging platform",
+  "exports": {
+    "./server": {
+      "import": {
+        "types": "./dist/server/index.d.mts",
+        "default": "./dist/server/index.mjs"
+      },
+      "require": {
+        "types": "./dist/server/index.d.ts",
+        "default": "./dist/server/index.js"
+      }
+    },
+    "./browser": {
+      "import": {
+        "types": "./dist/browser/index.d.mts",
+        "default": "./dist/browser/index.mjs"
+      },
+      "require": {
+        "types": "./dist/browser/index.d.ts",
+        "default": "./dist/browser/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rslib build",
+    "dev": "rslib build --watch",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "logging",
+    "events",
+    "monitoring",
+    "traces",
+    "opentelemetry"
+  ],
+  "author": "Ted Too <ted@2labs.io>",
+  "license": "MIT",
+  "devDependencies": {
+    "@microsoft/api-extractor": "^7.52.3",
+    "@rsbuild/plugin-node-polyfill": "^1.3.0",
+    "@rslib/core": "^0.6.2",
+    "@types/node": "^22.8.1",
+    "typescript": "^5.8.3",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.1.1"
+  },
+  "dependencies": {
+    "@better-fetch/fetch": "^1.1.15"
+  }
+}

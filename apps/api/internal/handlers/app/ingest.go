@@ -25,24 +25,35 @@ func (h *AppLogsHandler) IngestLog(c fiber.Ctx) error {
 }
 
 type IngestBatchAppLogErrorResponse struct {
+	Id    string             `json:"id"`
 	Input models.AppLogInput `json:"input"`
 	server.ErrorResponse
 }
 
+type IngestBatchAppLogData struct {
+	Id   string             `json:"id"`
+	Data models.AppLogInput `json:"data"`
+}
+
+type IngestBatchAppLogBody struct {
+	Data []IngestBatchAppLogData `json:"data"`
+}
+
 func (h *AppLogsHandler) IngestBatchLog(c fiber.Ctx) error {
-	var inputs []models.AppLogInput
-	if err := c.Bind().JSON(&inputs); err != nil {
+	input := new(IngestBatchAppLogBody)
+	if err := c.Bind().JSON(input); err != nil {
 		return server.SendError(c, err)
 	}
 
 	processed := 0
 	var failed []IngestBatchAppLogErrorResponse
 
-	for _, input := range inputs {
-		log, err := input.ValidateAndCreate()
+	for _, input := range input.Data {
+		log, err := input.Data.ValidateAndCreate()
 		if err != nil {
 			failed = append(failed, IngestBatchAppLogErrorResponse{
-				Input: input,
+				Id:    input.Id,
+				Input: input.Data,
 				ErrorResponse: server.ErrorResponse{
 					Message: err.Error(),
 					Code:    fiber.StatusBadRequest,
@@ -53,7 +64,8 @@ func (h *AppLogsHandler) IngestBatchLog(c fiber.Ctx) error {
 
 		if err := h.queue.EnqueueAppLog(c.Context(), log); err != nil {
 			failed = append(failed, IngestBatchAppLogErrorResponse{
-				Input: input,
+				Id:    input.Id,
+				Input: input.Data,
 				ErrorResponse: server.ErrorResponse{
 					Message: err.Error(),
 					Code:    fiber.StatusInternalServerError,

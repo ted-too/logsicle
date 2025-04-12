@@ -10,18 +10,18 @@ export class BrowserLogsicleClient {
 
     this.queueManager = new BrowserQueueManager({
       config,
-      workerUrl: config.browserOptions?.workerUrl || "/browser-worker.js",
+      workerUrl: config.browserOptions?.workerUrl || "/worker.js",
     });
 
     this.queueManager.on("error", (error) => {
       if (config.debug) {
-        console.error("Logsicle queue error:", error);
+        console.error("[Logsicle] queue error:", error);
       }
     });
 
     this.queueManager.on("batchProcessed", () => {
       if (config.debug) {
-        console.debug("Logsicle batch processed successfully");
+        console.debug("[Logsicle] batch processed successfully");
       }
     });
 
@@ -31,7 +31,7 @@ export class BrowserLogsicleClient {
         const realReason = reason ?? "max-retries";
         if (config.debug) {
           console.warn(
-            `Logsicle: Dropped ${type} log item due to ${realReason.replace("-", " ")}`
+            `[Logsicle] Dropped ${type} log item due to ${realReason.replace("-", " ")}`
           );
         }
       }

@@ -25,24 +25,35 @@ func (h *TracesHandler) IngestTrace(c fiber.Ctx) error {
 }
 
 type IngestBatchTraceErrorResponse struct {
+	Id    string            `json:"id"`
 	Input models.TraceInput `json:"input"`
 	server.ErrorResponse
 }
 
+type IngestBatchTraceData struct {
+	Id   string            `json:"id"`
+	Data models.TraceInput `json:"data"`
+}
+
+type IngestBatchTraceBody struct {
+	Data []IngestBatchTraceData `json:"data"`
+}
+
 func (h *TracesHandler) IngestBatchTrace(c fiber.Ctx) error {
-	var inputs []models.TraceInput
-	if err := c.Bind().JSON(&inputs); err != nil {
+	input := new(IngestBatchTraceBody)
+	if err := c.Bind().JSON(input); err != nil {
 		return server.SendError(c, err)
 	}
 
 	processed := 0
 	var failed []IngestBatchTraceErrorResponse
 
-	for _, input := range inputs {
-		trace, err := input.ValidateAndCreate()
+	for _, input := range input.Data {
+		trace, err := input.Data.ValidateAndCreate()
 		if err != nil {
 			failed = append(failed, IngestBatchTraceErrorResponse{
-				Input: input,
+				Id:    input.Id,
+				Input: input.Data,
 				ErrorResponse: server.ErrorResponse{
 					Message: err.Error(),
 					Code:    fiber.StatusBadRequest,
@@ -53,7 +64,8 @@ func (h *TracesHandler) IngestBatchTrace(c fiber.Ctx) error {
 
 		if err := h.queue.EnqueueTrace(c.Context(), trace); err != nil {
 			failed = append(failed, IngestBatchTraceErrorResponse{
-				Input: input,
+				Id:    input.Id,
+				Input: input.Data,
 				ErrorResponse: server.ErrorResponse{
 					Message: err.Error(),
 					Code:    fiber.StatusInternalServerError,

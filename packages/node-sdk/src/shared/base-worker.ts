@@ -4,7 +4,6 @@
  */
 
 import type {
-  BatchFailedItem,
   BatchResponse,
   ItemDroppedPayload,
   LogsicleConfig,
@@ -51,10 +50,9 @@ export abstract class BaseQueueWorker {
 
       case "enqueue":
         // Handle async enqueue
-        this.enqueue(message.payload)
-          .catch(error => {
-            this.sendMessage("error", error);
-          });
+        this.enqueue(message.payload).catch((error) => {
+          this.sendMessage("error", error);
+        });
         break;
 
       case "flush":
@@ -105,8 +103,11 @@ export abstract class BaseQueueWorker {
   }
 
   protected async flush(): Promise<void> {
-    const totalItems = Array.from(this.queue.values()).reduce((sum, items) => sum + items.length, 0);
-    
+    const totalItems = Array.from(this.queue.values()).reduce(
+      (sum, items) => sum + items.length,
+      0
+    );
+
     if (this.isProcessing || totalItems === 0 || !this.fetch) {
       // Already processing, nothing to process, or not configured
       this.sendMessage("flushed");
@@ -126,7 +127,7 @@ export abstract class BaseQueueWorker {
         const itemsToProcess = items.slice(0, batchSize);
         // Remove processed items from original array
         items.splice(0, batchSize);
-        
+
         // Update the queue map with remaining items
         if (items.length === 0) {
           this.queue.delete(type);
@@ -162,6 +163,14 @@ export abstract class BaseQueueWorker {
       statusText: string;
     }
   ): void {
+    if (this.config.debug) {
+      console.error(
+        "[Logsicle] Error processing batch",
+        items.map((item) => item.data.payload),
+        error
+      );
+    }
+
     // Handle each failed item in the batch
     for (const item of items) {
       item.retries++;
@@ -171,7 +180,7 @@ export abstract class BaseQueueWorker {
         this.sendMessage("itemDropped", {
           type: item.data.type,
           reason: "bad-request",
-          id: item.id
+          id: item.id,
         } as ItemDroppedPayload);
         continue;
       }
@@ -186,16 +195,18 @@ export abstract class BaseQueueWorker {
       this.sendMessage("itemDropped", {
         type: item.data.type,
         reason: "max-retries",
-        id: item.id
+        id: item.id,
       } as ItemDroppedPayload);
     }
   }
 
   protected handleBatchFailed(
-    items: QueueItem[],
-    failedItems: BatchFailedItem[]
+    failedItems: (QueueItem & { code: number; message: string })[]
   ): void {
-    for (const [index, item] of items.entries()) {
+    if (this.config.debug) {
+      console.error("[Logsicle] Error processing batch", failedItems);
+    }
+    for (const [index, item] of failedItems.entries()) {
       item.retries++;
 
       const failedItem = failedItems[index];
@@ -205,7 +216,7 @@ export abstract class BaseQueueWorker {
         this.sendMessage("itemDropped", {
           type: item.data.type,
           reason: "bad-request",
-          id: item.id
+          id: item.id,
         } as ItemDroppedPayload);
         continue;
       }
@@ -219,7 +230,7 @@ export abstract class BaseQueueWorker {
       this.sendMessage("itemDropped", {
         type: item.data.type,
         reason: "max-retries",
-        id: item.id
+        id: item.id,
       } as ItemDroppedPayload);
     }
   }
@@ -228,9 +239,10 @@ export abstract class BaseQueueWorker {
     if (items.length === 0 || !this.fetch) return;
 
     if (items.length === 1) {
+      const payload = items[0].data.payload;
       const { error } = await this.fetch(`/${items[0].data.type}`, {
         method: "POST",
-        body: items[0].data.payload,
+        body: JSON.stringify(payload),
       });
 
       if (error) return this.handleApiError(items, error);
@@ -243,14 +255,33 @@ export abstract class BaseQueueWorker {
       `/${items[0].data.type}/batch`,
       {
         method: "POST",
-        body: items.map((item) => item.data.payload),
+        body: JSON.stringify({
+          project_id: this.config.projectId,
+          data: items.map((item) => ({
+            id: item.id,
+            data: item.data.payload,
+          })),
+        }),
       }
     );
 
     if (error) return this.handleApiError(items, error);
 
-    if (data.failed.length > 0) {
-      this.handleBatchFailed(items, data.failed);
+    if (data && data.failed !== null) {
+      const failedItems = items
+        .filter((item) => data.failed?.some((failed) => failed.id === item.id))
+        .map((item) => {
+          const failed = data.failed?.find((failed) => failed.id === item.id);
+          if (!failed) return null;
+
+          return {
+            ...item,
+            code: failed.code,
+            message: failed.message,
+          };
+        })
+        .filter((item) => item !== null);
+      this.handleBatchFailed(failedItems);
     }
 
     return;
@@ -265,4 +296,4 @@ export abstract class BaseQueueWorker {
     // Final flush before stopping
     this.flush();
   }
-} 
+}
